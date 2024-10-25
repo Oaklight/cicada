@@ -1,10 +1,62 @@
 import os
+from typing import Tuple
+
 import numpy as np
 import trimesh
-from plyfile import PlyElement, PlyData
+from plyfile import PlyData, PlyElement
 
 # TODO: should be adaptive to the size of the mesh
 POINTCLOUD_N_POINTS = 8096 * 3
+
+
+def calculate_centroid(mesh: trimesh.Trimesh) -> np.ndarray:
+    # calculate the centroid of the mesh (regardless of actual mass)
+    centroid = np.mean(mesh.vertices, axis=0)
+    return centroid
+
+
+def calculate_principal_axes(mesh) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Calculate the principal axes of the mesh and
+    return the descending ordered axes and eigenvalues in
+    """
+    # calculate the inertia tensor of the mesh
+    inertia_tensor = mesh.moment_inertia
+
+    # calculate the principal axes of the mesh
+    eigenvalues, eigenvectors = np.linalg.eig(inertia_tensor)
+    principal_axes = eigenvectors.T
+
+    # reorder the principal axes based on the eigenvalues
+    principal_axes = principal_axes[np.argsort(eigenvalues)[::-1]]
+    eigenvalues = eigenvalues[np.argsort(eigenvalues)[::-1]]
+
+    return (principal_axes, eigenvalues)
+
+
+def recenter_and_reaxis_mesh(
+    mesh: trimesh.Trimesh,
+) -> Tuple[trimesh.Trimesh, np.ndarray]:
+    # calculate the centroid and principal axes of the mesh
+    centroid = calculate_centroid(mesh)
+    principal_axes, _ = calculate_principal_axes(mesh)
+
+    # calculate translation matrix
+    translation_matrix = np.eye(4)
+    translation_matrix[:3, 3] = -centroid
+
+    # calculate rotation matrix
+    rotation_matrix = np.eye(4)
+    rotation_matrix[:3, :3] = principal_axes.T
+
+    # merge translation and rotation matrix
+    transformation_matrix = np.dot(rotation_matrix, translation_matrix)
+
+    # transform the mesh
+    transformed_mesh = mesh.copy()
+    transformed_mesh.apply_transform(transformation_matrix)
+
+    return transformed_mesh, transformation_matrix
 
 
 def create_mesh_from_step(step_path: str):
@@ -30,10 +82,18 @@ def step2obj(step_path: str, out_path: str):
 
     m = create_mesh_from_step(step_path)
 
+    # recenter and reaxis the mesh
+    m2, _ = recenter_and_reaxis_mesh(m)
+
+    # save the mesh to obj file
     outfile = os.path.join(
         out_path, os.path.basename(step_path).replace(".step", ".obj")
     )
     m.export(outfile, file_type="obj")
+    outfile2 = os.path.join(
+        out_path, os.path.basename(step_path).replace(".step", "_recentered.obj")
+    )
+    m2.export(outfile2, file_type="obj")
 
 
 def write_ply(points, filename, text=False):

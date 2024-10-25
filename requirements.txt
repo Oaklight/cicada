@@ -1,0 +1,2 @@
+trimesh==4.5.1
+plyfile==1.1

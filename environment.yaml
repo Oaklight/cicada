@@ -1,0 +1,11 @@
+name: codecad
+channels:
+  - conda-forge
+dependencies:
+  - pip=24.0
+  - python=3.11.0
+  - pip:
+      - cascadio==0.0.14
+      - gmsh==4.13.1
+      - plyfile==1.1
+      - trimesh==4.5.1

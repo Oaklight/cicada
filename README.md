@@ -2,20 +2,20 @@
 
 [中文](./README_zh.md) | [English](./README.md)
 
-## Repository structure
+## Repository Structure
 
-Repositories contain the following main directories and files:
+The repository contains the following main directories and files:
 
-* 'data': A data directory containing point cloud data and model data.
-* 'env_install.sh': Environment installation script.
-* 'requirements.txt': A list of dependent libraries for the project.
-* 'to_pointcloud': Contains a script to convert the 3D model into a point cloud.
-* 'MiniGPT-3D': Point cloud description component
-* 'tools': Contains helper scripts.
+* `data`: Data directory, containing point cloud data and model data.
+* `env_install.sh`: Environment installation script.
+* `requirements.txt`: List of project dependencies.
+* `to_pointcloud`: Contains scripts to convert 3D models to point clouds.
+* `MiniGPT-3D`: Point cloud description component.
+* `tools`: Contains auxiliary scripts.
 
-## How to set up the environment
+## How to Set Up the Environment
 
-### Download the codebase and subcomponents
+### Download the Code Repository and Subcomponents
 
 ```bash
 git clone https://github.com/Oaklight/codecad-rag.git
@@ -23,36 +23,50 @@ cd codecad-rag
 git submodule update --init --recursive
 ```
 
-### Install dependencies
+### Install Dependencies
 
-* Option 1: Install Conda Virtual Environment:
+* Option 1: Install conda virtual environment:
 
 ```bash
 conda env create -f environment.yml
 conda activate codecad
 ```
 
-* Option 2: Use pip and install the dependencies in the requirements.txt:
+* Option 2: Use pip to install dependencies from requirements.txt:
 
 ```bash
-# Create a virtual environment codecad
+# Create virtual environment codecad
 python -m venv codecad
-# Activate the virtual environment
+# Activate virtual environment
 source codecad/bin/activate
 # Install dependencies
 pip install -r requirements.txt
 ```
 
-### Set up other related environments
+### Set Up Other Related Environments
+
+* Set up MiniGPT-3D environment
 
 ```bash
+cd MiniGPT-3D
+
+# Prefer using mamba, if not installed, use conda
+mamba env create -f environment.yml
+# conda env create -f environment.yml
+
+conda activate minigpt_3d
 bash env_install.sh
+
+# Download pre-trained model weights to the MiniGPT-3D directory
+# Requires git-lfs and aria2c, if not installed, install via conda/mamba
+# mamba install -c conda-forge git-lfs aria2c
+../tools/hfd.sh YuanTang96/MiniGPT-3D --tool aria2c -x 16 --exclude config.json --exclude README.md --exclude .gitattributes
 ```
 
-## convert.py script
+## convert.py Script
 
-The 'convert.py' script is used to convert the 3D model into point cloud data. Here is a detailed description and usage of the script
+The `convert.py` script is used to convert 3D models to point cloud data. Below is a detailed description and usage of the script.
 
-### features
+### Features
 
-'convert.py' provides step-> obj (mesh) -> ply (point cloud) conversion. This component contains other supporting functions such as computation of centroids, inertial tensors, spindles, and so on.
+`convert.py` provides the conversion functionality from step -> obj (mesh) -> ply (point cloud). The component includes other supporting functions such as calculating the centroid, inertia tensor, principal axes, etc.

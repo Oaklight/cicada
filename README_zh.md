@@ -45,8 +45,22 @@ pip install -r requirements.txt
 
 ### 设置其他相关环境
 
+* 设置 MiniGPT-3D 环境
+
 ```bash
+cd MiniGPT-3D
+
+# 优先使用mamba，如果未安装，则使用conda
+mamba env create -f environment.yml
+# conda env create -f environment.yml
+
+conda activate minigpt_3d
 bash env_install.sh
+
+# 下载预训练模型权重，到MiniGPT-3D目录下
+# 需要git-lfs与aria2c，如果未安装，请通过conda/mamba安装
+# mamba install -c conda-forge git-lfs aria2c
+../tools/hfd.sh YuanTang96/MiniGPT-3D --tool aria2c -x 16 --exclude config.json --exclude README.md --exclude .gitattributes
 ```
 
 ## convert.py脚本

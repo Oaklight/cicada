@@ -8,7 +8,7 @@ from plyfile import PlyData, PlyElement
 
 # TODO: should be adaptive to the size of the mesh
 POINTCLOUD_N_POINTS = 8096 * 3
-DEFAULT_RGB = (0, 191, 255)
+DEFAULT_RGB = (88, 88, 88)
 LOG_LEVEL = "DEBUG"
 
 

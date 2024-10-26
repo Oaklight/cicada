@@ -63,10 +63,36 @@ bash env_install.sh
 ../tools/hfd.sh YuanTang96/MiniGPT-3D --tool aria2c -x 16 --exclude config.json --exclude README.md --exclude .gitattributes
 ```
 
-## convert.py脚本
+## 具体组件
 
-`convert.py` 脚本用于将3D模型转换为点云数据。以下是该脚本的详细说明和用法
+### to_pointcloud/convert.py
 
-### 功能
+`convert.py` 脚本用于将3D模型转换为点云数据。提供了step -> obj (mesh) -> ply (point cloud) 的转换功能。该组件包含其他支持函数等。该脚本可作为独立脚本使用，也可以作为其他脚本的一部分。
 
-`convert.py` 提供了step -> obj (mesh) -> ply (point cloud) 的转换功能。该组件包含其他支持函数，如计算质心、惯性张量、主轴等。
+```bash
+usage: convert.py [-h] (--step_file STEP_FILE | --obj_file OBJ_FILE)
+
+options:
+  -h, --help            show this help message and exit
+  --step_file STEP_FILE
+  --obj_file OBJ_FILE
+```
+
+### to_pointcloud/snapshots.py
+
+`snapshots.py` 脚本用于生成3D模型的预览快照。支持交互式预览和保存快照。该脚本可作为独立脚本使用，也可以作为其他脚本的一部分。在交互模式下，用户可通过拖动鼠标来旋转模型；在保存模式下，用户可指定快照的名称和保存路径，每一份mesh会保存14个视角的快照。
+
+```bash
+usage: snapshots.py [-h] (--obj_file OBJ_FILE | --step_file STEP_FILE) [-o OUT_PATH] [-r RESOLUTION RESOLUTION]
+                    [-d DIRECTION] (-p | -s)
+
+options:
+  -h, --help            show this help message and exit
+  --obj_file OBJ_FILE
+  --step_file STEP_FILE
+  -o OUT_PATH, --out_path OUT_PATH
+  -r RESOLUTION RESOLUTION, --resolution RESOLUTION RESOLUTION
+  -d DIRECTION, --direction DIRECTION
+  -p, --preview
+  -s, --snapshots
+```

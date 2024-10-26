@@ -63,10 +63,36 @@ bash env_install.sh
 ../tools/hfd.sh YuanTang96/MiniGPT-3D --tool aria2c -x 16 --exclude config.json --exclude README.md --exclude .gitattributes
 ```
 
-## convert.py Script
+## Specific Components
 
-The `convert.py` script is used to convert 3D models to point cloud data. Below is a detailed description and usage of the script.
+### to_pointcloud/convert.py
 
-### Features
+`convert.py` script is used to convert 3D models to point cloud data. It provides the conversion functions from step -> obj (mesh) -> ply (point cloud). The component includes other supporting functions. The script can be used as a standalone script or as part of another script.
 
-`convert.py` provides the conversion functionality from step -> obj (mesh) -> ply (point cloud). The component includes other supporting functions such as calculating the centroid, inertia tensor, principal axes, etc.
+```bash
+usage: convert.py [-h] (--step_file STEP_FILE | --obj_file OBJ_FILE)
+
+options:
+  -h, --help            show this help message and exit
+  --step_file STEP_FILE
+  --obj_file OBJ_FILE
+```
+
+### to_pointcloud/snapshots.py
+
+`snapshots.py` script is used to generate preview snapshots of 3D models. It supports interactive preview and snapshot saving. The script can be used as a standalone script or as part of another script. In interactive mode, users can rotate the model by dragging the mouse; in save mode, users can specify the snapshot name and save path, with each mesh saving snapshots from 14 different angles.
+
+```bash
+usage: snapshots.py [-h] (--obj_file OBJ_FILE | --step_file STEP_FILE) [-o OUT_PATH] [-r RESOLUTION RESOLUTION]
+                    [-d DIRECTION] (-p | -s)
+
+options:
+  -h, --help            show this help message and exit
+  --obj_file OBJ_FILE
+  --step_file STEP_FILE
+  -o OUT_PATH, --out_path OUT_PATH
+  -r RESOLUTION RESOLUTION, --resolution RESOLUTION RESOLUTION
+  -d DIRECTION, --direction DIRECTION
+  -p, --preview
+  -s, --snapshots
+```

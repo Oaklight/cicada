@@ -1,3 +1,4 @@
+import argparse
 import logging
 import os
 from typing import Tuple
@@ -61,7 +62,7 @@ def step2mesh(step_path: str):
     return mesh
 
 
-def step2obj(step_path: str, out_path: str):
+def step2obj(step_path: str, out_path: str) -> str:
 
     m = step2mesh(step_path)
 
@@ -69,11 +70,13 @@ def step2obj(step_path: str, out_path: str):
     m, _ = recenter_and_reaxis_mesh(m)
 
     # save the mesh to obj file
-    outfile = os.path.join(
+    obj_path = os.path.join(
         out_path, os.path.basename(step_path).replace(".step", ".obj")
     )
-    m.export(outfile, file_type="obj")
-    logger.info(f"[step2obj] mesh saved to {outfile}")
+    m.export(obj_path, file_type="obj")
+    logger.info(f"[step2obj] mesh saved to {obj_path}")
+
+    return obj_path
 
 
 def write_ply(points, filename, text=False, default_rgb=DEFAULT_RGB):
@@ -106,25 +109,25 @@ def write_ply(points, filename, text=False, default_rgb=DEFAULT_RGB):
     logger.debug(f"[write_ply] saved to {filename}, with default rgb is {default_rgb}")
 
 
-def obj2pc(obj_path: str, out_path: str):
+def obj2pc(obj_path: str, out_path: str) -> str:
     # obj_path, out_path
     m = trimesh.load_mesh(obj_path)
     logger.debug(
         f"[obj2pc] mesh loaded from {obj_path} with {m.vertices.shape[0]} vertices"
     )
 
-    path = os.path.join(out_path, os.path.basename(obj_path).replace(".obj", ".ply"))
+    pc_path = os.path.join(out_path, os.path.basename(obj_path).replace(".obj", ".ply"))
     pc = trimesh.PointCloud(m.sample(POINTCLOUD_N_POINTS))
     logger.debug(f"[obj2pc] convert to pointcloud, with {pc.vertices.shape[0]} points")
 
     pc = pc.vertices
-    write_ply(pc, path)
-    logger.info(f"[obj2pc] pointcloud saved to {path}")
+    write_ply(pc, pc_path)
+    logger.info(f"[obj2pc] pointcloud saved to {pc_path}")
+
+    return pc_path
 
 
 if __name__ == "__main__":
-    # Example usage
-    import argparse
 
     parser = argparse.ArgumentParser()
     # either of these two is required, but exclusive

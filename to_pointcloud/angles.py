@@ -22,9 +22,10 @@ camera_orientation = {  # looking to
     "out_lower_left": np.array([-0.5, 1.5, 0]),  # looking to out lower left
     "out_upper_left": np.array([0.5, 1.5, 0]),  # looking to out upper left
 }
-camera_orientation = {
-    key: value * np.pi / 2 for key, value in camera_orientation.items()
-}
+
+# convert to radians
+camera_orientation = {k: v * np.pi / 2 for k, v in camera_orientation.items()}
+
 looking_from = {
     "near": camera_orientation["in"],
     "far": camera_orientation["out"],
@@ -34,7 +35,7 @@ looking_from = {
     "bottom": camera_orientation["up"],
     # bounding box corners
     "near_lower_left": camera_orientation[
-        "in_upper_left"
+        "in_upper_right"
     ],  # looking from near lower left, to in upper right
     "near_upper_left": camera_orientation[
         "in_lower_right"
@@ -70,3 +71,20 @@ looking_from["back_lower_left"] = looking_from["far_lower_left"]
 looking_from["back_upper_left"] = looking_from["far_upper_left"]
 looking_from["back_upper_right"] = looking_from["far_upper_right"]
 looking_from["back_lower_right"] = looking_from["far_lower_right"]
+
+primary_views = [
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "bottom",
+    "front_lower_left",
+    "front_upper_left",
+    "front_upper_right",
+    "front_lower_right",
+    "back_lower_left",
+    "back_upper_left",
+    "back_upper_right",
+    "back_lower_right",
+]

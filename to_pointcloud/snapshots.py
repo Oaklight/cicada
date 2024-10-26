@@ -1,16 +1,17 @@
+import argparse
 import logging
-from multiprocessing import parent_process
-import os, sys
-
+import os
+import sys
+from typing import List, Optional
 
 import numpy as np
-import pyrender
 import trimesh
+from tqdm import tqdm
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
-from to_pointcloud import angles
+from to_pointcloud import angles, convert
 
 LOG_LEVEL = "DEBUG"
 
@@ -21,7 +22,7 @@ logger.addHandler(logging.StreamHandler())
 
 def get_adaptive_camera_distance(
     mesh: trimesh.Trimesh,
-    scale_factor=200,
+    scale_factor=2,
 ) -> float:
     """Calculates a suitable camera distance based on the mesh's bounding box."""
     bounding_box = mesh.bounding_box.extents  # Get dimensions of the bounding box
@@ -54,10 +55,6 @@ def preview_scene_interactive(
     light = trimesh.scene.lighting.autolight(scene)
     scene.add_geometry(light)
 
-    # Convert the camera orientation to Euler angles
-    # r = scipy.spatial.transform.Rotation.from_matrix(camera_orientation)
-    # euler_angles = r.as_euler("xyz", degrees=False)
-
     # Set the camera parameters using set_camera
     scene.set_camera(
         angles=camera_orientation,
@@ -75,25 +72,94 @@ def preview_scene_interactive(
     viewer = scene.show()
 
 
+def capture_snapshots(
+    mesh: trimesh.Trimesh,
+    camera_orientations: np.ndarray,
+    camera_distances: List[float],
+    out_path: str,
+    names: Optional[List[str]] = None,
+    resolution=[1920, 1080],
+):
+    """Creates an interactive scene preview using trimesh.SceneViewer."""
+    if not os.path.exists(out_path):
+        os.makedirs(out_path)
 
-# Usage Example
+    # Create a trimesh Scene for interactive viewing
+    scene = trimesh.Scene()
+    scene.add_geometry(mesh)
+
+    # Add directional light above the object
+    light = trimesh.scene.lighting.autolight(scene)
+    scene.add_geometry(light)
+
+    pbar = tqdm(total=len(camera_orientations))
+    for i, cocd in enumerate(zip(camera_orientations, camera_distances)):
+        # Set the camera parameters using set_camera
+        co, cd = cocd
+        scene.set_camera(
+            angles=co,
+            distance=cd,
+            center=mesh.centroid,
+            fov=(60, 45),  # Field of view in degrees (horizontal, vertical)
+        )
+
+        # save image, 720p
+        png = scene.save_image(resolution=resolution, visible=False)
+
+        if names is not None:
+            f = open(os.path.join(out_path, f"{names[i]}.png"), "wb")
+        else:
+            f = open(os.path.join(out_path, f"snapshot_{i}.png"), "wb")
+
+        f.write(png)
+        f.close()
+        pbar.update(1)
+
 
 if __name__ == "__main__":
-    import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--step_file", type=str, default="../data/knife.step")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--obj_file", type=str)
+    group.add_argument("--step_file", type=str)
+
+    parser.add_argument("-o", "--out_path", type=str, default="../data/snapshots")
+    parser.add_argument("-r", "--resolution", type=int, nargs=2, default=[1920, 1080])
     parser.add_argument("-d", "--direction", type=str, default="front")
+
+    group2 = parser.add_mutually_exclusive_group(required=True)
+    group2.add_argument("-p", "--preview", action="store_true", default=False)
+    group2.add_argument("-s", "--snapshots", action="store_true", default=False)
+
     args = parser.parse_args()
 
-    obj_path = os.path.dirname(args.step_file)
-    obj_file = os.path.join(
-        obj_path, os.path.basename(args.step_file).replace(".step", ".obj")
-    )
+    if args.step_file:
+        step_file = args.step_file
+        obj_path = os.path.dirname(step_file)
+        obj_file = os.path.join(
+            obj_path, os.path.basename(step_file).replace(".step", ".obj")
+        )
+
+        obj_file = convert.step2obj(step_file, obj_path)
+    elif args.obj_file:
+        obj_file = args.obj_file
+
+    obj_name = os.path.basename(obj_file).replace(".obj", "")
 
     mesh = trimesh.load_mesh(obj_file)
-    pic_path = os.path.join(obj_path, "snapshots")
+    pic_path = os.path.join(args.out_path, obj_name)
 
-    camera_pose = get_camera_pose(args.direction)
-    camera_distance = get_adaptive_camera_distance(mesh, 2)
-    preview_scene_interactive(mesh, camera_pose, camera_distance)
+    if args.snapshots:
+        directions = angles.primary_views
+        camera_poses = [get_camera_pose(direction) for direction in directions]
+        camera_distances = [get_adaptive_camera_distance(mesh, 1.5)] * len(camera_poses)
+        names = [f"snapshot_{direction}" for direction in directions]
+
+        capture_snapshots(
+            mesh, camera_poses, camera_distances, pic_path, names, args.resolution
+        )
+
+    elif args.preview:
+        camera_pose = get_camera_pose(args.direction)
+        camera_distance = get_adaptive_camera_distance(mesh, 1.5)
+        preview_scene_interactive(mesh, camera_pose, camera_distance)

@@ -9,7 +9,7 @@
 * `data`：数据目录，包含点云数据和模型数据。
 * `env_install.sh`：环境安装脚本。
 * `requirements.txt`：项目依赖库列表。
-* `to_pointcloud`：包含将3D模型转换为点云的脚本。
+* `geometry_pipeline`：包含将3D模型转换为点云的脚本。
 * `MiniGPT-3D`：点云描述组件
 * `tools`：包含辅助脚本。
 
@@ -65,7 +65,7 @@ bash env_install.sh
 
 ## 具体组件
 
-### to_pointcloud/convert.py
+### geometry_pipeline/convert.py
 
 `convert.py` 脚本用于将3D模型转换为点云数据。提供了step -> obj (mesh) -> ply (point cloud) 的转换功能。该组件包含其他支持函数等。该脚本可作为独立脚本使用，也可以作为其他脚本的一部分。
 
@@ -78,7 +78,7 @@ options:
   --obj_file OBJ_FILE
 ```
 
-### to_pointcloud/snapshots.py
+### geometry_pipeline/snapshots.py
 
 `snapshots.py` 脚本用于生成3D模型的预览快照。支持交互式预览和保存快照。该脚本可作为独立脚本使用，也可以作为其他脚本的一部分。在交互模式下，用户可通过拖动鼠标来旋转模型；在保存模式下，用户可指定快照的名称和保存路径，每一份mesh会保存14个视角的快照。
 

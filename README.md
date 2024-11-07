@@ -9,7 +9,7 @@ The repository contains the following main directories and files:
 * `data`: Data directory, containing point cloud data and model data.
 * `env_install.sh`: Environment installation script.
 * `requirements.txt`: List of project dependencies.
-* `to_pointcloud`: Contains scripts to convert 3D models to point clouds.
+* `geometry_pipeline`: Contains scripts to convert 3D models to point clouds.
 * `MiniGPT-3D`: Point cloud description component.
 * `tools`: Contains auxiliary scripts.
 
@@ -65,7 +65,7 @@ bash env_install.sh
 
 ## Specific Components
 
-### to_pointcloud/convert.py
+### geometry_pipeline/convert.py
 
 `convert.py` script is used to convert 3D models to point cloud data. It provides the conversion functions from step -> obj (mesh) -> ply (point cloud). The component includes other supporting functions. The script can be used as a standalone script or as part of another script.
 
@@ -78,7 +78,7 @@ options:
   --obj_file OBJ_FILE
 ```
 
-### to_pointcloud/snapshots.py
+### geometry_pipeline/snapshots.py
 
 `snapshots.py` script is used to generate preview snapshots of 3D models. It supports interactive preview and snapshot saving. The script can be used as a standalone script or as part of another script. In interactive mode, users can rotate the model by dragging the mouse; in save mode, users can specify the snapshot name and save path, with each mesh saving snapshots from 14 different angles.
 

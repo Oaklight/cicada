@@ -13,7 +13,7 @@ from tqdm import tqdm
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
-from to_pointcloud import angles, convert
+from geometry_pipeline import angles, convert
 
 LOG_LEVEL = "DEBUG"
 

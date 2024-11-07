@@ -12,11 +12,10 @@ class VisionLanguageModel:
     def __init__(
         self,
         api_key,
-        api_base_url=None,
-        model_name="gpt-4-vision-preview",
-        org_id=None,
-        prompt_template=None,
-        system_prompt_template=None,
+        api_base_url,
+        model_name,
+        org_id,
+        prompt_templates,
         batch_mode=False,
         **model_kwargs,
     ):
@@ -24,13 +23,16 @@ class VisionLanguageModel:
         self.api_base_url = api_base_url
         self.model_name = model_name
         self.org_id = org_id
-        self.prompt_template = prompt_template
-        self.system_prompt_template = system_prompt_template
+
         self.batch_mode = batch_mode
         self.model_kwargs = model_kwargs
+
         self.client = openai.OpenAI(
             api_key=self.api_key, base_url=self.api_base_url, organization=self.org_id
         )
+
+        self.user_prompt_template = prompt_templates["user_prompt_template"]
+        self.system_prompt_template = prompt_templates["system_prompt_template"]
 
     def generate_descriptions(self, objects):
         """
@@ -172,7 +174,7 @@ class VisionLanguageModel:
             ]
             if len(each_pre_description):
                 content.append({"type": "text", "text": pre_description})
-            content.append({"type": "text", "text": self.prompt_template})
+            content.append({"type": "text", "text": self.user_prompt_template})
         else:
             # multiple pre description mode
             content = []
@@ -189,7 +191,7 @@ class VisionLanguageModel:
                 )
                 if len(each_pre_description):
                     content.append({"type": "text", "text": each_pre_description})
-            content.append({"type": "text", "text": self.prompt_template})
+            content.append({"type": "text", "text": self.user_prompt_template})
 
         return [
             {"role": "system", "content": self.system_prompt_template},
@@ -210,12 +212,14 @@ if __name__ == "__main__":
     with open("images.yaml", "r") as file:
         image_metadata = yaml.safe_load(file)
 
+    # Load prompt templates from prompts.yaml
+    with open("prompts.yaml", "r") as file:
+        prompt_templates = yaml.safe_load(file)
+
     api_key = config["api_key"]
     api_base_url = config.get("api_base_url")
     model_name = config.get("model_name", "gpt-4-vision-preview")
     org_id = config.get("org_id")
-    prompt_template = config.get("prompt", {}).get("prompt_template")
-    system_prompt_template = config.get("prompt", {}).get("system_prompt_template")
     batch_mode = config.get("batch_mode", False)
     model_kwargs = config.get("model_kwargs", {})
 
@@ -224,8 +228,7 @@ if __name__ == "__main__":
         api_base_url,
         model_name,
         org_id,
-        prompt_template,
-        system_prompt_template,
+        prompt_templates,
         batch_mode=batch_mode,
         **model_kwargs,
     )

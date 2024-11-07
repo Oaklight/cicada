@@ -139,7 +139,7 @@ class VisionLanguageModel:
             image = image.convert("RGB")
 
         buffered = io.BytesIO()
-        image.save(buffered, format="JPEG")
+        image.save(buffered, format="PNG")
         return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
     def _prepare_prompt(
@@ -166,7 +166,7 @@ class VisionLanguageModel:
             content = [
                 {
                     "type": "image_url",
-                    "image_url": {"url": f"data:image/jpeg;base64,{each_image_data}"},
+                    "image_url": {"url": f"data:image/png;base64,{each_image_data}"},
                 }
                 for each_image_data in image_data
             ]
@@ -183,7 +183,7 @@ class VisionLanguageModel:
                     {
                         "type": "image_url",
                         "image_url": {
-                            "url": f"data:image/jpeg;base64,{each_image_data}"
+                            "url": f"data:image/png;base64,{each_image_data}"
                         },
                     }
                 )

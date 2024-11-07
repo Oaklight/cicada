@@ -1,0 +1,6 @@
+api_key: "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"
+# api_base_url: "https://your-custom-api-base-url.com" # Optional custom API base URL
+model_name: "gpt-4o" # Replace with your model name
+org_id: "org-ndr3EdurFsD3Rk6j5MksOgAH" # Optional organization ID
+prompt_template: "Describe the following image in detail from a manufacturing perspective. Focus on unique features and dimensions that would be useful for CAD recreation: {pre_description}"
+system_prompt_template: "You are an expert in manufacturing and CAD design. Provide detailed descriptions that are useful for recreating objects using CAD software."

@@ -3,3 +3,4 @@ gmsh==4.13.1
 plyfile==1.1
 trimesh==4.5.1
 pyrender==0.1.45
+openai==1.54.3

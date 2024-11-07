@@ -1,4 +1,5 @@
 import argparse
+import io
 import logging
 import os
 import sys
@@ -6,6 +7,7 @@ from typing import List, Optional
 
 import numpy as np
 import trimesh
+from PIL import Image, ImageEnhance
 from tqdm import tqdm
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -22,7 +24,7 @@ logger.addHandler(logging.StreamHandler())
 
 def get_adaptive_camera_distance(
     mesh: trimesh.Trimesh,
-    scale_factor=2,
+    scale_factor=3,
 ) -> float:
     """Calculates a suitable camera distance based on the mesh's bounding box."""
     bounding_box = mesh.bounding_box.extents  # Get dimensions of the bounding box
@@ -60,7 +62,7 @@ def preview_scene_interactive(
         angles=camera_orientation,
         distance=camera_distance,
         center=mesh.centroid,
-        fov=(60, 45),  # Field of view in degrees (horizontal, vertical)
+        fov=(45, 45),  # Field of view in degrees (horizontal, vertical)
     )
 
     logger.debug(f"Camera pose: \n{camera_pose}")
@@ -72,13 +74,25 @@ def preview_scene_interactive(
     viewer = scene.show()
 
 
+def rgba_to_rgb(rgba_image):
+    """Convert an RGBA image to RGB."""
+    return rgba_image.convert("RGB")
+
+
+def enhance_color_contrast(image):
+    """Enhance the color contrast of the image."""
+    enhancer = ImageEnhance.Contrast(image)
+    enhanced_image = enhancer.enhance(1.3)  # Increase contrast by a factor of 2
+    return enhanced_image
+
+
 def capture_snapshots(
     mesh: trimesh.Trimesh,
     camera_orientations: np.ndarray,
     camera_distances: List[float],
     out_path: str,
     names: Optional[List[str]] = None,
-    resolution=[1920, 1080],
+    resolution=[512, 512],
 ):
     """Creates an interactive scene preview using trimesh.SceneViewer."""
     if not os.path.exists(out_path):
@@ -88,7 +102,7 @@ def capture_snapshots(
     scene = trimesh.Scene()
     scene.add_geometry(mesh)
 
-    # Add directional light above the object
+    # Use autolighting
     light = trimesh.scene.lighting.autolight(scene)
     scene.add_geometry(light)
 
@@ -100,19 +114,24 @@ def capture_snapshots(
             angles=co,
             distance=cd,
             center=mesh.centroid,
-            fov=(60, 45),  # Field of view in degrees (horizontal, vertical)
+            fov=(45, 45),  # Field of view in degrees (horizontal, vertical)
         )
 
         # save image, 720p
         png = scene.save_image(resolution=resolution, visible=False)
 
-        if names is not None:
-            f = open(os.path.join(out_path, f"{names[i]}.png"), "wb")
-        else:
-            f = open(os.path.join(out_path, f"snapshot_{i}.png"), "wb")
+        # Convert RGBA to RGB
+        img = Image.open(io.BytesIO(png))
+        img_rgb = rgba_to_rgb(img)
 
-        f.write(png)
-        f.close()
+        # Enhance color contrast
+        img_enhanced = enhance_color_contrast(img_rgb)
+
+        if names is not None:
+            img_enhanced.save(os.path.join(out_path, f"{names[i]}.png"))
+        else:
+            img_enhanced.save(os.path.join(out_path, f"snapshot_{i}.png"))
+
         pbar.update(1)
 
 
@@ -124,7 +143,7 @@ if __name__ == "__main__":
     group.add_argument("--step_file", type=str)
 
     parser.add_argument("-o", "--out_path", type=str, default="../data/snapshots")
-    parser.add_argument("-r", "--resolution", type=int, nargs=2, default=[1920, 1080])
+    parser.add_argument("-r", "--resolution", type=int, nargs=2, default=[512, 512])
     parser.add_argument("-d", "--direction", type=str, default="front")
 
     group2 = parser.add_mutually_exclusive_group(required=True)

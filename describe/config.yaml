@@ -1,23 +1,29 @@
-## OpenAI API Key
-# api_key: "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"
-# # api_base_url: "https://your-custom-api-base-url.com" # Optional custom API base URL
-# model_name: "gpt-4o" # Replace with your model name
-# org_id: "org-ndr3EdurFsD3Rk6j5MksOgAH" # Optional organization ID
-# batch_mode: true
-# # model_kwargs: # Optional additional model parameters
+describe-vlm:
+  ## OpenAI API Key
+  api_key: "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"
+  model_name: "gpt-4o" # Replace with your model name
+  org_id: "org-ndr3EdurFsD3Rk6j5MksOgAH" # Optional organization ID
+  batch_mode: true
+  # model_kwargs: # Optional additional model parameters
 
-## SiliconFlow API Key
-api_key: "sk-fyuobacquborwcqjymupyezcrczeqcbwomplwurzmkuojsbn"
-api_base_url: "https://api.siliconflow.cn/v1" # Optional custom API base URL
-model_name: "Qwen/Qwen2-VL-72B-Instruct" # Replace with your model name
-# org_id: "org-ndr3EdurFsD3Rk6j5MksOgAH" # Optional organization ID
-batch_mode: true
-# model_k
+  # ## SiliconFlow API Key
+  # api_key: "sk-fyuobacquborwcqjymupyezcrczeqcbwomplwurzmkuojsbn"
+  # api_base_url: "https://api.siliconflow.cn/v1" # Optional custom API base URL
+  # model_name: "Qwen/Qwen2-VL-72B-Instruct" # Replace with your model name
+  # # org_id: "org-ndr3EdurFsD3Rk6j5MksOgAH" # Optional organization ID
+  # batch_mode: true
+  # # model_k
 
-# ## 01.AI API Key
-# api_key: "sk-dowBZNfa1fL6E6hsEb7cEaEe19514038B1Ed873903412f71"
-# api_base_url: "https://oneapi.service.oaklight.cn/v1" # Optional custom API base URL
-# model_name: "yi-vision" # Replace with your model name
-# # org_id: "org-ndr3EdurFsD3Rk6j5MksOgAH" # Optional organization ID
-# batch_mode: true
-# # model_k
+assist-llm:
+  ## 01.AI API Key
+  api_key: "sk-dowBZNfa1fL6E6hsEb7cEaEe19514038B1Ed873903412f71"
+  api_base_url: "https://oneapi.service.oaklight.cn/v1" # Optional custom API base URL
+  model_name: "yi-lightning" # Replace with your model name
+  # model_k
+
+codecad-llm:
+  api_key: "your-api-key"
+  api_base_url: "https://api.openai.com/v1"
+  model_name: "gpt-4"
+  org_id: "your-org-id"
+  model_kwargs: {}

@@ -1,11 +1,19 @@
+import argparse
 import base64
 import io
+import json
+import os
+import sys
 from typing import List, Union
 
 import openai
 import yaml
 from PIL import Image
 from tqdm import tqdm
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
+from llm import LLM
 
 
 class VisionLanguageModel:
@@ -31,10 +39,10 @@ class VisionLanguageModel:
             api_key=self.api_key, base_url=self.api_base_url, organization=self.org_id
         )
 
-        self.user_prompt_template = prompt_templates["user_prompt_template"]
-        self.system_prompt_template = prompt_templates["system_prompt_template"]
+        self.user_prompt_template = prompt_templates.get("user_prompt_template", "")
+        self.system_prompt_template = prompt_templates.get("system_prompt_template", "")
 
-    def generate_descriptions(self, objects):
+    def generate_descriptions(self, objects: List[dict]):
         """
         Generate descriptions for the given objects and their images.
 
@@ -47,7 +55,10 @@ class VisionLanguageModel:
             object_description = obj.get("object_description", "")
 
             # load images in batch
-            image_paths = [img["image_path"] for img in obj["images"]]
+            image_paths = [
+                os.path.join(obj["base_path"], img["image_path"])
+                for img in obj["images"]
+            ]
             pre_descriptions = [img.get("pre_description", "") for img in obj["images"]]
             # Open the images from the local file paths
             images = [Image.open(image_path) for image_path in image_paths]
@@ -202,37 +213,113 @@ class VisionLanguageModel:
         ]
 
 
-# Example usage
-if __name__ == "__main__":
-    # Load configuration from config.yaml
-    with open("config.yaml", "r") as file:
-        config = yaml.safe_load(file)
+def load_config(config_path: str) -> dict:
+    with open(config_path, "r") as file:
+        return yaml.safe_load(file)
 
-    # Load image metadata from images.yaml
-    with open("images.yaml", "r") as file:
-        image_metadata = yaml.safe_load(file)
 
-    # Load prompt templates from prompts.yaml
-    with open("prompts.yaml", "r") as file:
-        prompt_templates = yaml.safe_load(file)
+def load_prompts(prompts_path: str, which_model: str = "vlm") -> dict:
+    prompts_all = load_config(prompts_path)
+    return prompts_all[which_model]
 
-    api_key = config["api_key"]
-    api_base_url = config.get("api_base_url")
-    model_name = config.get("model_name", "gpt-4-vision-preview")
-    org_id = config.get("org_id")
-    batch_mode = config.get("batch_mode", False)
-    model_kwargs = config.get("model_kwargs", {})
 
-    model = VisionLanguageModel(
-        api_key,
-        api_base_url,
-        model_name,
-        org_id,
-        prompt_templates,
-        batch_mode=batch_mode,
-        **model_kwargs,
+def load_image_metadata(task_path: str) -> List[dict]:
+    if os.path.isdir(task_path):
+        directory = task_path
+        image_metadata = {
+            "object_id": os.path.basename(directory),
+            "object_description": "",
+            "base_path": directory,
+            "images": [],
+        }
+        for file in os.listdir(directory):
+            if file.lower().endswith((".png", ".jpg", ".jpeg")):
+                pre_description = (
+                    file.split(".")[0].replace("-", " ").replace("_", " ").strip()
+                )
+                image_metadata["images"].append(
+                    {"image_path": file, "pre_description": pre_description}
+                )
+        return [image_metadata]
+    else:
+        return load_config(task_path)
+
+
+def save_descriptions(directories: List[str], descriptions: List[dict]):
+    for directory, desc in zip(directories, descriptions):
+        metadata = {"object_description": [], "image_descriptions": []}
+
+        metadata_path = os.path.join(directory, "metadata.json")
+        if os.path.exists(metadata_path):
+            with open(metadata_path, "r") as file:
+                metadata = json.load(file)
+
+        metadata["object_description"].append(desc.get("object_description", ""))
+        metadata["image_descriptions"].append(desc.get("generated_description", ""))
+
+        with open(metadata_path, "w") as file:
+            json.dump(metadata, file, indent=4)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Vision Language Model")
+    parser.add_argument(
+        "--config", default="config.yaml", help="Path to the configuration YAML file"
     )
-    descriptions = model.generate_descriptions(image_metadata["objects"])
+    parser.add_argument(
+        "--prompts", default="prompts.yaml", help="Path to the prompts YAML file"
+    )
+    parser.add_argument(
+        "--task",
+        default="images.yaml",
+        help="Path to the task YAML file or directory containing images from a single object",
+    )
+    parser.add_argument(
+        "--save",
+        action="store_true",
+        help="Save generated descriptions to metadata.yaml",
+    )
+    args = parser.parse_args()
+
+    config = load_config(args.config)
+    image_metadata = load_image_metadata(args.task)
+
+    describe_vlm_config = config["describe-vlm"]
+    assist_llm_config = config["assist-llm"]
+
+    vlm = VisionLanguageModel(
+        describe_vlm_config["api_key"],
+        describe_vlm_config.get("api_base_url"),
+        describe_vlm_config.get("model_name", "gpt-4o"),
+        describe_vlm_config.get("org_id"),
+        load_prompts(args.prompts, "vlm"),
+        batch_mode=describe_vlm_config.get("batch_mode", False),
+        **describe_vlm_config.get("model_kwargs", {}),
+    )
+    llm = LLM(
+        assist_llm_config["api_key"],
+        assist_llm_config.get("api_base_url"),
+        assist_llm_config.get("model_name", "gpt-4"),
+        assist_llm_config.get("org_id"),
+        load_prompts(args.prompts, "llm"),
+        **assist_llm_config.get("model_kwargs", {}),
+    )
+    descriptions = vlm.generate_descriptions(image_metadata)
+
+    # extract more percise object descriptions
+    for desc in descriptions:
+        if "generated_description" in desc:
+            desc["object_description"] = llm.extract_object_description(
+                desc["generated_description"]
+            )
+
+    if args.save:
+        # get base_paths from image_metadata
+        base_paths = [image_metadata["base_path"] for image_metadata in image_metadata]
+        assert len(base_paths) == len(
+            descriptions
+        ), "Number of base paths and descriptions do not match"
+        save_descriptions(base_paths, descriptions)
 
     for desc in descriptions:
         print(f"Object ID: {desc['object_id']}")
@@ -244,3 +331,8 @@ if __name__ == "__main__":
         else:
             print(f"Error: {desc['error']}")
         print("-" * 40)
+
+
+# Example usage
+if __name__ == "__main__":
+    main()

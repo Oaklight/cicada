@@ -24,7 +24,7 @@ $(PGVECTORSCALE_DEB):
 # Build the Docker image
 .PHONY: build
 build: download
-	docker build -t vectorsearch .
+	docker build -t oaklight/vectorsearch .
 
 # Clean up the deb files
 .PHONY: clean

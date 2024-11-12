@@ -25,13 +25,14 @@ COPY pgvectorscale.deb /tmp/pgvectorscale.deb
 RUN dpkg -i /tmp/pgvectorscale.deb || apt-get install -fy && \
     rm /tmp/pgvectorscale.deb
 
+######################
+# Cleanup
+######################
+
 # Clean up the .deb package and APT cache
 RUN apt-get autoremove --purge && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-# Copy pg_hba.conf files to the container
-COPY pg_hba.conf /var/lib/postgresql/data/pg_hba.conf
 
 # The postgresql.conf.sample file is used as a template for the postgresql.conf file, which
 # does not exist until the first time the container is started. By adding our settings to the

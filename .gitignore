@@ -161,4 +161,6 @@ cython_debug/
 #  option (not recommended) you can uncomment the following to ignore the entire idea folder.
 #.idea/
 .vscode
-./MiniGPT-3D/params_weight
+MiniGPT-3D/params_weight
+retrieval/docker/*.deb
+retrieval/docker/compose.yaml

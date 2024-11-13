@@ -1,5 +1,4 @@
 describe-vlm:
-  batch_mode: true
   ## OpenAI API Key
   api_key: "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"
   model_name: "gpt-4o" # Replace with your model name

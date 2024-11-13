@@ -12,8 +12,8 @@ from tqdm import tqdm
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
-from llm import LLM
 from desc_utils import load_config, load_prompts
+from llm import LLM
 
 
 class VisionLanguageModel:
@@ -24,7 +24,6 @@ class VisionLanguageModel:
         model_name,
         org_id,
         prompt_templates,
-        batch_mode=False,
         **model_kwargs,
     ):
         self.api_key = api_key
@@ -32,7 +31,6 @@ class VisionLanguageModel:
         self.model_name = model_name
         self.org_id = org_id
 
-        self.batch_mode = batch_mode
         self.model_kwargs = model_kwargs
 
         self.client = openai.OpenAI(
@@ -42,14 +40,14 @@ class VisionLanguageModel:
         self.user_prompt_template = prompt_templates.get("user_prompt_template", "")
         self.system_prompt_template = prompt_templates.get("system_prompt_template", "")
 
-    def generate_descriptions(self, objects: List[dict]):
+    def generate_descriptions(self, objects: List[dict], save=True):
         """
         Generate descriptions for the given objects and their images.
 
         :param objects: List of objects with their metadata.
         :return: List of generated descriptions of the images.
         """
-        descriptions = []
+        description_collection = []
         for obj in tqdm(objects, desc="Describing objects", unit="object", leave=True):
             object_id = obj["object_id"]
             object_description = obj.get("object_description", "")
@@ -64,48 +62,29 @@ class VisionLanguageModel:
             images = [Image.open(image_path) for image_path in image_paths]
             image_data = [self._prepare_image(each_image) for each_image in images]
 
-            pbar = tqdm(
-                total=len(images), desc="Processing images...", unit="image", leave=True
+            description = self._try_describe(
+                object_id,
+                image_paths,
+                pre_descriptions,
+                image_data,
             )
-            if self.batch_mode:
-                print("Batch mode is enabled")
-                descriptions.extend(
-                    self._try_describe(
-                        object_id,
-                        object_description,
-                        image_paths,
-                        pre_descriptions,
-                        image_data,
-                    )
-                )
-                pbar.update(len(images))
-            else:
-                print("In regular mode")
-                for each_image_data, each_image_path, each_pre_description in zip(
-                    image_data, image_paths, pre_descriptions
-                ):
-                    descriptions.extend(
-                        self._try_describe(
-                            object_id,
-                            object_description,
-                            each_image_path,
-                            each_pre_description,
-                            each_image_data,
-                        )
-                    )
-                    pbar.update(1)
-
-        return descriptions
+            if save:
+                save_descriptions(obj["base_path"], description)
+            description_collection.append(description)
+        return description_collection
 
     def _try_describe(
         self,
         object_id,
-        object_description,
         image_path,
         pre_description,
         image_data,
     ):
-        descriptions = []
+        descriptions = {
+            "object_id": object_id,
+            "image_path": image_path,
+            "pre_description": pre_description,
+        }
         try:
             # Prepare the images for the API
             prompt = self._prepare_prompt(image_data, pre_description)
@@ -119,22 +98,16 @@ class VisionLanguageModel:
 
             # Extract the generated descriptions
             description = response.choices[0].message.content
-            descriptions.append(
+            descriptions.update(
                 {
-                    "object_id": object_id,
-                    "object_description": object_description,
-                    "image_path": image_path,
-                    "pre_description": pre_description,
                     "generated_description": description,
+                    "error": None,
                 }
             )
         except Exception as e:
-            descriptions.append(
+            descriptions.update(
                 {
-                    "object_id": object_id,
-                    "object_description": object_description,
-                    "image_path": image_path,
-                    "pre_description": pre_description,
+                    "generated_description": None,
                     "error": str(e),
                 }
             )
@@ -235,17 +208,28 @@ def load_image_metadata(task_path: str) -> List[dict]:
         return load_config(task_path)
 
 
-def save_descriptions(directories: List[str], descriptions: List[dict]):
-    for directory, desc in zip(directories, descriptions):
-        metadata = {"object_description": [], "image_descriptions": []}
+def save_descriptions(
+    base_dirs: Union[str, List[str]], descriptions: Union[dict, List[dict]]
+):
 
+    if not isinstance(base_dirs, list):
+        base_dirs = [base_dirs]
+    if not isinstance(descriptions, list):
+        descriptions = [descriptions]
+
+    assert len(base_dirs) == len(
+        descriptions
+    ), "Number of base paths and descriptions do not match"
+
+    for directory, desc in zip(base_dirs, descriptions):
+        metadata = {}
         metadata_path = os.path.join(directory, "metadata.json")
         if os.path.exists(metadata_path):
             with open(metadata_path, "r") as file:
                 metadata = json.load(file)
 
-        metadata["object_description"].append(desc.get("object_description", ""))
-        metadata["image_descriptions"].append(desc.get("generated_description", ""))
+        # extend metadata.json with the new descriptions
+        metadata.update(desc)
 
         with open(metadata_path, "w") as file:
             json.dump(metadata, file, indent=4)
@@ -283,37 +267,28 @@ def main():
         describe_vlm_config.get("model_name", "gpt-4o"),
         describe_vlm_config.get("org_id"),
         load_prompts(args.prompts, "vlm"),
-        batch_mode=describe_vlm_config.get("batch_mode", False),
         **describe_vlm_config.get("model_kwargs", {}),
     )
-    llm = LLM(
-        assist_llm_config["api_key"],
-        assist_llm_config.get("api_base_url"),
-        assist_llm_config.get("model_name", "gpt-4"),
-        assist_llm_config.get("org_id"),
-        load_prompts(args.prompts, "llm"),
-        **assist_llm_config.get("model_kwargs", {}),
-    )
-    descriptions = vlm.generate_descriptions(image_metadata)
+    descriptions = vlm.generate_descriptions(image_metadata, args.save)
 
-    # extract more percise object descriptions
-    for desc in descriptions:
-        if "generated_description" in desc:
-            desc["object_description"] = llm.extract_object_description(
-                desc["generated_description"]
-            )
+    # llm = LLM(
+    #     assist_llm_config["api_key"],
+    #     assist_llm_config.get("api_base_url"),
+    #     assist_llm_config.get("model_name", "gpt-4"),
+    #     assist_llm_config.get("org_id"),
+    #     load_prompts(args.prompts, "llm"),
+    #     **assist_llm_config.get("model_kwargs", {}),
+    # )
 
-    if args.save:
-        # get base_paths from image_metadata
-        base_paths = [image_metadata["base_path"] for image_metadata in image_metadata]
-        assert len(base_paths) == len(
-            descriptions
-        ), "Number of base paths and descriptions do not match"
-        save_descriptions(base_paths, descriptions)
+    # # extract more percise object descriptions
+    # for desc in descriptions:
+    #     if "generated_description" in desc:
+    #         desc["object_description"] = llm.extract_object_description(
+    #             desc["generated_description"]
+    #         )
 
     for desc in descriptions:
         print(f"Object ID: {desc['object_id']}")
-        print(f"Object Description: {desc['object_description']}")
         print(f"Image Path: {desc['image_path']}")
         print(f"Pre-Description: {desc['pre_description']}")
         if "generated_description" in desc:

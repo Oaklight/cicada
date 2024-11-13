@@ -7,13 +7,13 @@ import sys
 from typing import List, Union
 
 import openai
-import yaml
 from PIL import Image
 from tqdm import tqdm
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
 from llm import LLM
+from desc_utils import load_config, load_prompts
 
 
 class VisionLanguageModel:
@@ -213,16 +213,6 @@ class VisionLanguageModel:
         ]
 
 
-def load_config(config_path: str) -> dict:
-    with open(config_path, "r") as file:
-        return yaml.safe_load(file)
-
-
-def load_prompts(prompts_path: str, which_model: str = "vlm") -> dict:
-    prompts_all = load_config(prompts_path)
-    return prompts_all[which_model]
-
-
 def load_image_metadata(task_path: str) -> List[dict]:
     if os.path.isdir(task_path):
         directory = task_path
@@ -271,7 +261,7 @@ def main():
     )
     parser.add_argument(
         "--task",
-        default="images.yaml",
+        default="tasks.yaml",
         help="Path to the task YAML file or directory containing images from a single object",
     )
     parser.add_argument(

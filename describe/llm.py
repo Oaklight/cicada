@@ -1,13 +1,22 @@
 import argparse
-import json
+import logging
 import os
 import sys
+from typing import List
 
 import openai
+from tqdm import tqdm
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
-from desc_utils import load_config, load_prompts
+from desc_utils import load_config, load_prompts, save_descriptions
+
+logger = logging.getLogger("asssitive lm")
+log_level = "DEBUG"
+logger.setLevel(log_level)
+handler = logging.StreamHandler()
+handler.setLevel(log_level)
+logger.addHandler(handler)
 
 
 class LLM:
@@ -18,7 +27,7 @@ class LLM:
         model_name,
         org_id,
         prompt_templates,
-        **model_kwargs
+        **model_kwargs,
     ):
         self.api_key = api_key
         self.api_base_url = api_base_url
@@ -83,6 +92,40 @@ class LLM:
         return relevant_text
 
 
+def load_object_metadata(task_path: str) -> List[dict]:
+    """
+    param task_path: Path to the task YAML file or path to certain metadata.json or directory containing a metadata.json
+
+    returns: List of metadata dictionaries
+    """
+    if os.path.isdir(task_path):
+        # single metadata
+        metadata = {
+            "base_path": task_path,
+            "metadata": load_config(os.path.join(task_path, "metadata.json")),
+        }
+        metadata_collection = [metadata]
+    elif os.path.isfile(task_path) and task_path.endswith("metadata.json"):
+        # single metadata
+        metadata = {
+            "base_path": os.path.dirname(task_path),
+            "metadata": load_config(task_path),
+        }
+        metadata_collection = [metadata]
+    elif os.path.isfile(task_path) and task_path.endswith("tasks.yaml"):
+        tasks = load_config(task_path)
+        metadata_collection = [
+            {
+                "base_path": obj["base_path"],
+                "metadata": load_config(
+                    os.path.join(obj["base_path"], "metadata.json")
+                ),
+            }
+            for obj in tasks
+        ]
+    return metadata_collection
+
+
 def main():
     parser = argparse.ArgumentParser(description="Assistive Large Language Model")
     parser.add_argument(
@@ -92,50 +135,61 @@ def main():
         "--prompts", default="prompts.yaml", help="Path to the prompts YAML file"
     )
     parser.add_argument(
-        "-m",
-        "--metadata",
-        type=str,
-        required=True,
-        help="Path to the metadata JSON file",
+        "-t",
+        "--task",
+        default="tasks.yaml",
+        help="Path to the task YAML file or directory containing images from a single object",
+    )
+    parser.add_argument(
+        "--save",
+        action="store_true",
+        help="Save generated descriptions to metadata.yaml",
     )
     args = parser.parse_args()
 
     config = load_config(args.config)
+    tasks = load_object_metadata(args.task)
+
     assist_llm_config = config["assist-llm"]
 
     llm = LLM(
         assist_llm_config["api_key"],
         assist_llm_config.get("api_base_url"),
-        assist_llm_config.get("model_name", "gpt-4"),
+        assist_llm_config.get("model_name", "gpt-4o-mini"),
         assist_llm_config.get("org_id"),
         load_prompts(args.prompts, "llm"),
         **assist_llm_config.get("model_kwargs", {}),
     )
 
-    with open(args.metadata, "r") as f:
-        metadata = json.load(f)
+    for each_task in tqdm(tasks):
+        metadata = each_task["metadata"]
+        image_description = metadata["generated_description"]
 
-    image_description = metadata["image_descriptions"]
+        # extract object descriptions
+        obj_description = llm.extract_object_description(image_description)
+        # generate what it is
+        what_it_is = llm.distill_what_it_is(image_description)
+        # extract parts list
+        parts_list = llm.extract_parts_list(image_description)
+        # extract building steps
+        building_steps = llm.extract_building_steps(image_description)
 
-    # extract object descriptions
-    obj_description = llm.extract_object_description(image_description)
+        logger.debug(f"Object Description:\n{obj_description}")
+        logger.debug("-" * 50)
+        logger.debug(f"What it is:\n{what_it_is}")
+        logger.debug("-" * 50)
+        logger.debug(f"Parts List:\n{parts_list}")
+        logger.debug("-" * 50)
+        logger.debug(f"Building Steps:\n{building_steps}")
 
-    # generate what it is
-    what_it_is = llm.distill_what_it_is(image_description)
-
-    # extract parts list
-    parts_list = llm.extract_parts_list(image_description)
-
-    # extract building steps
-    building_steps = llm.extract_building_steps(image_description)
-
-    print("Object Description:\n", obj_description)
-    print("-" * 50)
-    print("What it is:\n", what_it_is)
-    print("-" * 50)
-    print("Parts List:\n", parts_list)
-    print("-" * 50)
-    print("Building Steps:\n", building_steps)
+        if args.save:
+            update_metadata = {
+                "object_description": obj_description,
+                "what_it_is": what_it_is,
+                "parts_list": parts_list,
+                "building_steps": building_steps,
+            }
+            save_descriptions(each_task["base_path"], update_metadata)
 
 
 if __name__ == "__main__":

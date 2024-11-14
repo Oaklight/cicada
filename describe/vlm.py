@@ -1,7 +1,7 @@
 import argparse
 import base64
 import io
-import json
+import logging
 import os
 import sys
 from typing import List, Union
@@ -12,8 +12,14 @@ from tqdm import tqdm
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 sys.path.append(current_dir)
-from desc_utils import load_config, load_prompts
-from llm import LLM
+from desc_utils import load_config, load_prompts, save_descriptions
+
+logger = logging.getLogger("visual lm")
+log_level = "DEBUG"
+logger.setLevel(log_level)
+handler = logging.StreamHandler()
+handler.setLevel(log_level)
+logger.addHandler(handler)
 
 
 class VisionLanguageModel:
@@ -186,7 +192,7 @@ class VisionLanguageModel:
         ]
 
 
-def load_image_metadata(task_path: str) -> List[dict]:
+def load_object_metadata(task_path: str) -> List[dict]:
     if os.path.isdir(task_path):
         directory = task_path
         image_metadata = {
@@ -206,33 +212,6 @@ def load_image_metadata(task_path: str) -> List[dict]:
         return [image_metadata]
     else:
         return load_config(task_path)
-
-
-def save_descriptions(
-    base_dirs: Union[str, List[str]], descriptions: Union[dict, List[dict]]
-):
-
-    if not isinstance(base_dirs, list):
-        base_dirs = [base_dirs]
-    if not isinstance(descriptions, list):
-        descriptions = [descriptions]
-
-    assert len(base_dirs) == len(
-        descriptions
-    ), "Number of base paths and descriptions do not match"
-
-    for directory, desc in zip(base_dirs, descriptions):
-        metadata = {}
-        metadata_path = os.path.join(directory, "metadata.json")
-        if os.path.exists(metadata_path):
-            with open(metadata_path, "r") as file:
-                metadata = json.load(file)
-
-        # extend metadata.json with the new descriptions
-        metadata.update(desc)
-
-        with open(metadata_path, "w") as file:
-            json.dump(metadata, file, indent=4)
 
 
 def main():
@@ -256,10 +235,9 @@ def main():
     args = parser.parse_args()
 
     config = load_config(args.config)
-    image_metadata = load_image_metadata(args.task)
+    image_metadata = load_object_metadata(args.task)
 
     describe_vlm_config = config["describe-vlm"]
-    assist_llm_config = config["assist-llm"]
 
     vlm = VisionLanguageModel(
         describe_vlm_config["api_key"],
@@ -271,31 +249,15 @@ def main():
     )
     descriptions = vlm.generate_descriptions(image_metadata, args.save)
 
-    # llm = LLM(
-    #     assist_llm_config["api_key"],
-    #     assist_llm_config.get("api_base_url"),
-    #     assist_llm_config.get("model_name", "gpt-4"),
-    #     assist_llm_config.get("org_id"),
-    #     load_prompts(args.prompts, "llm"),
-    #     **assist_llm_config.get("model_kwargs", {}),
-    # )
-
-    # # extract more percise object descriptions
-    # for desc in descriptions:
-    #     if "generated_description" in desc:
-    #         desc["object_description"] = llm.extract_object_description(
-    #             desc["generated_description"]
-    #         )
-
     for desc in descriptions:
-        print(f"Object ID: {desc['object_id']}")
-        print(f"Image Path: {desc['image_path']}")
-        print(f"Pre-Description: {desc['pre_description']}")
+        logger.debug(f"Object ID: {desc['object_id']}")
+        logger.debug(f"Image Path: {desc['image_path']}")
+        logger.debug(f"Pre-Description: {desc['pre_description']}")
         if "generated_description" in desc:
-            print(f"Generated Description:\n{desc['generated_description']}")
+            logger.debug(f"Generated Description:\n{desc['generated_description']}")
         else:
-            print(f"Error: {desc['error']}")
-        print("-" * 40)
+            logger.debug(f"Error: {desc['error']}")
+        logger.debug("-" * 40)
 
 
 # Example usage

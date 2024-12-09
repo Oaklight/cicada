@@ -4,3 +4,4 @@ plyfile==1.1
 trimesh==4.5.1
 pyrender==0.1.45
 openai==1.54.3
+build123d==0.8.0

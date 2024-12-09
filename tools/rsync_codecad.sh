@@ -10,9 +10,9 @@
 
 # Default values
 ACTION="push"
-EXCLUDE="MiniGPT-3D/params_weight"
-SOURCE="./"
-DEST="lambda12:~/projects/codecad/codecad-rag/"
+EXCLUDE="MiniGPT-3D/params_weight .vscode .git MiniGPT-3D/.git"
+SOURCE="../"
+DEST="lambda9:~/projects/codecad/codecad-rag/"
 
 # Parse command-line arguments
 while [[ "$#" -gt 0 ]]; do
@@ -39,7 +39,7 @@ while [[ "$#" -gt 0 ]]; do
     shift
 done
 
-# Perform the rsync operation
+#  Perform the rsync operation
 if [[ "$ACTION" == "push" ]]; then
     rsync -rP --exclude="$EXCLUDE" "$SOURCE" "$DEST"
 elif [[ "$ACTION" == "pull" ]]; then

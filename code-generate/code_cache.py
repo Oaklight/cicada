@@ -15,11 +15,22 @@ cursor = conn.cursor()
 def initialize_database():
     cursor.execute(
         """
+    CREATE TABLE IF NOT EXISTS sessions_table (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        description TEXT
+    )
+    """
+    )
+
+    cursor.execute(
+        """
     CREATE TABLE IF NOT EXISTS codes_table (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
+        session_id INTEGER,
         timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
         description TEXT,
-        code TEXT
+        code TEXT,
+        FOREIGN KEY(session_id) REFERENCES sessions_table(id)
     )
     """
     )
@@ -41,14 +52,28 @@ def initialize_database():
     logging.info("Database tables initialized.")
 
 
-# Insert code into codes_table
-def insert_code(description, code):
+# Insert a new session
+def insert_session(description):
     cursor.execute(
         """
-        INSERT INTO codes_table (description, code)
-        VALUES (?, ?)
+        INSERT INTO sessions_table (description)
+        VALUES (?)
     """,
-        (description, code),
+        (description,),
+    )
+    conn.commit()
+    logging.info(f"Session inserted with ID: {cursor.lastrowid}")
+    return cursor.lastrowid
+
+
+# Insert code into codes_table
+def insert_code(session_id, description, code):
+    cursor.execute(
+        """
+        INSERT INTO codes_table (session_id, description, code)
+        VALUES (?, ?, ?)
+    """,
+        (session_id, description, code),
     )
     conn.commit()
     logging.info(f"Code inserted with ID: {cursor.lastrowid}")
@@ -90,6 +115,22 @@ def get_all_codes():
         """
         SELECT id, description, code FROM codes_table
     """
+    )
+    return cursor.fetchall()
+
+
+# Retrieve all codes in a session, ordered by timestamp
+def get_everything_by_session(session_id, order_by="DESC"):
+    order_map = {"descending": "DESC", "ascending": "ASC"}
+    order_by = order_map.get(order_by.lower(), "DESC")
+
+    cursor.execute(
+        f"""
+        SELECT id, timestamp, description, code FROM codes_table
+        WHERE session_id = ?
+        ORDER BY timestamp {order_by}
+    """,
+        (session_id,),
     )
     return cursor.fetchall()
 

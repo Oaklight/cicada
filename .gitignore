@@ -165,3 +165,6 @@ MiniGPT-3D/params_weight
 retrieval/docker/*.deb
 retrieval/docker/compose.yaml
 code-generate/code-generator.db
+code-generate/examples/generated_code.py
+code-generate/examples/o1-example.py
+code-generate/examples/reproduce-mech-part.py

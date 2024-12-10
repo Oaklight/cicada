@@ -1,0 +1,11 @@
+code-llm:
+  # ## 01.AI API Key
+  # api_key: "sk-dowBZNfa1fL6E6hsEb7cEaEe19514038B1Ed873903412f71"
+  # api_base_url: "https://oneapi.service.oaklight.cn/v1" # Optional custom API base URL
+  # model_name: "yi-lightning" # Replace with your model name
+  # model_kwargs: # Optional additional model parameters
+  ## OpenAI API Key
+  api_key: "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"
+  model_name: "gpt-4o" # Replace with your model name
+  org_id: "org-ndr3EdurFsD3Rk6j5MksOgAH" # Optional organization ID
+  # model_kwargs: # Optional additional model parameters

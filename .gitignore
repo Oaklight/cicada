@@ -164,3 +164,4 @@ cython_debug/
 MiniGPT-3D/params_weight
 retrieval/docker/*.deb
 retrieval/docker/compose.yaml
+code-generate/code-generator.db

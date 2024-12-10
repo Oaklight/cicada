@@ -70,31 +70,37 @@ class CodeCache:
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT id FROM sessions_table WHERE description = ?
+            INSERT INTO sessions_table (description)
+            VALUES (?)
             """,
             (description,),
         )
-        session_id = cursor.fetchone()
-        if session_id:
-            logging.info(f"Session already exists with ID: {session_id[0]}")
-            return session_id[0]
-        else:
-            cursor.execute(
-                """
-                INSERT INTO sessions_table (description)
-                VALUES (?)
-                """,
-                (description,),
-            )
         conn.commit()
-        logging.info(f"Session inserted with ID: {cursor.lastrowid}")
         session_id = cursor.lastrowid
         self._return_connection(conn)
+        logging.info(f"Session inserted with ID: {session_id}")
         return session_id
 
     def insert_code(self, session_id, description, code):
         conn = self._get_connection()
         cursor = conn.cursor()
+
+        # Check if session_id exists
+        cursor.execute(
+            """
+            SELECT id FROM sessions_table WHERE id = ?
+            """,
+            (session_id,),
+        )
+        result = cursor.fetchone()
+
+        if result is None:
+            logging.error(f"Session ID {session_id} does not exist.")
+            conn.rollback()
+            self._return_connection(conn)
+            raise ValueError(f"Session ID {session_id} does not exist.")
+
+        # Insert code into codes_table
         cursor.execute(
             """
             INSERT INTO codes_table (session_id, description, code)
@@ -249,6 +255,17 @@ if __name__ == "__main__":
     logging.info(
         f"Execution results for code ID {code_id_3}: {execution_results_code_3}"
     )
+
+    # Attempt to insert code with a non-existent session ID
+    non_existent_session_id = 99999  # Assuming this ID does not exist
+    try:
+        code_id_4 = code_cache.insert_code(
+            non_existent_session_id,
+            "Invalid Session Test",
+            'print("This should fail!")',
+        )
+    except ValueError as e:
+        logging.error(f"Error: {e}")
 
     # Clean up resources
     code_cache.close()

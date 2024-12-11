@@ -11,8 +11,12 @@ from PIL import Image
 from tqdm import tqdm
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(current_dir)
-from desc_utils import load_config, load_prompts, save_descriptions
+parent_dir = os.path.dirname(current_dir)
+sys.path.extend([current_dir, parent_dir])
+
+from desc_utils import save_descriptions
+
+from utils import load_config, load_prompts
 
 logger = logging.getLogger("visual lm")
 log_level = "DEBUG"

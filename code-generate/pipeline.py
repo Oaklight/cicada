@@ -4,12 +4,14 @@ import os
 import sys
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.append(current_dir)
+parent_dir = os.path.dirname(current_dir)
+sys.path.extend([current_dir, parent_dir])
 
 from code_cache import CodeCache
 from code_executor import CodeExecutor
 from code_generator import CodeGenerator
-from describe.desc_utils import load_prompts, load_config
+
+from utils import load_config, load_prompts
 
 logging.basicConfig(level=logging.INFO)
 

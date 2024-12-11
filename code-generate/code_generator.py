@@ -9,9 +9,8 @@ import os, sys
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
-sys.path.append(current_dir)
-sys.path.append(parent_dir)
-from describe.desc_utils import load_config, load_prompts
+sys.path.extend([current_dir, parent_dir])
+from utils import load_config, load_prompts
 
 
 class CodeGenerator:

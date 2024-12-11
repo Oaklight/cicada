@@ -1,18 +1,13 @@
 import json
 import os
+import sys
 from typing import List, Union
 
-import yaml
+current_dir = os.path.dirname(os.path.abspath(__file__))
+parent_dir = os.path.dirname(current_dir)
+sys.path.append(parent_dir)
 
-
-def load_config(config_path: str) -> dict:
-    with open(config_path, "r") as file:
-        return yaml.safe_load(file)
-
-
-def load_prompts(prompts_path: str, which_model: str = "vlm") -> dict:
-    prompts_all = load_config(prompts_path)
-    return prompts_all[which_model]
+from utils import load_config
 
 
 def save_descriptions(

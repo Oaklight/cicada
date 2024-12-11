@@ -1,0 +1,103 @@
+import argparse
+import logging
+import os
+import sys
+
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.append(current_dir)
+
+from code_cache import CodeCache
+from code_executor import CodeExecutor
+from code_generator import CodeGenerator
+from describe.desc_utils import load_prompts, load_config
+
+logging.basicConfig(level=logging.INFO)
+
+
+class CodeExecutionLoop:
+    def __init__(
+        self,
+        code_generator: CodeGenerator,
+        code_executor: CodeExecutor,
+        code_cache: CodeCache,
+        max_iterations=5,
+    ):
+        self.code_generator = code_generator
+        self.code_executor = code_executor
+        self.code_cache = code_cache
+        self.max_iterations = max_iterations
+
+    def run(self, description):
+        iteration = 0
+        session_id = self.code_cache.insert_session(description)
+        logging.info(f"Session started with id: {session_id}")
+
+        while iteration < self.max_iterations:
+            logging.info(f"Starting iteration {iteration + 1} of {self.max_iterations}")
+
+            # Generate code
+            generated_code = self.code_generator.generate_code(description)
+            if not generated_code:
+                logging.error("Failed to generate code.")  # very unlikely?
+                break
+
+            logging.info(f"Generated code: {generated_code}")
+
+            # Cache and execute the code
+            code_id = self.code_cache.insert_code(
+                session_id, description, generated_code
+            )
+            logging.info(f"Cached code with id: {code_id}")
+
+            execution_result = self.code_executor.execute_code(generated_code)
+
+            if "error" in execution_result:
+                logging.warning(f"Execution error: {execution_result['error']}")
+                self.code_cache.insert_execution_result(
+                    code_id, False, execution_result["error"], None
+                )
+                logging.info(f"Execution result cached for code id: {code_id}")
+            else:
+                logging.info("Code executed successfully.")
+                self.code_cache.insert_execution_result(
+                    code_id, True, None, execution_result.get("output", "")
+                )
+                logging.info(f"Execution result cached for code id: {code_id}")
+                return  # Exit loop on successful execution
+
+            iteration += 1
+
+        logging.info(f"Loop completed after {iteration} iterations.")
+
+
+# Usage example
+if __name__ == "__main__":
+
+    parser = argparse.ArgumentParser(description="Assistive Large Language Model")
+    parser.add_argument(
+        "--config", default="config.yaml", help="Path to the configuration YAML file"
+    )
+    parser.add_argument(
+        "--prompts", default="prompts.yaml", help="Path to the prompts YAML file"
+    )
+    args = parser.parse_args()
+
+    config = load_config(args.config)
+
+    code_llm_config = config["code-llm"]
+    code_generator = CodeGenerator(
+        code_llm_config["api_key"],
+        code_llm_config.get("api_base_url"),
+        code_llm_config.get("model_name", "gpt-4o-mini"),
+        code_llm_config.get("org_id"),
+        load_prompts(args.prompts, "code-llm"),
+        **code_llm_config.get("model_kwargs", {}),
+    )
+
+    code_cache = CodeCache(db_file="code-generator.db")
+    code_executor = CodeExecutor()
+
+    code_execution_loop = CodeExecutionLoop(code_generator, code_executor, code_cache)
+
+    description = "Create 3 simple cubes with side length of 10, 9 and 8 units respectively. Stack them together, with a 1-unit gap between each cube."
+    code_execution_loop.run(description)

@@ -93,14 +93,14 @@ if __name__ == "__main__":
 
     config = load_config(args.config)
 
-    assist_llm_config = config["code-llm"]
+    code_llm_config = config["code-llm"]
     code_generator = CodeGenerator(
-        assist_llm_config["api_key"],
-        assist_llm_config.get("api_base_url"),
-        assist_llm_config.get("model_name", "gpt-4o-mini"),
-        assist_llm_config.get("org_id"),
+        code_llm_config["api_key"],
+        code_llm_config.get("api_base_url"),
+        code_llm_config.get("model_name", "gpt-4o-mini"),
+        code_llm_config.get("org_id"),
         load_prompts(args.prompts, "code-llm"),
-        **assist_llm_config.get("model_kwargs", {}),
+        **code_llm_config.get("model_kwargs", {}),
     )
 
     description = "Create a simple cube with side length of 10 units."

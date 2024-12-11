@@ -5,18 +5,17 @@ import os
 
 
 class CodeExecutor:
-    def __init__(self):
-        self.temp_dir = tempfile.mkdtemp()
-
     def execute_code(self, code):
-        script_path = os.path.join(self.temp_dir, "script.py")
+        # Initialize a new temporary directory for each execution
+        temp_dir = tempfile.mkdtemp()
+        script_path = os.path.join(temp_dir, "script.py")
         with open(script_path, "w") as f:
             f.write(code)
 
         try:
             completed_process = subprocess.run(
                 ["python", script_path],
-                cwd=self.temp_dir,
+                cwd=temp_dir,
                 capture_output=True,
                 text=True,
                 timeout=10,  # Set a timeout of 10 seconds
@@ -26,26 +25,24 @@ class CodeExecutor:
                 return {"error": error_message}
             else:
                 output_files = {}
-                for filename in os.listdir(self.temp_dir):
+                for filename in os.listdir(temp_dir):
                     if filename != "script.py":
-                        with open(os.path.join(self.temp_dir, filename), "rb") as f:
+                        with open(os.path.join(temp_dir, filename), "rb") as f:
                             content = f.read()
                             output_files[filename] = content
                 return {"output": completed_process.stdout, "files": output_files}
         except subprocess.TimeoutExpired:
             return {"error": "Execution timed out."}
         finally:
-            self.cleanup()
-
-    def cleanup(self):
-        shutil.rmtree(self.temp_dir)
+            # Clean up the temporary directory
+            shutil.rmtree(temp_dir)
 
 
 """
 Final Decision
 Avoid Error Formatting for MVP:
 
-- Do not implement the format_error function in the CodeExecutor class. 
+- Do not implement the format_error function in the CodeExecutor class.
 - Return the raw error message captured from stderr.
 
 Rationale:

@@ -11,7 +11,7 @@ from code_cache import CodeCache
 from code_executor import CodeExecutor
 from code_generator import CodeGenerator
 
-from utils import load_config, load_prompts
+from utils import colorstring, load_config, load_prompts
 
 logging.basicConfig(level=logging.INFO)
 
@@ -32,7 +32,7 @@ class CodeExecutionLoop:
     def run(self, description):
         iteration = 0
         session_id = self.code_cache.insert_session(description)
-        logging.info(f"Session started with id: {session_id}")
+        logging.info(colorstring(f"Session started with id: {session_id}", "cyan"))
 
         while iteration < self.max_iterations:
             logging.info(f"Starting iteration {iteration + 1} of {self.max_iterations}")
@@ -43,33 +43,45 @@ class CodeExecutionLoop:
                 logging.error("Failed to generate code.")  # very unlikely?
                 break
 
-            logging.info(f"Generated code: {generated_code}")
+            logging.info(colorstring(f"Generated code: {generated_code}", "cyan"))
 
             # Cache and execute the code
             code_id = self.code_cache.insert_code(
                 session_id, description, generated_code
             )
-            logging.info(f"Cached code with id: {code_id}")
+            logging.info(colorstring(f"Cached code with id: {code_id}", "cyan"))
 
             execution_result = self.code_executor.execute_code(generated_code)
 
             if "error" in execution_result:
-                logging.warning(f"Execution error: {execution_result['error']}")
+                logging.warning(
+                    colorstring(f"Execution error: {execution_result['error']}", "red")
+                )
                 self.code_cache.insert_execution_result(
                     code_id, False, execution_result["error"], None
                 )
-                logging.info(f"Execution result cached for code id: {code_id}")
+                logging.info(
+                    colorstring(
+                        f"Execution result cached for code id: {code_id}", "cyan"
+                    )
+                )
             else:
-                logging.info("Code executed successfully.")
+                logging.info(colorstring("Code executed successfully.", "white"))
                 self.code_cache.insert_execution_result(
                     code_id, True, None, execution_result.get("output", "")
                 )
-                logging.info(f"Execution result cached for code id: {code_id}")
+                logging.info(
+                    colorstring(
+                        f"Execution result cached for code id: {code_id}", "cyan"
+                    )
+                )
                 return  # Exit loop on successful execution
 
             iteration += 1
 
-        logging.info(f"Loop completed after {iteration} iterations.")
+        logging.info(
+            colorstring(f"Loop completed after {iteration} iterations.", "cyan")
+        )
 
 
 # Usage example

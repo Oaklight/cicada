@@ -38,6 +38,8 @@ class CodeExecutionLoop:
             logging.info(f"Starting iteration {iteration + 1} of {self.max_iterations}")
 
             # Generate code
+            # TODO: add execution result to prompt? what if it's wrong by far?
+            # TODO: code refiner
             generated_code = self.code_generator.generate_code(description)
             if not generated_code:
                 logging.error("Failed to generate code.")  # very unlikely?

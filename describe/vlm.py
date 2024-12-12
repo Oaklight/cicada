@@ -99,11 +99,6 @@ class VisionLanguageModel:
         )
         return response.choices[0].message.content.strip()
 
-    # Example usage within the VisionLanguageModel class:
-    # vlm = VisionLanguageModel(...)
-    # response = vlm.query_with_image("Describe the image", "path/to/image.jpg")
-    # print(response)
-
     def generate_descriptions(self, objects: List[dict], save=True):
         """
         Generate descriptions for the given objects and their images.
@@ -127,13 +122,29 @@ class VisionLanguageModel:
             # Open the images from the local file paths
             images = [Image.open(image_path) for image_path in image_paths]
             image_data = [self._prepare_image(each_image) for each_image in images]
+
             # Generate description for each image
-            description = self._try_describe(
-                object_id,
-                image_paths,
-                pre_descriptions,
-                image_data,
-            )
+            descriptions = {
+                "object_id": object_id,
+                "image_path": image_paths,
+                "pre_description": pre_descriptions,
+            }
+            try:
+                description = self.query_with_image(pre_descriptions, image_data)
+                descriptions.update(
+                    {
+                        "generated_description": description,
+                        "error": None,
+                    }
+                )
+
+            except Exception as e:
+                descriptions.update(
+                    {
+                        "generated_description": None,
+                        "error": str(e),
+                    }
+                )
 
             if save:
                 save_descriptions(obj["base_path"], description)
@@ -147,36 +158,6 @@ class VisionLanguageModel:
             )
 
         return description_collection
-
-    def _try_describe(
-        self,
-        object_id,
-        image_path: Union[str, List[str]],
-        pre_description: Union[str, List[str]],
-        image_data: Union[bytes, List[bytes]],
-    ):
-        descriptions = {
-            "object_id": object_id,
-            "image_path": image_path,
-            "pre_description": pre_description,
-        }
-        try:
-            description = self.query_with_image(pre_description, image_data)
-            descriptions.update(
-                {
-                    "generated_description": description,
-                    "error": None,
-                }
-            )
-
-        except Exception as e:
-            descriptions.update(
-                {
-                    "generated_description": None,
-                    "error": str(e),
-                }
-            )
-        return descriptions
 
     def _prepare_image(self, image):
         """

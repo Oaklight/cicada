@@ -11,7 +11,7 @@ from code_cache import CodeCache
 from code_executor import CodeExecutor
 from code_generator import CodeGenerator
 
-from utils import colorstring, load_config, load_prompts
+from common.utils import colorstring, load_config, load_prompts
 
 logging.basicConfig(level=logging.INFO)
 

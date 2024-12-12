@@ -1,4 +1,9 @@
+import base64
+import io
+from typing import Union
+
 import yaml
+from PIL import Image
 
 
 def load_config(config_path: str) -> dict:
@@ -34,6 +39,26 @@ def colorstring(message: str, color: str) -> str:
     color_code = colors.get(color.lower(), "\033[37m")
 
     return f"{color_code}{message}\033[0m"
+
+
+def image_to_base64(image: Union[Image.Image, str]):
+    """
+    Convert the image to a base64 encoded string.
+
+    :param image: PIL Image object or the path to the image file.
+    :return: Base64 encoded string of the image.
+    """
+    if isinstance(image, str):
+        # If the image is a string, assume it's a path and open it
+        image = Image.open(image)
+
+    # Convert the image to RGB mode if it's in RGBA mode
+    if image.mode == "RGBA":
+        image = image.convert("RGB")
+
+    buffered = io.BytesIO()
+    image.save(buffered, format="PNG")
+    return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
 
 if __name__ == "__main__":

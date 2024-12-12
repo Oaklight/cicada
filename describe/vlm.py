@@ -16,7 +16,7 @@ sys.path.extend([current_dir, parent_dir])
 
 from desc_utils import load_object_metadata, save_descriptions
 
-from utils import colorstring, load_config, load_prompts
+from common.utils import colorstring, load_config, load_prompts, image_to_base64
 
 # Configure logging
 logging.basicConfig(
@@ -119,32 +119,23 @@ class VisionLanguageModel:
             ]
             pre_descriptions = [img.get("pre_description", "") for img in obj["images"]]
 
-            # Open the images from the local file paths
-            images = [Image.open(image_path) for image_path in image_paths]
-            image_data = [self._prepare_image(each_image) for each_image in images]
+            # open and convert image to base64
+            image_data = [image_to_base64(image_path) for image_path in image_paths]
 
             # Generate description for each image
             descriptions = {
                 "object_id": object_id,
                 "image_path": image_paths,
                 "pre_description": pre_descriptions,
+                "generated_description": None,
+                "error": None,
             }
             try:
                 description = self.query_with_image(pre_descriptions, image_data)
-                descriptions.update(
-                    {
-                        "generated_description": description,
-                        "error": None,
-                    }
-                )
+                descriptions.update({"generated_description": description})
 
             except Exception as e:
-                descriptions.update(
-                    {
-                        "generated_description": None,
-                        "error": str(e),
-                    }
-                )
+                descriptions.update({"error": str(e)})
 
             if save:
                 save_descriptions(obj["base_path"], description)
@@ -158,21 +149,6 @@ class VisionLanguageModel:
             )
 
         return description_collection
-
-    def _prepare_image(self, image):
-        """
-        Convert the image to a base64 encoded string.
-
-        :param image: PIL Image object.
-        :return: Base64 encoded string of the image.
-        """
-        # Convert the images to RGB mode if they are in RGBA mode
-        if image.mode == "RGBA":
-            image = image.convert("RGB")
-
-        buffered = io.BytesIO()
-        image.save(buffered, format="PNG")
-        return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
     def _prepare_prompt(
         self,

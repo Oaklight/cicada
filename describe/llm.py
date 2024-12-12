@@ -13,7 +13,7 @@ sys.path.extend([current_dir, parent_dir])
 
 from desc_utils import save_descriptions
 
-from utils import load_config, load_prompts
+from common.utils import load_config, load_prompts
 
 # Configure logging
 logging.basicConfig(

@@ -4,16 +4,15 @@ import os
 import sys
 from typing import List
 
-import openai
 from tqdm import tqdm
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.extend([current_dir, parent_dir])
 
-from desc_utils import save_descriptions
-
+from common import llm
 from common.utils import load_config, load_prompts
+from describe.utils import save_descriptions
 
 # Configure logging
 logging.basicConfig(
@@ -21,7 +20,7 @@ logging.basicConfig(
 )
 
 
-class LLM:
+class AssistLLM(llm.LanguageModel):
     def __init__(
         self,
         api_key,
@@ -31,35 +30,15 @@ class LLM:
         prompt_templates,
         **model_kwargs,
     ):
-        self.api_key = api_key
-        self.api_base_url = api_base_url
-        self.model_name = model_name
-        self.org_id = org_id
-        self.model_kwargs = model_kwargs
-
-        self.client = openai.OpenAI(
-            api_key=self.api_key, base_url=self.api_base_url, organization=self.org_id
+        super().__init__(
+            api_key,
+            api_base_url,
+            model_name,
+            org_id,
+            **model_kwargs,
         )
         self.user_prompt_templates = prompt_templates.get("user_prompt_template", {})
         self.system_prompt_template = prompt_templates.get("system_prompt_template", "")
-
-    def query(self, prompt, system_prompt=None):
-        messages = [
-            {"role": "user", "content": prompt},
-        ]
-
-        if system_prompt:
-            messages = [
-                {"role": "system", "content": system_prompt},
-            ] + messages
-
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=messages,
-            **self.model_kwargs,
-        )
-
-        return response.choices[0].message.content.strip()
 
     def distill_what_it_is(self, input_text: str) -> str:
         user_prompt_template = self.user_prompt_templates.get("what_is_this_object")
@@ -154,7 +133,7 @@ def main():
 
     assist_llm_config = config["assist-llm"]
 
-    llm = LLM(
+    llm = AssistLLM(
         assist_llm_config["api_key"],
         assist_llm_config.get("api_base_url"),
         assist_llm_config.get("model_name", "gpt-4o-mini"),
@@ -176,13 +155,13 @@ def main():
         # extract building steps
         building_steps = llm.extract_building_steps(image_description)
 
-        logger.debug(f"Object Description:\n{obj_description}")
-        logger.debug("-" * 50)
-        logger.debug(f"What it is:\n{what_it_is}")
-        logger.debug("-" * 50)
-        logger.debug(f"Parts List:\n{parts_list}")
-        logger.debug("-" * 50)
-        logger.debug(f"Building Steps:\n{building_steps}")
+        logging.debug(f"Object Description:\n{obj_description}")
+        logging.debug("-" * 50)
+        logging.debug(f"What it is:\n{what_it_is}")
+        logging.debug("-" * 50)
+        logging.debug(f"Parts List:\n{parts_list}")
+        logging.debug("-" * 50)
+        logging.debug(f"Building Steps:\n{building_steps}")
 
         if args.save:
             update_metadata = {

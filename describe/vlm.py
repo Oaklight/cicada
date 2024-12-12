@@ -14,16 +14,14 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.extend([current_dir, parent_dir])
 
-from desc_utils import save_descriptions
+from desc_utils import load_object_metadata, save_descriptions
 
-from utils import load_config, load_prompts
+from utils import colorstring, load_config, load_prompts
 
-logger = logging.getLogger("visual lm")
-log_level = "DEBUG"
-logger.setLevel(log_level)
-handler = logging.StreamHandler()
-handler.setLevel(log_level)
-logger.addHandler(handler)
+# Configure logging
+logging.basicConfig(
+    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class VisionLanguageModel:
@@ -50,6 +48,62 @@ class VisionLanguageModel:
         self.user_prompt_template = prompt_templates.get("user_prompt_template", "")
         self.system_prompt_template = prompt_templates.get("system_prompt_template", "")
 
+    def query(self, prompt, system_prompt=None):
+        messages = [
+            {"role": "user", "content": prompt},
+        ]
+
+        if system_prompt:
+            messages = [
+                {"role": "system", "content": system_prompt},
+            ] + messages
+
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            **self.model_kwargs,
+        )
+
+        return response.choices[0].message.content.strip()
+
+    def query_with_image(
+        self,
+        prompt: str,
+        image: Union[bytes, List[bytes]],
+        system_prompt: str = None,
+    ):
+        """
+        Query the VisionLanguageModel with an additional image.
+
+        :param prompt: User prompt text.
+        :param image: PIL Image object or image path.
+        :param system_prompt: Optional system prompt text.
+        :return: Generated response from the model.
+        """
+
+        # Prepare the prompt for the API using _prepare_prompt
+        full_prompt = self._prepare_prompt(image, prompt)
+
+        if system_prompt:
+            full_prompt = [
+                {"role": "system", "content": system_prompt},
+            ] + full_prompt
+
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=full_prompt,
+            **self.model_kwargs,
+        )
+        logging.debug(
+            colorstring(f"Response: {response.choices[0].message.content}", "yellow")
+        )
+        return response.choices[0].message.content.strip()
+
+    # Example usage within the VisionLanguageModel class:
+    # vlm = VisionLanguageModel(...)
+    # response = vlm.query_with_image("Describe the image", "path/to/image.jpg")
+    # print(response)
+
     def generate_descriptions(self, objects: List[dict], save=True):
         """
         Generate descriptions for the given objects and their images.
@@ -59,36 +113,47 @@ class VisionLanguageModel:
         """
         description_collection = []
         for obj in tqdm(objects, desc="Describing objects", unit="object", leave=True):
+            logging.debug(colorstring(f"Processing object: {obj['object_id']}", "cyan"))
             object_id = obj["object_id"]
             object_description = obj.get("object_description", "")
 
-            # load images in batch
+            # Load images in batch
             image_paths = [
                 os.path.join(obj["base_path"], img["image_path"])
                 for img in obj["images"]
             ]
             pre_descriptions = [img.get("pre_description", "") for img in obj["images"]]
+
             # Open the images from the local file paths
             images = [Image.open(image_path) for image_path in image_paths]
             image_data = [self._prepare_image(each_image) for each_image in images]
-
+            # Generate description for each image
             description = self._try_describe(
                 object_id,
                 image_paths,
                 pre_descriptions,
                 image_data,
             )
+
             if save:
                 save_descriptions(obj["base_path"], description)
+                logging.info(
+                    colorstring(f"Saved description for object id: {object_id}", "cyan")
+                )
+
             description_collection.append(description)
+            logging.info(
+                colorstring(f"Generated description for object id: {object_id}", "cyan")
+            )
+
         return description_collection
 
     def _try_describe(
         self,
         object_id,
-        image_path,
-        pre_description,
-        image_data,
+        image_path: Union[str, List[str]],
+        pre_description: Union[str, List[str]],
+        image_data: Union[bytes, List[bytes]],
     ):
         descriptions = {
             "object_id": object_id,
@@ -96,24 +161,14 @@ class VisionLanguageModel:
             "pre_description": pre_description,
         }
         try:
-            # Prepare the images for the API
-            prompt = self._prepare_prompt(image_data, pre_description)
-
-            # Call the OpenAI API
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=prompt,
-                **self.model_kwargs,
-            )
-
-            # Extract the generated descriptions
-            description = response.choices[0].message.content
+            description = self.query_with_image(pre_description, image_data)
             descriptions.update(
                 {
                     "generated_description": description,
                     "error": None,
                 }
             )
+
         except Exception as e:
             descriptions.update(
                 {
@@ -141,23 +196,23 @@ class VisionLanguageModel:
     def _prepare_prompt(
         self,
         image_data: Union[bytes, List[bytes]],
-        pre_description: Union[str, List[str]],
+        text_data: Union[str, List[str]],
     ):
         """
         Prepare the prompt for the API based on the model.
 
         :param image_data: Base64 encoded string of the image.
-        :param pre_description: Optional pre-description text for the image.
+        :param text_data: Optional pre-description text for the image.
         :return: Prepared prompt for the API.
         """
         if not isinstance(image_data, list):
             image_data = [image_data]
-        if not isinstance(pre_description, list):
-            pre_description = [pre_description]
+        if not isinstance(text_data, list):
+            text_data = [text_data]
 
         len_image_data = len(image_data)
-        len_pre_description = len(pre_description)
-        if len_image_data != len_pre_description:
+        len_text_data = len(text_data)
+        if len_image_data != len_text_data:
             # single pre description mode
             content = [
                 {
@@ -166,15 +221,13 @@ class VisionLanguageModel:
                 }
                 for each_image_data in image_data
             ]
-            if len(each_pre_description):
-                content.append({"type": "text", "text": pre_description})
+            if len(each_text_data):
+                content.append({"type": "text", "text": text_data})
             content.append({"type": "text", "text": self.user_prompt_template})
         else:
             # multiple pre description mode
             content = []
-            for each_image_data, each_pre_description in zip(
-                image_data, pre_description
-            ):
+            for each_image_data, each_text_data in zip(image_data, text_data):
                 content.append(
                     {
                         "type": "image_url",
@@ -183,39 +236,16 @@ class VisionLanguageModel:
                         },
                     }
                 )
-                if len(each_pre_description):
-                    content.append({"type": "text", "text": each_pre_description})
+                if len(each_text_data):
+                    content.append({"type": "text", "text": each_text_data})
             content.append({"type": "text", "text": self.user_prompt_template})
 
         return [
-            {"role": "system", "content": self.system_prompt_template},
             {
                 "role": "user",
                 "content": content,
             },
         ]
-
-
-def load_object_metadata(task_path: str) -> List[dict]:
-    if os.path.isdir(task_path):
-        directory = task_path
-        image_metadata = {
-            "object_id": os.path.basename(directory),
-            "object_description": "",
-            "base_path": directory,
-            "images": [],
-        }
-        for file in os.listdir(directory):
-            if file.lower().endswith((".png", ".jpg", ".jpeg")):
-                pre_description = (
-                    file.split(".")[0].replace("-", " ").replace("_", " ").strip()
-                )
-                image_metadata["images"].append(
-                    {"image_path": file, "pre_description": pre_description}
-                )
-        return [image_metadata]
-    else:
-        return load_config(task_path)
 
 
 def main():
@@ -254,14 +284,14 @@ def main():
     descriptions = vlm.generate_descriptions(image_metadata, args.save)
 
     for desc in descriptions:
-        logger.debug(f"Object ID: {desc['object_id']}")
-        logger.debug(f"Image Path: {desc['image_path']}")
-        logger.debug(f"Pre-Description: {desc['pre_description']}")
+        logging.debug(f"Object ID: {desc['object_id']}")
+        logging.debug(f"Image Path: {desc['image_path']}")
+        logging.debug(f"Pre-Description: {desc['pre_description']}")
         if "generated_description" in desc:
-            logger.debug(f"Generated Description:\n{desc['generated_description']}")
+            logging.debug(f"Generated Description:\n{desc['generated_description']}")
         else:
-            logger.debug(f"Error: {desc['error']}")
-        logger.debug("-" * 40)
+            logging.debug(f"Error: {desc['error']}")
+        logging.debug("-" * 40)
 
 
 # Example usage

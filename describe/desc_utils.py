@@ -34,3 +34,25 @@ def save_descriptions(
 
         with open(metadata_path, "w") as file:
             json.dump(metadata, file, indent=4)
+
+
+def load_object_metadata(task_path: str) -> List[dict]:
+    if os.path.isdir(task_path):
+        directory = task_path
+        image_metadata = {
+            "object_id": os.path.basename(directory),
+            "object_description": "",
+            "base_path": directory,
+            "images": [],
+        }
+        for file in os.listdir(directory):
+            if file.lower().endswith((".png", ".jpg", ".jpeg")):
+                pre_description = (
+                    file.split(".")[0].replace("-", " ").replace("_", " ").strip()
+                )
+                image_metadata["images"].append(
+                    {"image_path": file, "pre_description": pre_description}
+                )
+        return [image_metadata]
+    else:
+        return load_config(task_path)

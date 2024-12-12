@@ -15,12 +15,10 @@ from desc_utils import save_descriptions
 
 from utils import load_config, load_prompts
 
-logger = logging.getLogger("asssitive lm")
-log_level = "DEBUG"
-logger.setLevel(log_level)
-handler = logging.StreamHandler()
-handler.setLevel(log_level)
-logger.addHandler(handler)
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 
 
 class LLM:

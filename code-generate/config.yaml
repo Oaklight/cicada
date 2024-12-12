@@ -4,8 +4,17 @@ code-llm:
   # api_base_url: "https://oneapi.service.oaklight.cn/v1" # Optional custom API base URL
   # model_name: "yi-lightning" # Replace with your model name
   # model_kwargs: # Optional additional model parameters
-  ## OpenAI API Key
-  api_key: "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"
-  model_name: "gpt-4o" # Replace with your model name
-  org_id: "org-ndr3EdurFsD3Rk6j5MksOgAH" # Optional organization ID
-  # model_kwargs: # Optional additional model parameters
+
+  # ## OpenAI API Key
+  # api_key: "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"
+  # model_name: "gpt-4o" # Replace with your model name
+  # org_id: "org-ndr3EdurFsD3Rk6j5MksOgAH" # Optional organization ID
+  # # model_kwargs: # Optional additional model parameters
+
+  ## argo gpt4o or gpto1preview
+  api_key: "#NbhBUFZwTQaRNd!y$gpgARDtJ3Fd&T$btv@kee6eky#x2!^zm5Kd9rFirswBDk3MY9x%VMWtnlTpBpq3CBxL&"
+  api_base_url: "http://localhost:5000/v1" # Optional custom API base URL
+  model_name: "gpto1preview"
+  model_kwargs:
+    temperature: 0.2
+    top_p: 0.1

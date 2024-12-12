@@ -38,20 +38,35 @@ class LanguageModel(ABC):
         )
 
     def query(self, prompt, system_prompt=None):
-        messages = [
-            {"role": "user", "content": prompt},
-        ]
+        if self.model_name == "gpto1preview":
+            # Use the prompt interface for gpto1preview, incorporating the system_prompt if provided
+            full_prompt = prompt
+            if system_prompt:
+                full_prompt = f"{system_prompt}\n\n{prompt}"  # Combine system_prompt and user prompt
 
-        if system_prompt:
+            response = self.client.completions.create(
+                model=self.model_name,
+                prompt=full_prompt,  # Use the combined prompt
+                **self.model_kwargs,
+            )
+            # Adjust the return format for legacy completion endpoint
+            return response.choices[0].text.strip()
+        else:
+            # Use the messages interface for other models
             messages = [
-                {"role": "system", "content": system_prompt},
-            ] + messages
+                {"role": "user", "content": prompt},
+            ]
 
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=messages,
-            **self.model_kwargs,
-        )
+            if system_prompt:
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                ] + messages
+
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                **self.model_kwargs,
+            )
 
         return response.choices[0].message.content.strip()
 

@@ -47,7 +47,7 @@ class CodeExecutor:
             # Clean up the temporary directory
             shutil.rmtree(temp_dir)
 
-    def check_code_syntax(self, code):
+    def check_code_syntax(self, code: str) -> tuple[bool, str | None]:
         """
         Check the syntax of the generated code using flake8.
 
@@ -55,8 +55,9 @@ class CodeExecutor:
             code (str): The generated code to be checked.
 
         Returns:
-            bool: True if the code is syntactically correct, False otherwise.
-            str: Error message if there is a syntax error, None otherwise.
+            tuple[bool, str | None]: A tuple containing:
+                - bool: True if the code is syntactically correct, False otherwise.
+                - str | None: Error message if there is a syntax error, None otherwise.
         """
         # Create a temporary directory for syntax check
         temp_dir = tempfile.mkdtemp()

@@ -1,6 +1,5 @@
 import base64
 import io
-from typing import Union
 
 import yaml
 from PIL import Image
@@ -41,7 +40,7 @@ def colorstring(message: str, color: str) -> str:
     return f"{color_code}{message}\033[0m"
 
 
-def image_to_base64(image: Union[Image.Image, str]):
+def image_to_base64(image: Image.Image | str):
     """
     Convert the image to a base64 encoded string.
 

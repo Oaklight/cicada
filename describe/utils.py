@@ -1,7 +1,7 @@
 import json
 import os
 import sys
-from typing import List, Union
+from typing import List
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -10,9 +10,7 @@ sys.path.append(parent_dir)
 from common.utils import load_config
 
 
-def save_descriptions(
-    base_dirs: Union[str, List[str]], descriptions: Union[dict, List[dict]]
-):
+def save_descriptions(base_dirs: str | List[str], descriptions: dict | List[dict]):
 
     if not isinstance(base_dirs, list):
         base_dirs = [base_dirs]

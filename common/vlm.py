@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from abc import ABC
-from typing import List, Union
+from typing import List
 
 import openai
 
@@ -57,8 +57,8 @@ class VisionLanguageModel(llm.LanguageModel, ABC):
 
     def _prepare_prompt(
         self,
-        image_data: Union[bytes, List[bytes]],
-        text_data: Union[str, List[str]],
+        image_data: bytes | List[bytes],
+        text_data: str | List[str],
     ):
         """
         Prepare the prompt for the API based on the model.
@@ -110,7 +110,7 @@ class VisionLanguageModel(llm.LanguageModel, ABC):
     def query_with_image(
         self,
         prompt: str,
-        image: Union[bytes, List[bytes]],
+        image: bytes | List[bytes],
         system_prompt: str = None,
     ):
         """

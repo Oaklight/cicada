@@ -45,7 +45,7 @@ class CodeExecutionLoop:
                 logging.error("Failed to generate code.")  # very unlikely?
                 break
 
-            logging.info(colorstring(f"Generated code: {generated_code}", "cyan"))
+            logging.info(colorstring(f"Generated code:\n{generated_code}", "cyan"))
 
             # Cache and execute the code
             code_id = self.code_cache.insert_code(
@@ -56,6 +56,7 @@ class CodeExecutionLoop:
             execution_result = self.code_executor.execute_code(generated_code)
 
             if "error" in execution_result:
+                # ================ execution error =================
                 logging.warning(
                     colorstring(f"Execution error: {execution_result['error']}", "red")
                 )
@@ -68,6 +69,7 @@ class CodeExecutionLoop:
                     )
                 )
             else:
+                # ================ execution success =================
                 logging.info(colorstring("Code executed successfully.", "white"))
                 self.code_cache.insert_execution_result(
                     code_id, True, None, execution_result.get("output", "")
@@ -115,5 +117,6 @@ if __name__ == "__main__":
 
     code_execution_loop = CodeExecutionLoop(code_generator, code_executor, code_cache)
 
-    description = "Create 3 simple cubes with side length of 10, 9 and 8 units respectively. Stack them together, with a 1-unit gap between each cube."
+    # description = "Create 3 simple cubes with side length of 10, 9 and 8 units respectively. Stack them together, with a 1-unit gap between each cube."
+    description = "Create a simple table design, flat circular top, with 4 straight legs. Each leg is about 45 unit long with circular cross section. and the circular top has a radius of 60 units. This is a big table."
     code_execution_loop.run(description)

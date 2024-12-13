@@ -168,3 +168,4 @@ code-generate/code-generator.db
 code-generate/examples/generated_code.py
 code-generate/examples/o1-example.py
 code-generate/examples/reproduce-mech-part.py
+code-generate/coding.db

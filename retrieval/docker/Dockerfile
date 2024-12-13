@@ -1,5 +1,7 @@
 # Use the official pgvector image as the base image
-FROM pgvector/pgvector:0.8.0-pg17
+ARG PG_VECTOR_BASE_VERSION=0.8.0-pg17
+
+FROM pgvector/pgvector:${PG_VECTOR_BASE_VERSION}
 
 # Set environment variables
 ENV DEBIAN_FRONTEND=noninteractive

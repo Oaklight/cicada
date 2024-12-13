@@ -1,7 +1,6 @@
 import sqlite3
 import logging
 from sqlite3 import Connection
-from datetime import datetime
 
 # Configure logging
 logging.basicConfig(
@@ -33,7 +32,7 @@ class CodeCache:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 design_goal TEXT NOT NULL,
                 parent_session_id INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
                 FOREIGN KEY (parent_session_id) REFERENCES session(id)
             )
             """
@@ -46,7 +45,7 @@ class CodeCache:
                 session_id INTEGER NOT NULL,
                 code TEXT NOT NULL,
                 feedback TEXT,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
                 FOREIGN KEY (session_id) REFERENCES session(id)
             )
             """
@@ -60,7 +59,7 @@ class CodeCache:
                 error_type TEXT CHECK(error_type IN ('syntax', 'runtime')),
                 error_message TEXT,
                 error_line INTEGER,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_at TIMESTAMP DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
                 FOREIGN KEY (iteration_id) REFERENCES iteration(id)
             )
             """

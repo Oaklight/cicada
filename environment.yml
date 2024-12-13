@@ -3,7 +3,7 @@ channels:
   - conda-forge
 dependencies:
   - pip=24.0
-  - python=3.11.0
+  - python>=3.11.0
   - pip:
       - cascadio==0.0.14
       - gmsh==4.13.1
@@ -12,3 +12,4 @@ dependencies:
       - pyrender==0.1.45
       - openai==1.54.3
       - build123d==0.8.0
+      - flake8==7.1.1

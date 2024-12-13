@@ -1,6 +1,7 @@
 import sqlite3
 import logging
 from sqlite3 import Connection
+from datetime import datetime
 
 # Configure logging
 logging.basicConfig(
@@ -9,7 +10,7 @@ logging.basicConfig(
 
 
 class CodeCache:
-    def __init__(self, db_file="code-generator.db"):
+    def __init__(self, db_file="coding.db"):
         self.db_file = db_file
         self.connection_pool = []
         self.initialize_database()
@@ -28,35 +29,39 @@ class CodeCache:
         cursor = conn.cursor()
         cursor.execute(
             """
-            CREATE TABLE IF NOT EXISTS sessions_table (
+            CREATE TABLE IF NOT EXISTS session (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                description TEXT
+                design_goal TEXT NOT NULL,
+                parent_session_id INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (parent_session_id) REFERENCES session(id)
             )
             """
         )
 
         cursor.execute(
             """
-            CREATE TABLE IF NOT EXISTS codes_table (
+            CREATE TABLE IF NOT EXISTS iteration (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                session_id INTEGER,
-                timestamp DATETIME DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
-                description TEXT,
-                code TEXT,
-                FOREIGN KEY(session_id) REFERENCES sessions_table(id)
+                session_id INTEGER NOT NULL,
+                code TEXT NOT NULL,
+                feedback TEXT,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (session_id) REFERENCES session(id)
             )
             """
         )
 
         cursor.execute(
             """
-            CREATE TABLE IF NOT EXISTS execution_table (
+            CREATE TABLE IF NOT EXISTS error (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                code_id INTEGER,
-                success BOOLEAN,
+                iteration_id INTEGER NOT NULL,
+                error_type TEXT CHECK(error_type IN ('syntax', 'runtime')),
                 error_message TEXT,
-                output TEXT,
-                FOREIGN KEY(code_id) REFERENCES codes_table(id)
+                error_line INTEGER,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (iteration_id) REFERENCES iteration(id)
             )
             """
         )
@@ -65,15 +70,40 @@ class CodeCache:
         self._return_connection(conn)
         logging.info("Database tables initialized.")
 
-    def insert_session(self, description):
+    # Session API
+
+    def get_session(self, session_id, fields=None):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        if fields is None:
+            fields = "*"
+        else:
+            fields = ", ".join(fields)
+        cursor.execute(
+            f"""
+            SELECT {fields} FROM session WHERE id = ?
+            """,
+            (session_id,),
+        )
+        result = cursor.fetchone()
+        self._return_connection(conn)
+        if result:
+            return dict(
+                zip([description[0] for description in cursor.description], result)
+            )
+        else:
+            logging.warning(f"No session found with ID: {session_id}")
+            return None
+
+    def insert_session(self, design_goal, parent_session_id=None):
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO sessions_table (description)
-            VALUES (?)
+            INSERT INTO session (design_goal, parent_session_id)
+            VALUES (?, ?)
             """,
-            (description,),
+            (design_goal, parent_session_id),
         )
         conn.commit()
         session_id = cursor.lastrowid
@@ -81,113 +111,209 @@ class CodeCache:
         logging.info(f"Session inserted with ID: {session_id}")
         return session_id
 
-    def insert_code(self, session_id, description, code):
+    def update_session(self, session_id, design_goal):
         conn = self._get_connection()
         cursor = conn.cursor()
-
-        # Check if session_id exists
         cursor.execute(
             """
-            SELECT id FROM sessions_table WHERE id = ?
+            UPDATE session SET design_goal = ? WHERE id = ?
             """,
-            (session_id,),
-        )
-        result = cursor.fetchone()
-
-        if result is None:
-            logging.error(f"Session ID {session_id} does not exist.")
-            conn.rollback()
-            self._return_connection(conn)
-            raise ValueError(f"Session ID {session_id} does not exist.")
-
-        # Insert code into codes_table
-        cursor.execute(
-            """
-            INSERT INTO codes_table (session_id, description, code)
-            VALUES (?, ?, ?)
-            """,
-            (session_id, description, code),
+            (design_goal, session_id),
         )
         conn.commit()
-        code_id = cursor.lastrowid
-        logging.info(f"Code inserted with ID: {code_id}")
         self._return_connection(conn)
-        return code_id
+        logging.info(f"Session with ID {session_id} updated.")
 
-    def insert_execution_result(
-        self, code_id, success, error_message=None, output=None
-    ):
+    # Iteration API
+
+    def get_iteration(self, iteration_id, fields=None):
         conn = self._get_connection()
         cursor = conn.cursor()
+        if fields is None:
+            fields = "*"
+        else:
+            fields = ", ".join(fields)
         cursor.execute(
-            """
-            INSERT INTO execution_table (code_id, success, error_message, output)
-            VALUES (?, ?, ?, ?)
+            f"""
+            SELECT {fields} FROM iteration WHERE id = ?
             """,
-            (code_id, success, error_message, output),
-        )
-        conn.commit()
-        logging.info(f"Execution result inserted for code ID: {code_id}")
-        self._return_connection(conn)
-
-    def get_code_by_id(self, code_id):
-        conn = self._get_connection()
-        cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT code FROM codes_table WHERE id = ?
-            """,
-            (code_id,),
+            (iteration_id,),
         )
         result = cursor.fetchone()
         self._return_connection(conn)
         if result:
-            return result[0]
+            return dict(
+                zip([description[0] for description in cursor.description], result)
+            )
         else:
-            logging.warning(f"No code found with ID: {code_id}")
+            logging.warning(f"No iteration found with ID: {iteration_id}")
             return None
 
-    def get_all_codes(self):
+    def get_iterations(self, session_id, fields=None):
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute(
-            """
-            SELECT id, description, code FROM codes_table
-            """
-        )
-        codes = cursor.fetchall()
-        self._return_connection(conn)
-        return codes
-
-    def get_everything_by_session(self, session_id, order_by="DESC"):
-        order_map = {"descending": "DESC", "ascending": "ASC"}
-        order_by = order_map.get(order_by.lower(), "DESC")
-        conn = self._get_connection()
-        cursor = conn.cursor()
+        if fields is None:
+            fields = "*"
+        else:
+            fields = ", ".join(fields)
         cursor.execute(
             f"""
-            SELECT id, timestamp, description, code FROM codes_table
-            WHERE session_id = ?
-            ORDER BY timestamp {order_by}
+            SELECT {fields} FROM iteration WHERE session_id = ?
             """,
             (session_id,),
         )
-        session_codes = cursor.fetchall()
+        results = cursor.fetchall()
         self._return_connection(conn)
-        return session_codes
+        if results:
+            return [
+                dict(
+                    zip([description[0] for description in cursor.description], result)
+                )
+                for result in results
+            ]
+        else:
+            logging.warning(f"No iterations found for session ID: {session_id}")
+            return None
 
-    def get_execution_results_by_code_id(self, code_id):
+    def insert_iteration(self, session_id, code, feedback=None):
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute(
             """
-            SELECT success, error_message, output FROM execution_table WHERE code_id = ?
+            INSERT INTO iteration (session_id, code, feedback)
+            VALUES (?, ?, ?)
             """,
-            (code_id,),
+            (session_id, code, feedback),
         )
-        execution_results = cursor.fetchall()
+        conn.commit()
+        iteration_id = cursor.lastrowid
         self._return_connection(conn)
-        return execution_results
+        logging.info(f"Iteration inserted with ID: {iteration_id}")
+        return iteration_id
+
+    def update_iteration(self, iteration_id, code=None, feedback=None):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        if code is not None and feedback is not None:
+            cursor.execute(
+                """
+                UPDATE iteration SET code = ?, feedback = ? WHERE id = ?
+                """,
+                (code, feedback, iteration_id),
+            )
+        elif code is not None:
+            cursor.execute(
+                """
+                UPDATE iteration SET code = ? WHERE id = ?
+                """,
+                (code, iteration_id),
+            )
+        elif feedback is not None:
+            cursor.execute(
+                """
+                UPDATE iteration SET feedback = ? WHERE id = ?
+                """,
+                (feedback, iteration_id),
+            )
+        conn.commit()
+        self._return_connection(conn)
+        logging.info(f"Iteration with ID {iteration_id} updated.")
+
+    # Error API
+
+    def get_errors(self, iteration_id, fields=None):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        if fields is None:
+            fields = "*"
+        else:
+            fields = ", ".join(fields)
+        cursor.execute(
+            f"""
+            SELECT {fields} FROM error WHERE iteration_id = ?
+            """,
+            (iteration_id,),
+        )
+        results = cursor.fetchall()
+        self._return_connection(conn)
+        if results:
+            return [
+                dict(
+                    zip([description[0] for description in cursor.description], result)
+                )
+                for result in results
+            ]
+        else:
+            logging.warning(f"No errors found for iteration ID: {iteration_id}")
+            return None
+
+    def insert_error(self, iteration_id, error_type, error_message, error_line=None):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            INSERT INTO error (iteration_id, error_type, error_message, error_line)
+            VALUES (?, ?, ?, ?)
+            """,
+            (iteration_id, error_type, error_message, error_line),
+        )
+        conn.commit()
+        error_id = cursor.lastrowid
+        self._return_connection(conn)
+        logging.info(f"Error inserted with ID: {error_id}")
+        return error_id
+
+    def update_error(self, error_id, error_message, error_line=None):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            UPDATE error SET error_message = ?, error_line = ? WHERE id = ?
+            """,
+            (error_message, error_line, error_id),
+        )
+        conn.commit()
+        self._return_connection(conn)
+        logging.info(f"Error with ID {error_id} updated.")
+
+    # Additional Method
+
+    def get_session_history(self, session_id):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            """
+            SELECT * FROM session WHERE id = ?
+            """,
+            (session_id,),
+        )
+        session = cursor.fetchone()
+        if session is None:
+            self._return_connection(conn)
+            return None
+
+        cursor.execute(
+            """
+            SELECT * FROM iteration WHERE session_id = ?
+            """,
+            (session_id,),
+        )
+        iterations = cursor.fetchall()
+
+        for iteration in iterations:
+            iteration_id = iteration[0]
+            cursor.execute(
+                """
+                SELECT * FROM error WHERE iteration_id = ?
+                """,
+                (iteration_id,),
+            )
+            errors = cursor.fetchall()
+            iteration += (errors,)
+
+        self._return_connection(conn)
+        session += (iterations,)
+        return session
 
     def close(self):
         for conn in self.connection_pool:
@@ -207,65 +333,20 @@ if __name__ == "__main__":
     logging.info(f"Created session with ID: {session_id_1}")
 
     # Insert code snippets for the first session
-    code_id_1 = code_cache.insert_code(
-        session_id_1, "Print Hello World", 'print("Hello, World!")'
+    code_id_1 = code_cache.insert_iteration(
+        session_id_1, 'print("Hello, World!")', "Looks good"
     )
-    code_id_2 = code_cache.insert_code(
-        session_id_1, "Print Goodbye", 'print("Goodbye!")'
-    )
-
-    # Simulate execution of the code snippets
-    code_cache.insert_execution_result(code_id_1, True, output="Hello, World!")
-    code_cache.insert_execution_result(code_id_2, True, output="Goodbye!")
-
-    # Insert another session
-    session_id_2 = code_cache.insert_session("Second Test Session")
-    logging.info(f"Created session with ID: {session_id_2}")
-
-    # Insert code snippet for the second session
-    code_id_3 = code_cache.insert_code(
-        session_id_2, "Print Another Message", 'print("Another Message!")'
+    code_id_2 = code_cache.insert_iteration(
+        session_id_1, 'print("Goodbye!")', "Looks good"
     )
 
-    # Simulate execution of the code snippet
-    code_cache.insert_execution_result(code_id_3, True, output="Another Message!")
+    # Insert errors for the first iteration
+    code_cache.insert_error(code_id_1, "syntax", "IndentationError", 2)
+    code_cache.insert_error(code_id_2, "runtime", "NameError", 1)
 
-    # Retrieve and print all codes for the first session
-    codes_in_session_1 = code_cache.get_everything_by_session(session_id_1)
-    logging.info(f"Codes in session {session_id_1}: {codes_in_session_1}")
-
-    # Retrieve and print all codes for the second session
-    codes_in_session_2 = code_cache.get_everything_by_session(session_id_2)
-    logging.info(f"Codes in session {session_id_2}: {codes_in_session_2}")
-
-    # Retrieve and print all execution results for the first code ID
-    execution_results_code_1 = code_cache.get_execution_results_by_code_id(code_id_1)
-    logging.info(
-        f"Execution results for code ID {code_id_1}: {execution_results_code_1}"
-    )
-
-    # Retrieve and print all execution results for the second code ID
-    execution_results_code_2 = code_cache.get_execution_results_by_code_id(code_id_2)
-    logging.info(
-        f"Execution results for code ID {code_id_2}: {execution_results_code_2}"
-    )
-
-    # Retrieve and print all execution results for the third code ID
-    execution_results_code_3 = code_cache.get_execution_results_by_code_id(code_id_3)
-    logging.info(
-        f"Execution results for code ID {code_id_3}: {execution_results_code_3}"
-    )
-
-    # Attempt to insert code with a non-existent session ID
-    non_existent_session_id = 99999  # Assuming this ID does not exist
-    try:
-        code_id_4 = code_cache.insert_code(
-            non_existent_session_id,
-            "Invalid Session Test",
-            'print("This should fail!")',
-        )
-    except ValueError as e:
-        logging.error(f"Error: {e}")
+    # Retrieve and print session history
+    session_history = code_cache.get_session_history(session_id_1)
+    logging.info(f"Session history for session {session_id_1}: {session_history}")
 
     # Clean up resources
     code_cache.close()

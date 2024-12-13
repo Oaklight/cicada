@@ -1,3 +1,5 @@
+import ast
+import importlib.util
 import logging
 import os
 import shutil
@@ -47,7 +49,50 @@ class CodeExecutor:
             # Clean up the temporary directory
             shutil.rmtree(temp_dir)
 
-    def check_code_syntax(self, code: str) -> tuple[bool, str | None]:
+    def check_syntax(self, code: str) -> tuple[bool, str | None]:
+        try:
+            compile(code, "<string>", "exec")
+            return True, None
+        except SyntaxError as e:
+            return False, str(e)
+
+    def check_grammar(self, code: str) -> tuple[bool, str | None]:
+        try:
+            ast.parse(code)
+            return True, None
+        except SyntaxError as e:
+            return False, str(e)
+
+    def check_imports(self, code: str) -> tuple[bool, str | None]:
+        missing_modules = []
+        lines = code.splitlines()
+        for line in lines:
+            if line.startswith("import ") or line.startswith("from "):
+                module = line.split()[1].split(".")[0]  # Extract the module name
+                if importlib.util.find_spec(module) is None:
+                    missing_modules.append(module)
+
+        if missing_modules:
+            return False, f"Missing Modules: {', '.join(missing_modules)}"
+        else:
+            return True, None
+
+    def validate_code(self, code: str) -> tuple[bool, str | None]:
+        syntax_result, syntax_error = self.check_syntax(code)
+        if not syntax_result:
+            return False, f"Syntax Error: {syntax_error}"
+
+        grammar_result, grammar_error = self.check_grammar(code)
+        if not grammar_result:
+            return False, f"Grammar Error: {grammar_error}"
+
+        imports_result, imports_error = self.check_imports(code)
+        if not imports_result:
+            return False, f"Import Error: {imports_error}"
+
+        return True, None
+
+    def validate_code_with_flake8(self, code: str) -> tuple[bool, str | None]:
         """
         Check the syntax of the generated code using flake8.
 
@@ -70,7 +115,7 @@ class CodeExecutor:
 
             # Run flake8 on the temporary file
             result = subprocess.run(
-                ["flake8", temp_file_path],
+                ["flake8", "--select=F", temp_file_path],
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
@@ -184,7 +229,7 @@ a_very_long_variable_name_that_exceeds_the_limit_of_seventy_nine_characters = 1
 
     for case in test_cases:
         print(f"Testing: {case['name']}")
-        is_valid, error_message = code_executor.check_code_syntax(case["code"])
+        is_valid, error_message = code_executor.validate_code(case["code"])
         if is_valid:
             print("Syntax is valid.")
         else:

@@ -23,11 +23,13 @@ class CodeExecutionLoop:
         code_executor: CodeExecutor,
         code_cache: CodeCache,
         max_iterations=5,
+        max_correction_iterations=3,
     ):
         self.code_generator = code_generator
         self.code_executor = code_executor
         self.code_cache = code_cache
         self.max_iterations = max_iterations
+        self.max_correction_iterations = max_correction_iterations
 
     def run(self, description):
         iteration = 0
@@ -38,16 +40,49 @@ class CodeExecutionLoop:
             logging.info(f"Starting iteration {iteration + 1} of {self.max_iterations}")
 
             # Generate code
-            # TODO: add execution result to prompt? what if it's wrong by far?
-            # TODO: code refiner
             generated_code = self.code_generator.generate_code(description)
             if not generated_code:
-                logging.error("Failed to generate code.")  # very unlikely?
+                logging.error(colorstring("Failed to generate code.", "red"))
                 break
 
             logging.info(colorstring(f"Generated code:\n{generated_code}", "cyan"))
+            # ================================================
+            #                 Check code syntax
+            # ================================================
+            correction_iteration = 0
+            while correction_iteration < self.max_correction_iterations:
+                is_valid, error_message = self.code_executor.validate_code(
+                    generated_code
+                )
+                if is_valid:
+                    break
+                else:
+                    logging.warning(
+                        colorstring(f"Syntax error detected: {error_message}", "yellow")
+                    )
+                    # Generate corrected code using the fix_code function
+                    generated_code = self.code_generator.fix_code(
+                        generated_code, description, error_message
+                    )
+                    if not generated_code:
+                        logging.error(
+                            colorstring("Failed to generate corrected code.", "red")
+                        )
+                        break
+                    correction_iteration += 1
 
-            # Cache and execute the code
+            if correction_iteration == self.max_correction_iterations:
+                logging.warning(
+                    colorstring(
+                        "Max correction attempts reached. Abandoning code.", "yellow"
+                    )
+                )
+                iteration += 1
+                continue
+
+            # ===============================================
+            #           Cache and execute the code
+            # ===============================================
             code_id = self.code_cache.insert_code(
                 session_id, description, generated_code
             )
@@ -56,7 +91,7 @@ class CodeExecutionLoop:
             execution_result = self.code_executor.execute_code(generated_code)
 
             if "error" in execution_result:
-                # ================ execution error =================
+                # ================= execution error ==================
                 logging.warning(
                     colorstring(f"Execution error: {execution_result['error']}", "red")
                 )

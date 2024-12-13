@@ -14,7 +14,7 @@ code-llm:
   ## argo gpt4o or gpto1preview
   api_key: "#NbhBUFZwTQaRNd!y$gpgARDtJ3Fd&T$btv@kee6eky#x2!^zm5Kd9rFirswBDk3MY9x%VMWtnlTpBpq3CBxL&"
   api_base_url: "http://localhost:5000/v1" # Optional custom API base URL
-  model_name: "gpto1preview"
+  model_name: "gpt4o"
   model_kwargs:
     temperature: 0.2
     top_p: 0.1

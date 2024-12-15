@@ -164,10 +164,10 @@ cython_debug/
 MiniGPT-3D/params_weight
 retrieval/docker/*.deb
 retrieval/docker/compose.yaml
-code-generate/code-generator.db
-code-generate/examples/generated_code.py
-code-generate/examples/o1-example.py
-code-generate/examples/reproduce-mech-part.py
-code-generate/coding.db
-code-generate/fixed_code.py
-code-generate/generated_code.py
+coding/code-generator.db
+coding/examples/generated_code.py
+coding/examples/o1-example.py
+coding/examples/reproduce-mech-part.py
+coding/coding.db
+coding/fixed_code.py
+coding/generated_code.py

@@ -10,8 +10,10 @@ import sys
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.extend([current_dir, parent_dir])
+
 from common import llm
 from common.utils import load_config, load_prompts
+from utils import extract_section_markdown
 
 
 class CodeGenerator(llm.LanguageModel):
@@ -32,7 +34,12 @@ class CodeGenerator(llm.LanguageModel):
             **model_kwargs,
         )
         self.user_prompt_templates = prompt_templates.get("user_prompt_template", {})
-        self.system_prompt_template = prompt_templates.get("system_prompt_template", "")
+        self.system_prompt_code_generation = prompt_templates.get(
+            "system_prompt_code_generation", ""
+        )
+        self.system_prompt_code_planning = prompt_templates.get(
+            "system_prompt_code_planning", ""
+        )
 
     def _extract_code_from_response(self, response):
         """
@@ -45,14 +52,22 @@ class CodeGenerator(llm.LanguageModel):
         else:
             return response.strip()
 
-    def generate_code(self, description):
-        prompt = (
-            f"Generate a build123d script to create a 3D model based on the following description:\n{description}\n\n"
-            "The code should be enclosed within triple backticks:\n```python\n...```"
-        )
+    def generate_code(self, description: str, plan: dict = None):
+        if plan:
+            prompt = (
+                f"Generate a build123d script to create a 3D model based on the following description and plan:\n"
+                f"Description:\n{description}\n\n"
+                f"Plan:\n{plan}\n\n"
+                "The code should be enclosed within triple backticks:\n```python\n...```"
+            )
+        else:
+            prompt = (
+                f"Generate a build123d script to create a 3D model based on the following description:\n{description}\n\n"
+                "The code should be enclosed within triple backticks:\n```python\n...```"
+            )
 
         try:
-            generated_code = self.query(prompt, self.system_prompt_template)
+            generated_code = self.query(prompt, self.system_prompt_code_generation)
             return self._extract_code_from_response(generated_code)
         except Exception as e:
             logging.error(f"API call failed: {e}")
@@ -76,11 +91,27 @@ class CodeGenerator(llm.LanguageModel):
         )
 
         try:
-            fixed_code = self.query(prompt, self.system_prompt_template)
+            fixed_code = self.query(prompt, self.system_prompt_code_generation)
             return self._extract_code_from_response(fixed_code)
         except Exception as e:
             logging.error(f"API call failed: {e}")
             return None
+
+    def plan_code(self, description):
+        """
+        Plans out the building blocks using build123d API.
+        """
+        prompt = f"Based on the following description, create a detailed plan in markdown format:\n{description}\n\n"
+
+        try:
+            plan_response = self.query(prompt, self.system_prompt_code_planning)
+            plan = extract_section_markdown(plan_response, " Plan")
+            elements = extract_section_markdown(plan_response, " Elements").split("\n")
+            elements = [elem.strip() for elem in elements if elem.strip()]
+            return {"plan": plan, "elements": elements}
+        except Exception as e:
+            logging.error(f"API call failed: {e}")
+        return None
 
 
 if __name__ == "__main__":
@@ -96,34 +127,47 @@ if __name__ == "__main__":
     config = load_config(args.config)
 
     code_llm_config = config["code-llm"]
+    prompt_templates = load_prompts(args.prompts, "code-llm")
     code_generator = CodeGenerator(
         code_llm_config["api_key"],
         code_llm_config.get("api_base_url"),
         code_llm_config.get("model_name", "gpt-4o-mini"),
         code_llm_config.get("org_id"),
-        load_prompts(args.prompts, "code-llm"),
+        prompt_templates,
         **code_llm_config.get("model_kwargs", {}),
     )
 
-    # Step 1: Generate code
-    description = "Create a simple cube with side length of 10 units."
-    generated_code = code_generator.generate_code(description)
+    # Step 1: Plan the code
+    description = "Create a cylindrical container with a height of 50 units and a radius of 20 units, with a smaller cylindrical hole of radius 5 units drilled through its center along the height."
+    plan = code_generator.plan_code(description)
+
+    if plan:
+        print("Code Plan:")
+        print(plan["plan"])
+        print("\nAPI Elements Involved:")
+        print(plan["elements"])
+    else:
+        print("Failed to generate code plan.")
+        sys.exit(1)
+
+    # Step 2: Generate code based on the plan
+    generated_code = code_generator.generate_code(description, plan=plan["plan"])
 
     if generated_code:
-        print("Generated Code:")
+        print("\nGenerated Code:")
         print(generated_code)
         code_generator.save_code_to_file(generated_code, filename="generated_code.py")
     else:
         print("Failed to generate code.")
         sys.exit(1)
 
-    # Step 2: Simulate feedback for fixing the code
+    # Step 3: Simulate feedback for fixing the code
     feedbacks = [
         "The cube side length should be 20 units instead of 10 units.",
         "Ensure the cube is centered at the origin.",
     ]
 
-    # Step 3: Fix the code based on feedback
+    # Step 4: Fix the code based on feedback
     fixed_code = code_generator.fix_code(generated_code, description, feedbacks)
 
     if fixed_code:

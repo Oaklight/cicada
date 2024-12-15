@@ -46,10 +46,18 @@ class CodeExecutionLoop:
                 break
 
             logging.info(colorstring(f"Generated code:\n{generated_code}", "cyan"))
+
+            # Insert generated code into the iteration table
+            iteration_id = self.code_cache.insert_iteration(session_id, generated_code)
+            logging.info(
+                colorstring(f"Inserted iteration with id: {iteration_id}", "cyan")
+            )
+
             # ================================================
             #                 Check code syntax
             # ================================================
             correction_iteration = 0
+            is_valid = False
             while correction_iteration < self.max_correction_iterations:
                 is_valid, error_message = self.code_executor.validate_code(
                     generated_code
@@ -58,7 +66,17 @@ class CodeExecutionLoop:
                     break
                 else:
                     logging.warning(
-                        colorstring(f"Syntax error detected: {error_message}", "yellow")
+                        colorstring(
+                            f"Syntax error detected:\n{error_message}", "yellow"
+                        )
+                    )
+                    # Insert syntax error into the error table
+                    self.code_cache.insert_error(iteration_id, "syntax", error_message)
+                    logging.info(
+                        colorstring(
+                            f"Inserted syntax error for iteration id: {iteration_id}",
+                            "cyan",
+                        )
                     )
                     # Generate corrected code using the fix_code function
                     generated_code = self.code_generator.fix_code(
@@ -69,9 +87,18 @@ class CodeExecutionLoop:
                             colorstring("Failed to generate corrected code.", "red")
                         )
                         break
+                    # insert iteration with corrected code
+                    self.code_cache.insert_iteration(iteration_id, code=generated_code)
+                    logging.info(
+                        colorstring(
+                            f"Updated iteration with corrected code, id: {iteration_id}",
+                            "cyan",
+                        )
+                    )
                     correction_iteration += 1
 
-            if correction_iteration == self.max_correction_iterations:
+            # abort the code if still invalid
+            if not is_valid:
                 logging.warning(
                     colorstring(
                         "Max correction attempts reached. Abandoning code.", "yellow"
@@ -81,39 +108,30 @@ class CodeExecutionLoop:
                 continue
 
             # ===============================================
-            #           Cache and execute the code
+            #           Execute and handle runtime errors
             # ===============================================
-            code_id = self.code_cache.insert_code(
-                session_id, description, generated_code
+            is_valid, execution_result = self.code_executor.execute_code(
+                generated_code, timeout=10
             )
-            logging.info(colorstring(f"Cached code with id: {code_id}", "cyan"))
 
-            execution_result = self.code_executor.execute_code(generated_code)
-
-            if "error" in execution_result:
+            if not is_valid:
                 # ================= execution error ==================
                 logging.warning(
-                    colorstring(f"Execution error: {execution_result['error']}", "red")
+                    colorstring(f"Execution error:\n{execution_result['error']}", "red")
                 )
-                self.code_cache.insert_execution_result(
-                    code_id, False, execution_result["error"], None
+                # Insert runtime error into the error table
+                self.code_cache.insert_error(
+                    iteration_id, "runtime", execution_result["error"]
                 )
                 logging.info(
                     colorstring(
-                        f"Execution result cached for code id: {code_id}", "cyan"
+                        f"Inserted runtime error for iteration id: {iteration_id}",
+                        "cyan",
                     )
                 )
             else:
                 # ================ execution success =================
                 logging.info(colorstring("Code executed successfully.", "white"))
-                self.code_cache.insert_execution_result(
-                    code_id, True, None, execution_result.get("output", "")
-                )
-                logging.info(
-                    colorstring(
-                        f"Execution result cached for code id: {code_id}", "cyan"
-                    )
-                )
                 return  # Exit loop on successful execution
 
             iteration += 1

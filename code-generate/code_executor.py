@@ -17,7 +17,7 @@ logging.basicConfig(level=logging.INFO)
 
 
 class CodeExecutor:
-    def execute_code(self, code):
+    def execute_code(self, code, timeout=10) -> tuple[bool, dict]:
         # Initialize a new temporary directory for each execution
         temp_dir = tempfile.mkdtemp()
         script_path = os.path.join(temp_dir, "script.py")
@@ -30,11 +30,11 @@ class CodeExecutor:
                 cwd=temp_dir,
                 capture_output=True,
                 text=True,
-                timeout=10,  # Set a timeout of 10 seconds
+                timeout=timeout,  # Set the timeout based on the parameter
             )
             if completed_process.returncode != 0:
                 error_message = completed_process.stderr
-                return {"error": error_message}
+                return False, {"error": error_message}
             else:
                 output_files = {}
                 for filename in os.listdir(temp_dir):
@@ -42,9 +42,9 @@ class CodeExecutor:
                         with open(os.path.join(temp_dir, filename), "rb") as f:
                             content = f.read()
                             output_files[filename] = content
-                return {"output": completed_process.stdout, "files": output_files}
+                return True, {"output": completed_process.stdout, "files": output_files}
         except subprocess.TimeoutExpired:
-            return {"error": "Execution timed out."}
+            return False, {"error": "Execution timed out."}
         finally:
             # Clean up the temporary directory
             shutil.rmtree(temp_dir)

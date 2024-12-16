@@ -1,0 +1,1848 @@
+Function: abstractmethod
+Signature: abstractmethod(funcobj)
+Docstring:
+A decorator indicating abstract methods.
+
+Requires that the metaclass is ABCMeta or derived from it.  A
+class that has a metaclass derived from ABCMeta cannot be
+instantiated unless all of its abstract methods are overridden.
+The abstract methods can be called using any of the normal
+'super' call mechanisms.  abstractmethod() may be used to declare
+abstract methods for properties and descriptors.
+
+Usage:
+
+    class C(metaclass=ABCMeta):
+        @abstractmethod
+        def my_abstract_method(self, ...):
+            ...
+
+================================================================================
+
+Function: aci2rgb
+Signature: aci2rgb(index: 'int') -> 'RGB'
+Docstring:
+Convert :ref:`ACI` into (r, g, b) tuple, based on default AutoCAD
+colors.
+
+================================================================================
+
+Function: add
+Signature: add(objects: Union[build123d.topology.Edge, build123d.topology.Wire, build123d.topology.Face, build123d.topology.Solid, build123d.topology.Compound, build123d.build_common.Builder, Iterable[Union[build123d.topology.Edge, build123d.topology.Wire, build123d.topology.Face, build123d.topology.Solid, build123d.topology.Compound, build123d.build_common.Builder]]], rotation: Union[float, tuple[float, float, float], build123d.geometry.Rotation] = None, clean: bool = True, mode: build123d.build_enums.Mode = <Mode.ADD>) -> build123d.topology.Compound
+Docstring:
+Generic Object: Add Object to Part or Sketch
+
+Add an object to a builder.
+
+BuildPart:
+    Edges and Wires are added to pending_edges. Compounds of Face are added to
+    pending_faces. Solids or Compounds of Solid are combined into the part.
+BuildSketch:
+    Edges and Wires are added to pending_edges. Compounds of Face are added to sketch.
+BuildLine:
+    Edges and Wires are added to line.
+
+Args:
+    objects (Union[Edge, Wire, Face, Solid, Compound]  or Iterable of): objects to add
+    rotation (Union[float, RotationLike], optional): rotation angle for sketch,
+        rotation about each axis for part. Defaults to None.
+    clean (bool, optional): Remove extraneous internal structure. Defaults to True.
+   mode (Mode, optional): combine mode. Defaults to Mode.ADD.
+
+================================================================================
+
+Function: ansi_pattern
+Signature: ansi_pattern(*args)
+Docstring:
+Prepare an ANSI line pattern for ezdxf usage.
+Input pattern is specified in inches.
+Output is given in tenths of an inch, and the total pattern length
+is prepended to the list.
+
+================================================================================
+
+Function: bounding_box
+Signature: bounding_box(objects: Union[build123d.topology.Shape, Iterable[build123d.topology.Shape]] = None, mode: build123d.build_enums.Mode = <Mode.PRIVATE>) -> Union[build123d.topology.Sketch, build123d.topology.Part]
+Docstring:
+Generic Operation: Add Bounding Box
+
+Applies to: BuildSketch and BuildPart
+
+Add the 2D or 3D bounding boxes of the object sequence
+
+Args:
+    objects (Shape or Iterable of): objects to create bbox for
+    mode (Mode, optional): combination mode. Defaults to Mode.ADD.
+
+================================================================================
+
+Function: cast
+Signature: cast(typ, val)
+Docstring:
+Cast a value to a type.
+
+This returns the value unchanged.  To the type checker this
+signals that the return value has the designated type, but at
+runtime we intentionally don't check anything (we want this
+to be as fast as possible).
+
+================================================================================
+
+Function: ceil
+Signature: ceil(x, /)
+Docstring:
+Return the ceiling of x as an Integral.
+
+This is the smallest integer >= x.
+
+================================================================================
+
+Function: chamfer
+Signature: chamfer(objects: Union[build123d.topology.Edge, build123d.topology.Vertex, Iterable[Union[build123d.topology.Edge, build123d.topology.Vertex]]], length: float, length2: float = None, angle: float = None, reference: Union[build123d.topology.Edge, build123d.topology.Face] = None) -> Union[build123d.topology.Sketch, build123d.topology.Part]
+Docstring:
+Generic Operation: chamfer
+
+Applies to 2 and 3 dimensional objects.
+
+Chamfer the given sequence of edges or vertices.
+
+Args:
+    objects (Union[Edge,Vertex]  or Iterable of): edges or vertices to chamfer
+    length (float): chamfer size
+    length2 (float, optional): asymmetric chamfer size. Defaults to None.
+    angle (float, optional): chamfer angle in degrees. Defaults to None.
+    reference (Union[Edge,Face]): identifies the side where length is measured. Edge(s) must
+        be part of the face. Vertex/Vertices must be part of edge
+
+Raises:
+    ValueError: no objects provided
+    ValueError: objects must be Edges
+    ValueError: objects must be Vertices
+    ValueError: Only one of length2 or angle should be provided
+    ValueError: reference can only be used in conjunction with length2 or angle
+
+================================================================================
+
+Function: copysign
+Signature: copysign(x, y, /)
+Docstring:
+Return a float with the magnitude (absolute value) of x but the sign of y.
+
+On platforms that support signed zeros, copysign(1.0, -0.0)
+returns -1.0.
+
+================================================================================
+
+Function: cos
+Signature: cos(x, /)
+Docstring:
+Return the cosine of x (measured in radians).
+
+================================================================================
+
+Function: dataclass
+Signature: dataclass(cls=None, /, *, init=True, repr=True, eq=True, order=False, unsafe_hash=False, frozen=False, match_args=True, kw_only=False, slots=False, weakref_slot=False)
+Docstring:
+Add dunder methods based on the fields defined in the class.
+
+Examines PEP 526 __annotations__ to determine fields.
+
+If init is true, an __init__() method is added to the class. If repr
+is true, a __repr__() method is added. If order is true, rich
+comparison dunder methods are added. If unsafe_hash is true, a
+__hash__() method is added. If frozen is true, fields may not be
+assigned to after instance creation. If match_args is true, the
+__match_args__ tuple is added. If kw_only is true, then by default
+all fields are keyword-only. If slots is true, a new class with a
+__slots__ attribute is returned.
+
+================================================================================
+
+Function: degrees
+Signature: degrees(x, /)
+Docstring:
+Convert angle x from radians to degrees.
+
+================================================================================
+
+Function: delta
+Signature: delta(shapes_one: 'Iterable[Shape]', shapes_two: 'Iterable[Shape]') -> 'list[Shape]'
+Docstring:
+Compare the OCCT objects of each list and return the differences
+
+================================================================================
+
+Function: downcast
+Signature: downcast(obj: 'TopoDS_Shape') -> 'TopoDS_Shape'
+Docstring:
+Downcasts a TopoDS object to suitable specialized type
+
+Args:
+  obj: TopoDS_Shape:
+
+Returns:
+
+================================================================================
+
+Function: edge
+Signature: edge(self, select: 'Select' = <Select.ALL>) -> 'Edge'
+Docstring:
+Return Edge
+
+Return an edge.
+
+Args:
+    select (Select, optional): Edge selector. Defaults to Select.ALL.
+
+Returns:
+    Edge: Edge extracted
+
+================================================================================
+
+Function: edges
+Signature: edges(self, select: 'Select' = <Select.ALL>) -> 'ShapeList[Edge]'
+Docstring:
+Return Edges
+
+Return either all or the edges created during the last operation.
+
+Args:
+    select (Select, optional): Edge selector. Defaults to Select.ALL.
+
+Returns:
+    ShapeList[Edge]: Edges extracted
+
+================================================================================
+
+Function: edges_to_wires
+Signature: edges_to_wires(edges: 'Iterable[Edge]', tol: 'float' = 1e-06) -> 'list[Wire]'
+Docstring:
+Convert edges to a list of wires.
+
+Args:
+  edges: Iterable[Edge]:
+  tol: float:  (Default value = 1e-6)
+
+Returns:
+
+================================================================================
+
+Function: export_brep
+Signature: export_brep(to_export: build123d.topology.Shape, file_path: Union[os.PathLike, str, bytes, _io.BytesIO]) -> bool
+Docstring:
+Export this shape to a BREP file
+
+Args:
+    to_export (Shape): object or assembly
+    file_path: Union[PathLike, str, bytes, BytesIO]: brep file path or memory buffer
+
+Returns:
+    bool: write status
+
+================================================================================
+
+Function: export_gltf
+Signature: export_gltf(to_export: build123d.topology.Shape, file_path: Union[os.PathLike, str, bytes], unit: build123d.build_enums.Unit = <Unit.MM>, binary: bool = False, linear_deflection: float = 0.001, angular_deflection: float = 0.1) -> bool
+Docstring:
+export_gltf
+
+The glTF (GL Transmission Format) specification primarily focuses on the efficient
+transmission and loading of 3D models as a compact, binary format that is directly
+renderable by graphics APIs like WebGL, OpenGL, and Vulkan. It's designed to store
+detailed 3D model data, including meshes (vertices, normals, textures, etc.),
+animations, materials, and scene hierarchy, among other aspects.
+
+Args:
+    to_export (Shape): object or assembly
+    file_path (Union[PathLike, str, bytes]): glTF file path
+    unit (Unit, optional): shape units. Defaults to Unit.MM.
+    binary (bool, optional): output format. Defaults to False.
+    linear_deflection (float, optional): A linear deflection setting which limits
+        the distance between a curve and its tessellation. Setting this value too
+        low will result in large meshes that can consume computing resources. Setting
+        the value too high can result in meshes with a level of detail that is too
+        low. The default is a good starting point for a range of cases.
+        Defaults to 1e-3.
+    angular_deflection (float, optional): Angular deflection setting which limits
+        the angle between subsequent segments in a polyline. Defaults to 0.1.
+
+Raises:
+    RuntimeError: Failed to write glTF file
+
+Returns:
+    bool: write status
+
+================================================================================
+
+Function: export_step
+Signature: export_step(to_export: build123d.topology.Shape, file_path: Union[os.PathLike, str, bytes], unit: build123d.build_enums.Unit = <Unit.MM>, write_pcurves: bool = True, precision_mode: build123d.build_enums.PrecisionMode = <PrecisionMode.AVERAGE>) -> bool
+Docstring:
+export_step
+
+Export a build123d Shape or assembly with color and label attributes.
+Note that if the color of a node in an assembly isn't set, it will be
+assigned the color of its nearest ancestor.
+
+Args:
+    to_export (Shape): object or assembly
+    file_path (Union[PathLike, str, bytes]): step file path
+    unit (Unit, optional): shape units. Defaults to Unit.MM.
+    write_pcurves (bool, optional): write parametric curves to the STEP file.
+        Defaults to True.
+    precision_mode (PrecisionMode, optional): geometric data precision.
+        Defaults to PrecisionMode.AVERAGE.
+
+Raises:
+    RuntimeError: Unknown Compound type
+
+Returns:
+    bool: success
+
+================================================================================
+
+Function: export_stl
+Signature: export_stl(to_export: build123d.topology.Shape, file_path: Union[os.PathLike, str, bytes], tolerance: float = 0.001, angular_tolerance: float = 0.1, ascii_format: bool = False) -> bool
+Docstring:
+Export STL
+
+Exports a shape to a specified STL file.
+
+Args:
+    to_export (Shape): object or assembly
+    file_path (str): The path and file name to write the STL output to.
+    tolerance (float, optional): A linear deflection setting which limits the distance
+        between a curve and its tessellation. Setting this value too low will result in
+        large meshes that can consume computing resources. Setting the value too high can
+        result in meshes with a level of detail that is too low. The default is a good
+        starting point for a range of cases. Defaults to 1e-3.
+    angular_tolerance (float, optional): Angular deflection setting which limits the angle
+        between subsequent segments in a polyline. Defaults to 0.1.
+    ascii_format (bool, optional): Export the file as ASCII (True) or binary (False)
+        STL format. Defaults to False (binary).
+
+Returns:
+    bool: Success
+
+================================================================================
+
+Function: extrude
+Signature: extrude(to_extrude: 'Union[Face, Sketch]' = None, amount: 'float' = None, dir: 'VectorLike' = None, until: 'Until' = None, target: 'Union[Compound, Solid]' = None, both: 'bool' = False, taper: 'float' = 0.0, clean: 'bool' = True, mode: 'Mode' = <Mode.ADD>) -> 'Part'
+Docstring:
+Part Operation: extrude
+
+Extrude a sketch or face by an amount or until another object.
+
+Args:
+    to_extrude (Union[Face, Sketch], optional): object to extrude. Defaults to None.
+    amount (float, optional): distance to extrude, sign controls direction. Defaults to None.
+    dir (VectorLike, optional): direction. Defaults to None.
+    until (Until, optional): extrude limit. Defaults to None.
+    target (Shape, optional): extrude until target. Defaults to None.
+    both (bool, optional): extrude in both directions. Defaults to False.
+    taper (float, optional): taper angle. Defaults to 0.0.
+    clean (bool, optional): Remove extraneous internal structure. Defaults to True.
+    mode (Mode, optional): combination mode. Defaults to Mode.ADD.
+
+Raises:
+    ValueError: No object to extrude
+    ValueError: No target object
+
+Returns:
+    Part: extruded object
+
+================================================================================
+
+Function: face
+Signature: face(self, select: 'Select' = <Select.ALL>) -> 'Face'
+Docstring:
+Return Face
+
+Return a face.
+
+Args:
+    select (Select, optional): Face selector. Defaults to Select.ALL.
+
+Returns:
+    Face: Face extracted
+
+================================================================================
+
+Function: faces
+Signature: faces(self, select: 'Select' = <Select.ALL>) -> 'ShapeList[Face]'
+Docstring:
+Return Faces
+
+Return either all or the faces created during the last operation.
+
+Args:
+    select (Select, optional): Face selector. Defaults to Select.ALL.
+
+Returns:
+    ShapeList[Face]: Faces extracted
+
+================================================================================
+
+Function: fillet
+Signature: fillet(objects: Union[build123d.topology.Edge, build123d.topology.Vertex, Iterable[Union[build123d.topology.Edge, build123d.topology.Vertex]]], radius: float) -> Union[build123d.topology.Sketch, build123d.topology.Part, build123d.topology.Curve]
+Docstring:
+Generic Operation: fillet
+
+Applies to 2 and 3 dimensional objects.
+
+Fillet the given sequence of edges or vertices. Note that vertices on
+either end of an open line will be automatically skipped.
+
+Args:
+    objects (Union[Edge,Vertex] or Iterable of): edges or vertices to fillet
+    radius (float): fillet size - must be less than 1/2 local width
+
+Raises:
+    ValueError: no objects provided
+    ValueError: objects must be Edges
+    ValueError: objects must be Vertices
+    ValueError: nothing to fillet
+
+================================================================================
+
+Function: fix
+Signature: fix(obj: 'TopoDS_Shape') -> 'TopoDS_Shape'
+Docstring:
+Fix a TopoDS object to suitable specialized type
+
+Args:
+  obj: TopoDS_Shape:
+
+Returns:
+
+================================================================================
+
+Function: flatten_sequence
+Signature: flatten_sequence(*obj: 'T') -> 'list[Any]'
+Docstring:
+Convert a sequence of object potentially containing iterables into a flat list
+
+================================================================================
+
+Function: floor
+Signature: floor(x, /)
+Docstring:
+Return the floor of x as an Integral.
+
+This is the largest integer <= x.
+
+================================================================================
+
+Function: fsdecode
+Signature: fsdecode(filename)
+Docstring:
+Decode filename (an os.PathLike, bytes, or str) from the filesystem
+encoding with 'surrogateescape' error handler, return str unchanged. On
+Windows, use 'strict' error handler if the file system encoding is
+'mbcs' (which is the default encoding).
+
+================================================================================
+
+Function: fspath
+Signature: fspath(path)
+Docstring:
+Return the file system path representation of the object.
+
+If the object is str or bytes, then allow it to pass through as-is. If the
+object defines __fspath__(), then return the result of that method. All other
+types raise a TypeError.
+
+================================================================================
+
+Function: full_round
+Signature: full_round(edge: 'Edge', invert: 'bool' = False, voronoi_point_count: 'int' = 100, mode: 'Mode' = <Mode.REPLACE>) -> 'tuple[Sketch, Vector, float]'
+Docstring:
+Sketch Operation: full_round
+
+Given an edge from a Face/Sketch, modify the face by replacing the given edge with the
+arc of the Voronoi largest empty circle that will fit within the Face.  This
+"rounds off" the end of the object.
+
+Args:
+    edge (Edge): target Edge to remove
+    invert (bool, optional): make the arc concave instead of convex. Defaults to False.
+    voronoi_point_count (int, optional): number of points along each edge
+        used to create the voronoi vertices as potential locations for the
+        center of the largest empty circle. Defaults to 100.
+    mode (Mode, optional): combination mode. Defaults to Mode.REPLACE.
+
+Raises:
+    ValueError: Invalid geometry
+
+Returns:
+    (Sketch, Vector, float): A tuple where the first value is the modified shape, the second the
+    geometric center of the arc, and the third the radius of the arc
+
+================================================================================
+
+Function: gcd
+Signature: gcd(*integers)
+Docstring:
+Greatest Common Divisor.
+
+================================================================================
+
+Function: import_brep
+Signature: import_brep(file_name: Union[os.PathLike, str, bytes]) -> build123d.topology.Shape
+Docstring:
+Import shape from a BREP file
+
+Args:
+    file_name (Union[PathLike, str, bytes]): brep file
+
+Raises:
+    ValueError: file not found
+
+Returns:
+    Shape: build123d object
+
+================================================================================
+
+Function: import_step
+Signature: import_step(filename: Union[os.PathLike, str, bytes]) -> build123d.topology.Compound
+Docstring:
+import_step
+
+Extract shapes from a STEP file and return them as a Compound object.
+
+Args:
+    file_name (Union[PathLike, str, bytes]): file path of STEP file to import
+
+Raises:
+    ValueError: can't open file
+
+Returns:
+    Compound: contents of STEP file
+
+================================================================================
+
+Function: import_stl
+Signature: import_stl(file_name: Union[os.PathLike, str, bytes]) -> build123d.topology.Face
+Docstring:
+import_stl
+
+Extract shape from an STL file and return it as a Face reference object.
+
+Note that importing with this method and creating a reference is very fast while
+creating an editable model (with Mesher) may take minutes depending on the size
+of the STL file.
+
+Args:
+    file_name (Union[PathLike, str, bytes]): file path of STL file to import
+
+Raises:
+    ValueError: Could not import file
+
+Returns:
+    Face: STL model
+
+================================================================================
+
+Function: import_svg
+Signature: import_svg(svg_file: Union[str, pathlib.Path, TextIO], *, flip_y: bool = True, ignore_visibility: bool = False, label_by: str = 'id', is_inkscape_label: bool = False) -> build123d.topology.ShapeList[typing.Union[build123d.topology.Wire, build123d.topology.Face]]
+Docstring:
+import_svg
+
+Args:
+    svg_file (Union[str, Path, TextIO]): svg file
+    flip_y (bool, optional): flip objects to compensate for svg orientation. Defaults to True.
+    ignore_visibility (bool, optional): Defaults to False.
+    label_by (str, optional): xml attribute. Defaults to "id".
+    is_inkscape_label (bool, optional): flag to indicate that the attribute
+        is an Inkscape label like `inkscape:label` - label_by would be set to
+        `label` in this case. Defaults to False.
+
+Raises:
+    ValueError: unexpected shape type
+
+Returns:
+    ShapeList[Union[Wire, Face]]: objects contained in svg
+
+================================================================================
+
+Function: import_svg_as_buildline_code
+Signature: import_svg_as_buildline_code(file_name: Union[os.PathLike, str, bytes]) -> tuple[str, str]
+Docstring:
+translate_to_buildline_code
+
+Translate the contents of the given svg file into executable build123d/BuildLine code.
+
+Args:
+    file_name (Union[PathLike, str, bytes]): svg file name
+
+Returns:
+    tuple[str, str]: code, builder instance name
+
+================================================================================
+
+Function: import_svg_document
+Signature: import_svg_document(svg_file: Union[str, pathlib.Path, TextIO], *, flip_y: bool = True, ignore_visibility: bool = False, metadata: Optional[Callable[[svgelements.svgelements.Shape, Sequence[Union[svgelements.svgelements.Group, svgelements.svgelements.Use]]], ~M]] = None) -> Union[ocpsvg.svg.ItemsFromDocument[tuple[Union[OCP.TopoDS.TopoDS_Wire, OCP.TopoDS.TopoDS_Face], ~M]], ocpsvg.svg.ItemsFromDocument[Union[OCP.TopoDS.TopoDS_Wire, OCP.TopoDS.TopoDS_Face]]]
+Docstring:
+Import shapes from an SVG document as faces and/or wires.
+
+Each visible shape and path is converted to zero or more Face if it is filled,
+and to zero or more Wire if it is not filled.
+
+This importer does not cover the whole SVG specification,
+its most notable known limitations are:
+
+- degenerate and self-crossing paths may result in invalid faces and wires
+- clipping, both by clipping paths and viewport, is ignored
+- graphic properties such as line strokes and pattern fills are ignored
+
+Documents relying on these features need to be pre-processed externally.
+
+:param svg_file: input SVG document
+:param flip_y: whether to mirror the Y-coordinates
+    to compensate for SVG's top left origin, defaults to True
+:param ignore_visibility: whether to ignore visibility
+    attribute and process hidden elements.
+:param metadata: funtion to generate metadata from the source SVG element
+:raises IOError:
+:raises SyntaxError:
+:raises ValueError:
+
+================================================================================
+
+Function: isclose
+Signature: isclose(a, b, *, rel_tol=1e-09, abs_tol=0.0)
+Docstring:
+Determine whether two floating point numbers are close in value.
+
+  rel_tol
+    maximum difference for being considered "close", relative to the
+    magnitude of the input values
+  abs_tol
+    maximum difference for being considered "close", regardless of the
+    magnitude of the input values
+
+Return True if a is close in value to b, and False otherwise.
+
+For the values to be considered close, the difference between them
+must be smaller than at least one of the tolerances.
+
+-inf, inf and NaN behave similarly to the IEEE 754 Standard.  That
+is, NaN is not close to anything, even itself.  inf and -inf are
+only close to themselves.
+
+================================================================================
+
+Function: isclose_b
+Signature: isclose_b(a: 'float', b: 'float', rel_tol=1e-09, abs_tol=1e-14) -> 'bool'
+Docstring:
+Determine whether two floating point numbers are close in value.
+Overridden abs_tol default for the math.isclose function.
+
+Args:
+    a (float): First value to compare
+    b (float): Second value to compare
+    rel_tol (float, optional): Maximum difference for being considered "close", relative to the
+magnitude of the input values. Defaults to 1e-9.
+    abs_tol (float, optional): Maximum difference for being considered "close", regardless of the
+magnitude of the input values. Defaults to 1e-14 (unlike math.isclose which defaults to zero).
+
+Returns: True if a is close in value to b, and False otherwise.
+
+================================================================================
+
+Function: iso_pattern
+Signature: iso_pattern(*args)
+Docstring:
+Prepare an ISO line pattern for ezdxf usage.
+Input pattern is specified in millimeters.
+Output is given in tenths of an inch, and the total pattern length
+is prepended to the list.
+
+================================================================================
+
+Function: loft
+Signature: loft(sections: 'Union[Face, Sketch, Iterable[Union[Vertex, Face, Sketch]]]' = None, ruled: 'bool' = False, clean: 'bool' = True, mode: 'Mode' = <Mode.ADD>) -> 'Part'
+Docstring:
+Part Operation: loft
+
+Loft the pending sketches/faces, across all workplanes, into a solid.
+
+Args:
+    sections (Vertex, Face, Sketch): slices to loft into object. If not provided, pending_faces
+        will be used. If vertices are to be used, a vertex can be the first, last, or
+        first and last elements.
+    ruled (bool, optional): discontiguous layer tangents. Defaults to False.
+    clean (bool, optional): Remove extraneous internal structure. Defaults to True.
+    mode (Mode, optional): combination mode. Defaults to Mode.ADD.
+
+================================================================================
+
+Function: log2
+Signature: log2(x, /)
+Docstring:
+Return the base 2 logarithm of x.
+
+================================================================================
+
+Function: make_brake_formed
+Signature: make_brake_formed(thickness: 'float', station_widths: 'Union[float, Iterable[float]]', line: 'Union[Edge, Wire, Curve]' = None, side: 'Side' = <Side.LEFT>, kind: 'Kind' = <Kind.ARC>, clean: 'bool' = True, mode: 'Mode' = <Mode.ADD>) -> 'Part'
+Docstring:
+make_brake_formed
+
+Create a part typically formed with a sheet metal brake from a single outline.
+The line parameter describes how the material is to be bent. Either a single
+width value or a width value at each vertex or station is provided to control
+the width of the end part.  Note that if multiple values are provided there
+must be one for each vertex and that the resulting part is composed of linear
+segments.
+
+Args:
+    thickness (float): sheet metal thickness
+    station_widths (Union[float, Iterable[float]]): width of part at
+        each vertex or a single value. Note that this width is perpendicular
+        to the provided line/plane.
+    line (Union[Edge, Wire, Curve], optional): outline of part. Defaults to None.
+    side (Side, optional): offset direction. Defaults to Side.LEFT.
+    kind (Kind, optional): offset intersection type. Defaults to Kind.ARC.
+    clean (bool, optional): clean the resulting solid. Defaults to True.
+    mode (Mode, optional): combination mode. Defaults to Mode.ADD.
+
+Raises:
+    ValueError: invalid line type
+    ValueError: not line provided
+    ValueError: line not suitable
+    ValueError: incorrect # of width values
+
+Returns:
+    Part: sheet metal part
+
+================================================================================
+
+Function: make_face
+Signature: make_face(edges: 'Union[Edge, Iterable[Edge]]' = None, mode: 'Mode' = <Mode.ADD>) -> 'Sketch'
+Docstring:
+Sketch Operation: make_face
+
+Create a face from the given perimeter edges.
+
+Args:
+    edges (Edge): sequence of perimeter edges. Defaults to all
+        sketch pending edges.
+    mode (Mode, optional): combination mode. Defaults to Mode.ADD.
+
+================================================================================
+
+Function: make_hull
+Signature: make_hull(edges: 'Union[Edge, Iterable[Edge]]' = None, mode: 'Mode' = <Mode.ADD>) -> 'Sketch'
+Docstring:
+Sketch Operation: make_hull
+
+Create a face from the convex hull of the given edges
+
+Args:
+    edges (Edge, optional): sequence of edges to hull. Defaults to all
+        sketch pending edges.
+    mode (Mode, optional): combination mode. Defaults to Mode.ADD.
+
+================================================================================
+
+Function: minimize
+Signature: minimize(fun, x0, args=(), method=None, jac=None, hess=None, hessp=None, bounds=None, constraints=(), tol=None, callback=None, options=None)
+Docstring:
+Minimization of scalar function of one or more variables.
+
+Parameters
+----------
+fun : callable
+    The objective function to be minimized.
+
+        ``fun(x, *args) -> float``
+
+    where ``x`` is a 1-D array with shape (n,) and ``args``
+    is a tuple of the fixed parameters needed to completely
+    specify the function.
+x0 : ndarray, shape (n,)
+    Initial guess. Array of real elements of size (n,),
+    where ``n`` is the number of independent variables.
+args : tuple, optional
+    Extra arguments passed to the objective function and its
+    derivatives (`fun`, `jac` and `hess` functions).
+method : str or callable, optional
+    Type of solver.  Should be one of
+
+        - 'Nelder-Mead' :ref:`(see here) <optimize.minimize-neldermead>`
+        - 'Powell'      :ref:`(see here) <optimize.minimize-powell>`
+        - 'CG'          :ref:`(see here) <optimize.minimize-cg>`
+        - 'BFGS'        :ref:`(see here) <optimize.minimize-bfgs>`
+        - 'Newton-CG'   :ref:`(see here) <optimize.minimize-newtoncg>`
+        - 'L-BFGS-B'    :ref:`(see here) <optimize.minimize-lbfgsb>`
+        - 'TNC'         :ref:`(see here) <optimize.minimize-tnc>`
+        - 'COBYLA'      :ref:`(see here) <optimize.minimize-cobyla>`
+        - 'COBYQA'      :ref:`(see here) <optimize.minimize-cobyqa>`
+        - 'SLSQP'       :ref:`(see here) <optimize.minimize-slsqp>`
+        - 'trust-constr':ref:`(see here) <optimize.minimize-trustconstr>`
+        - 'dogleg'      :ref:`(see here) <optimize.minimize-dogleg>`
+        - 'trust-ncg'   :ref:`(see here) <optimize.minimize-trustncg>`
+        - 'trust-exact' :ref:`(see here) <optimize.minimize-trustexact>`
+        - 'trust-krylov' :ref:`(see here) <optimize.minimize-trustkrylov>`
+        - custom - a callable object, see below for description.
+
+    If not given, chosen to be one of ``BFGS``, ``L-BFGS-B``, ``SLSQP``,
+    depending on whether or not the problem has constraints or bounds.
+jac : {callable,  '2-point', '3-point', 'cs', bool}, optional
+    Method for computing the gradient vector. Only for CG, BFGS,
+    Newton-CG, L-BFGS-B, TNC, SLSQP, dogleg, trust-ncg, trust-krylov,
+    trust-exact and trust-constr.
+    If it is a callable, it should be a function that returns the gradient
+    vector:
+
+        ``jac(x, *args) -> array_like, shape (n,)``
+
+    where ``x`` is an array with shape (n,) and ``args`` is a tuple with
+    the fixed parameters. If `jac` is a Boolean and is True, `fun` is
+    assumed to return a tuple ``(f, g)`` containing the objective
+    function and the gradient.
+    Methods 'Newton-CG', 'trust-ncg', 'dogleg', 'trust-exact', and
+    'trust-krylov' require that either a callable be supplied, or that
+    `fun` return the objective and gradient.
+    If None or False, the gradient will be estimated using 2-point finite
+    difference estimation with an absolute step size.
+    Alternatively, the keywords  {'2-point', '3-point', 'cs'} can be used
+    to select a finite difference scheme for numerical estimation of the
+    gradient with a relative step size. These finite difference schemes
+    obey any specified `bounds`.
+hess : {callable, '2-point', '3-point', 'cs', HessianUpdateStrategy}, optional
+    Method for computing the Hessian matrix. Only for Newton-CG, dogleg,
+    trust-ncg, trust-krylov, trust-exact and trust-constr.
+    If it is callable, it should return the Hessian matrix:
+
+        ``hess(x, *args) -> {LinearOperator, spmatrix, array}, (n, n)``
+
+    where ``x`` is a (n,) ndarray and ``args`` is a tuple with the fixed
+    parameters.
+    The keywords {'2-point', '3-point', 'cs'} can also be used to select
+    a finite difference scheme for numerical estimation of the hessian.
+    Alternatively, objects implementing the `HessianUpdateStrategy`
+    interface can be used to approximate the Hessian. Available
+    quasi-Newton methods implementing this interface are:
+
+        - `BFGS`;
+        - `SR1`.
+
+    Not all of the options are available for each of the methods; for
+    availability refer to the notes.
+hessp : callable, optional
+    Hessian of objective function times an arbitrary vector p. Only for
+    Newton-CG, trust-ncg, trust-krylov, trust-constr.
+    Only one of `hessp` or `hess` needs to be given. If `hess` is
+    provided, then `hessp` will be ignored. `hessp` must compute the
+    Hessian times an arbitrary vector:
+
+        ``hessp(x, p, *args) ->  ndarray shape (n,)``
+
+    where ``x`` is a (n,) ndarray, ``p`` is an arbitrary vector with
+    dimension (n,) and ``args`` is a tuple with the fixed
+    parameters.
+bounds : sequence or `Bounds`, optional
+    Bounds on variables for Nelder-Mead, L-BFGS-B, TNC, SLSQP, Powell,
+    trust-constr, COBYLA, and COBYQA methods. There are two ways to specify
+    the bounds:
+
+        1. Instance of `Bounds` class.
+        2. Sequence of ``(min, max)`` pairs for each element in `x`. None
+           is used to specify no bound.
+
+constraints : {Constraint, dict} or List of {Constraint, dict}, optional
+    Constraints definition. Only for COBYLA, COBYQA, SLSQP and trust-constr.
+
+    Constraints for 'trust-constr' and 'cobyqa' are defined as a single object
+    or a list of objects specifying constraints to the optimization problem.
+    Available constraints are:
+
+        - `LinearConstraint`
+        - `NonlinearConstraint`
+
+    Constraints for COBYLA, SLSQP are defined as a list of dictionaries.
+    Each dictionary with fields:
+
+        type : str
+            Constraint type: 'eq' for equality, 'ineq' for inequality.
+        fun : callable
+            The function defining the constraint.
+        jac : callable, optional
+            The Jacobian of `fun` (only for SLSQP).
+        args : sequence, optional
+            Extra arguments to be passed to the function and Jacobian.
+
+    Equality constraint means that the constraint function result is to
+    be zero whereas inequality means that it is to be non-negative.
+    Note that COBYLA only supports inequality constraints.
+
+tol : float, optional
+    Tolerance for termination. When `tol` is specified, the selected
+    minimization algorithm sets some relevant solver-specific tolerance(s)
+    equal to `tol`. For detailed control, use solver-specific
+    options.
+options : dict, optional
+    A dictionary of solver options. All methods except `TNC` accept the
+    following generic options:
+
+        maxiter : int
+            Maximum number of iterations to perform. Depending on the
+            method each iteration may use several function evaluations.
+
+            For `TNC` use `maxfun` instead of `maxiter`.
+        disp : bool
+            Set to True to print convergence messages.
+
+    For method-specific options, see :func:`show_options()`.
+callback : callable, optional
+    A callable called after each iteration.
+
+    All methods except TNC, SLSQP, and COBYLA support a callable with
+    the signature:
+
+        ``callback(intermediate_result: OptimizeResult)``
+
+    where ``intermediate_result`` is a keyword parameter containing an
+    `OptimizeResult` with attributes ``x`` and ``fun``, the present values
+    of the parameter vector and objective function. Note that the name
+    of the parameter must be ``intermediate_result`` for the callback
+    to be passed an `OptimizeResult`. These methods will also terminate if
+    the callback raises ``StopIteration``.
+
+    All methods except trust-constr (also) support a signature like:
+
+        ``callback(xk)``
+
+    where ``xk`` is the current parameter vector.
+
+    Introspection is used to determine which of the signatures above to
+    invoke.
+
+Returns
+-------
+res : OptimizeResult
+    The optimization result represented as a ``OptimizeResult`` object.
+    Important attributes are: ``x`` the solution array, ``success`` a
+    Boolean flag indicating if the optimizer exited successfully and
+    ``message`` which describes the cause of the termination. See
+    `OptimizeResult` for a description of other attributes.
+
+See also
+--------
+minimize_scalar : Interface to minimization algorithms for scalar
+    univariate functions
+show_options : Additional options accepted by the solvers
+
+Notes
+-----
+This section describes the available solvers that can be selected by the
+'method' parameter. The default method is *BFGS*.
+
+**Unconstrained minimization**
+
+Method :ref:`CG <optimize.minimize-cg>` uses a nonlinear conjugate
+gradient algorithm by Polak and Ribiere, a variant of the
+Fletcher-Reeves method described in [5]_ pp.120-122. Only the
+first derivatives are used.
+
+Method :ref:`BFGS <optimize.minimize-bfgs>` uses the quasi-Newton
+method of Broyden, Fletcher, Goldfarb, and Shanno (BFGS) [5]_
+pp. 136. It uses the first derivatives only. BFGS has proven good
+performance even for non-smooth optimizations. This method also
+returns an approximation of the Hessian inverse, stored as
+`hess_inv` in the OptimizeResult object.
+
+Method :ref:`Newton-CG <optimize.minimize-newtoncg>` uses a
+Newton-CG algorithm [5]_ pp. 168 (also known as the truncated
+Newton method). It uses a CG method to the compute the search
+direction. See also *TNC* method for a box-constrained
+minimization with a similar algorithm. Suitable for large-scale
+problems.
+
+Method :ref:`dogleg <optimize.minimize-dogleg>` uses the dog-leg
+trust-region algorithm [5]_ for unconstrained minimization. This
+algorithm requires the gradient and Hessian; furthermore the
+Hessian is required to be positive definite.
+
+Method :ref:`trust-ncg <optimize.minimize-trustncg>` uses the
+Newton conjugate gradient trust-region algorithm [5]_ for
+unconstrained minimization. This algorithm requires the gradient
+and either the Hessian or a function that computes the product of
+the Hessian with a given vector. Suitable for large-scale problems.
+
+Method :ref:`trust-krylov <optimize.minimize-trustkrylov>` uses
+the Newton GLTR trust-region algorithm [14]_, [15]_ for unconstrained
+minimization. This algorithm requires the gradient
+and either the Hessian or a function that computes the product of
+the Hessian with a given vector. Suitable for large-scale problems.
+On indefinite problems it requires usually less iterations than the
+`trust-ncg` method and is recommended for medium and large-scale problems.
+
+Method :ref:`trust-exact <optimize.minimize-trustexact>`
+is a trust-region method for unconstrained minimization in which
+quadratic subproblems are solved almost exactly [13]_. This
+algorithm requires the gradient and the Hessian (which is
+*not* required to be positive definite). It is, in many
+situations, the Newton method to converge in fewer iterations
+and the most recommended for small and medium-size problems.
+
+**Bound-Constrained minimization**
+
+Method :ref:`Nelder-Mead <optimize.minimize-neldermead>` uses the
+Simplex algorithm [1]_, [2]_. This algorithm is robust in many
+applications. However, if numerical computation of derivative can be
+trusted, other algorithms using the first and/or second derivatives
+information might be preferred for their better performance in
+general.
+
+Method :ref:`L-BFGS-B <optimize.minimize-lbfgsb>` uses the L-BFGS-B
+algorithm [6]_, [7]_ for bound constrained minimization.
+
+Method :ref:`Powell <optimize.minimize-powell>` is a modification
+of Powell's method [3]_, [4]_ which is a conjugate direction
+method. It performs sequential one-dimensional minimizations along
+each vector of the directions set (`direc` field in `options` and
+`info`), which is updated at each iteration of the main
+minimization loop. The function need not be differentiable, and no
+derivatives are taken. If bounds are not provided, then an
+unbounded line search will be used. If bounds are provided and
+the initial guess is within the bounds, then every function
+evaluation throughout the minimization procedure will be within
+the bounds. If bounds are provided, the initial guess is outside
+the bounds, and `direc` is full rank (default has full rank), then
+some function evaluations during the first iteration may be
+outside the bounds, but every function evaluation after the first
+iteration will be within the bounds. If `direc` is not full rank,
+then some parameters may not be optimized and the solution is not
+guaranteed to be within the bounds.
+
+Method :ref:`TNC <optimize.minimize-tnc>` uses a truncated Newton
+algorithm [5]_, [8]_ to minimize a function with variables subject
+to bounds. This algorithm uses gradient information; it is also
+called Newton Conjugate-Gradient. It differs from the *Newton-CG*
+method described above as it wraps a C implementation and allows
+each variable to be given upper and lower bounds.
+
+**Constrained Minimization**
+
+Method :ref:`COBYLA <optimize.minimize-cobyla>` uses the
+Constrained Optimization BY Linear Approximation (COBYLA) method
+[9]_, [10]_, [11]_. The algorithm is based on linear
+approximations to the objective function and each constraint. The
+method wraps a FORTRAN implementation of the algorithm. The
+constraints functions 'fun' may return either a single number
+or an array or list of numbers.
+
+Method :ref:`COBYQA <optimize.minimize-cobyqa>` uses the Constrained
+Optimization BY Quadratic Approximations (COBYQA) method [18]_. The
+algorithm is a derivative-free trust-region SQP method based on quadratic
+approximations to the objective function and each nonlinear constraint. The
+bounds are treated as unrelaxable constraints, in the sense that the
+algorithm always respects them throughout the optimization process.
+
+Method :ref:`SLSQP <optimize.minimize-slsqp>` uses Sequential
+Least SQuares Programming to minimize a function of several
+variables with any combination of bounds, equality and inequality
+constraints. The method wraps the SLSQP Optimization subroutine
+originally implemented by Dieter Kraft [12]_. Note that the
+wrapper handles infinite values in bounds by converting them into
+large floating values.
+
+Method :ref:`trust-constr <optimize.minimize-trustconstr>` is a
+trust-region algorithm for constrained optimization. It switches
+between two implementations depending on the problem definition.
+It is the most versatile constrained minimization algorithm
+implemented in SciPy and the most appropriate for large-scale problems.
+For equality constrained problems it is an implementation of Byrd-Omojokun
+Trust-Region SQP method described in [17]_ and in [5]_, p. 549. When
+inequality constraints are imposed as well, it switches to the trust-region
+interior point method described in [16]_. This interior point algorithm,
+in turn, solves inequality constraints by introducing slack variables
+and solving a sequence of equality-constrained barrier problems
+for progressively smaller values of the barrier parameter.
+The previously described equality constrained SQP method is
+used to solve the subproblems with increasing levels of accuracy
+as the iterate gets closer to a solution.
+
+**Finite-Difference Options**
+
+For Method :ref:`trust-constr <optimize.minimize-trustconstr>`
+the gradient and the Hessian may be approximated using
+three finite-difference schemes: {'2-point', '3-point', 'cs'}.
+The scheme 'cs' is, potentially, the most accurate but it
+requires the function to correctly handle complex inputs and to
+be differentiable in the complex plane. The scheme '3-point' is more
+accurate than '2-point' but requires twice as many operations. If the
+gradient is estimated via finite-differences the Hessian must be
+estimated using one of the quasi-Newton strategies.
+
+**Method specific options for the** `hess` **keyword**
+
++--------------+------+----------+-------------------------+-----+
+| method/Hess  | None | callable | '2-point/'3-point'/'cs' | HUS |
++==============+======+==========+=========================+=====+
+| Newton-CG    | x    | (n, n)   | x                       | x   |
+|              |      | LO       |                         |     |
++--------------+------+----------+-------------------------+-----+
+| dogleg       |      | (n, n)   |                         |     |
++--------------+------+----------+-------------------------+-----+
+| trust-ncg    |      | (n, n)   | x                       | x   |
++--------------+------+----------+-------------------------+-----+
+| trust-krylov |      | (n, n)   | x                       | x   |
++--------------+------+----------+-------------------------+-----+
+| trust-exact  |      | (n, n)   |                         |     |
++--------------+------+----------+-------------------------+-----+
+| trust-constr | x    | (n, n)   |  x                      | x   |
+|              |      | LO       |                         |     |
+|              |      | sp       |                         |     |
++--------------+------+----------+-------------------------+-----+
+
+where LO=LinearOperator, sp=Sparse matrix, HUS=HessianUpdateStrategy
+
+**Custom minimizers**
+
+It may be useful to pass a custom minimization method, for example
+when using a frontend to this method such as `scipy.optimize.basinhopping`
+or a different library.  You can simply pass a callable as the ``method``
+parameter.
+
+The callable is called as ``method(fun, x0, args, **kwargs, **options)``
+where ``kwargs`` corresponds to any other parameters passed to `minimize`
+(such as `callback`, `hess`, etc.), except the `options` dict, which has
+its contents also passed as `method` parameters pair by pair.  Also, if
+`jac` has been passed as a bool type, `jac` and `fun` are mangled so that
+`fun` returns just the function values and `jac` is converted to a function
+returning the Jacobian.  The method shall return an `OptimizeResult`
+object.
+
+The provided `method` callable must be able to accept (and possibly ignore)
+arbitrary parameters; the set of parameters accepted by `minimize` may
+expand in future versions and then these parameters will be passed to
+the method.  You can find an example in the scipy.optimize tutorial.
+
+References
+----------
+.. [1] Nelder, J A, and R Mead. 1965. A Simplex Method for Function
+    Minimization. The Computer Journal 7: 308-13.
+.. [2] Wright M H. 1996. Direct search methods: Once scorned, now
+    respectable, in Numerical Analysis 1995: Proceedings of the 1995
+    Dundee Biennial Conference in Numerical Analysis (Eds. D F
+    Griffiths and G A Watson). Addison Wesley Longman, Harlow, UK.
+    191-208.
+.. [3] Powell, M J D. 1964. An efficient method for finding the minimum of
+   a function of several variables without calculating derivatives. The
+   Computer Journal 7: 155-162.
+.. [4] Press W, S A Teukolsky, W T Vetterling and B P Flannery.
+   Numerical Recipes (any edition), Cambridge University Press.
+.. [5] Nocedal, J, and S J Wright. 2006. Numerical Optimization.
+   Springer New York.
+.. [6] Byrd, R H and P Lu and J. Nocedal. 1995. A Limited Memory
+   Algorithm for Bound Constrained Optimization. SIAM Journal on
+   Scientific and Statistical Computing 16 (5): 1190-1208.
+.. [7] Zhu, C and R H Byrd and J Nocedal. 1997. L-BFGS-B: Algorithm
+   778: L-BFGS-B, FORTRAN routines for large scale bound constrained
+   optimization. ACM Transactions on Mathematical Software 23 (4):
+   550-560.
+.. [8] Nash, S G. Newton-Type Minimization Via the Lanczos Method.
+   1984. SIAM Journal of Numerical Analysis 21: 770-778.
+.. [9] Powell, M J D. A direct search optimization method that models
+   the objective and constraint functions by linear interpolation.
+   1994. Advances in Optimization and Numerical Analysis, eds. S. Gomez
+   and J-P Hennart, Kluwer Academic (Dordrecht), 51-67.
+.. [10] Powell M J D. Direct search algorithms for optimization
+   calculations. 1998. Acta Numerica 7: 287-336.
+.. [11] Powell M J D. A view of algorithms for optimization without
+   derivatives. 2007.Cambridge University Technical Report DAMTP
+   2007/NA03
+.. [12] Kraft, D. A software package for sequential quadratic
+   programming. 1988. Tech. Rep. DFVLR-FB 88-28, DLR German Aerospace
+   Center -- Institute for Flight Mechanics, Koln, Germany.
+.. [13] Conn, A. R., Gould, N. I., and Toint, P. L.
+   Trust region methods. 2000. Siam. pp. 169-200.
+.. [14] F. Lenders, C. Kirches, A. Potschka: "trlib: A vector-free
+   implementation of the GLTR method for iterative solution of
+   the trust region problem", :arxiv:`1611.04718`
+.. [15] N. Gould, S. Lucidi, M. Roma, P. Toint: "Solving the
+   Trust-Region Subproblem using the Lanczos Method",
+   SIAM J. Optim., 9(2), 504--525, (1999).
+.. [16] Byrd, Richard H., Mary E. Hribar, and Jorge Nocedal. 1999.
+    An interior point algorithm for large-scale nonlinear  programming.
+    SIAM Journal on Optimization 9.4: 877-900.
+.. [17] Lalee, Marucha, Jorge Nocedal, and Todd Plantega. 1998. On the
+    implementation of an algorithm for large-scale equality constrained
+    optimization. SIAM Journal on Optimization 8.3: 682-706.
+.. [18] Ragonneau, T. M. *Model-Based Derivative-Free Optimization Methods
+    and Software*. PhD thesis, Department of Applied Mathematics, The Hong
+    Kong Polytechnic University, Hong Kong, China, 2022. URL:
+    https://theses.lib.polyu.edu.hk/handle/200/12294.
+
+Examples
+--------
+Let us consider the problem of minimizing the Rosenbrock function. This
+function (and its respective derivatives) is implemented in `rosen`
+(resp. `rosen_der`, `rosen_hess`) in the `scipy.optimize`.
+
+>>> from scipy.optimize import minimize, rosen, rosen_der
+
+A simple application of the *Nelder-Mead* method is:
+
+>>> x0 = [1.3, 0.7, 0.8, 1.9, 1.2]
+>>> res = minimize(rosen, x0, method='Nelder-Mead', tol=1e-6)
+>>> res.x
+array([ 1.,  1.,  1.,  1.,  1.])
+
+Now using the *BFGS* algorithm, using the first derivative and a few
+options:
+
+>>> res = minimize(rosen, x0, method='BFGS', jac=rosen_der,
+...                options={'gtol': 1e-6, 'disp': True})
+Optimization terminated successfully.
+         Current function value: 0.000000
+         Iterations: 26
+         Function evaluations: 31
+         Gradient evaluations: 31
+>>> res.x
+array([ 1.,  1.,  1.,  1.,  1.])
+>>> print(res.message)
+Optimization terminated successfully.
+>>> res.hess_inv
+array([
+    [ 0.00749589,  0.01255155,  0.02396251,  0.04750988,  0.09495377],  # may vary
+    [ 0.01255155,  0.02510441,  0.04794055,  0.09502834,  0.18996269],
+    [ 0.02396251,  0.04794055,  0.09631614,  0.19092151,  0.38165151],
+    [ 0.04750988,  0.09502834,  0.19092151,  0.38341252,  0.7664427 ],
+    [ 0.09495377,  0.18996269,  0.38165151,  0.7664427,   1.53713523]
+])
+
+
+Next, consider a minimization problem with several constraints (namely
+Example 16.4 from [5]_). The objective function is:
+
+>>> fun = lambda x: (x[0] - 1)**2 + (x[1] - 2.5)**2
+
+There are three constraints defined as:
+
+>>> cons = ({'type': 'ineq', 'fun': lambda x:  x[0] - 2 * x[1] + 2},
+...         {'type': 'ineq', 'fun': lambda x: -x[0] - 2 * x[1] + 6},
+...         {'type': 'ineq', 'fun': lambda x: -x[0] + 2 * x[1] + 2})
+
+And variables must be positive, hence the following bounds:
+
+>>> bnds = ((0, None), (0, None))
+
+The optimization problem is solved using the SLSQP method as:
+
+>>> res = minimize(fun, (2, 0), method='SLSQP', bounds=bnds,
+...                constraints=cons)
+
+It should converge to the theoretical solution (1.4 ,1.7).
+
+================================================================================
+
+Function: mirror
+Signature: mirror(objects: Union[build123d.topology.Edge, build123d.topology.Wire, build123d.topology.Face, build123d.topology.Compound, build123d.topology.Curve, build123d.topology.Sketch, build123d.topology.Part, Iterable[Union[build123d.topology.Edge, build123d.topology.Wire, build123d.topology.Face, build123d.topology.Compound, build123d.topology.Curve, build123d.topology.Sketch, build123d.topology.Part]]] = None, about: build123d.geometry.Plane = Plane(o=(0.00, 0.00, 0.00), x=(1.00, 0.00, 0.00), z=(0.00, -1.00, 0.00)), mode: build123d.build_enums.Mode = <Mode.ADD>) -> Union[build123d.topology.Curve, build123d.topology.Sketch, build123d.topology.Part, build123d.topology.Compound]
+Docstring:
+Generic Operation: mirror
+
+Applies to 1, 2, and 3 dimensional objects.
+
+Mirror a sequence of objects over the given plane.
+
+Args:
+    objects (Union[Edge, Face,Compound]  or Iterable of): objects to mirror
+    about (Plane, optional): reference plane. Defaults to "XZ".
+    mode (Mode, optional): combination mode. Defaults to Mode.ADD.
+
+Raises:
+    ValueError: missing objects
+
+================================================================================
+
+Function: modify_copyreg
+Signature: modify_copyreg()
+Docstring:
+Modify the copyreg so that pickle knows what to look for when it tries to pickle an OCP Shape
+
+================================================================================
+
+Function: new_edges
+Signature: new_edges(*objects: 'Shape', combined: 'Shape') -> 'ShapeList[Edge]'
+Docstring:
+new_edges
+
+Given a sequence of shapes and the combination of those shapes, find the newly added edges
+
+Args:
+    objects (Shape): sequence of shapes
+    combined (Shape): result of the combination of objects
+
+Returns:
+    ShapeList[Edge]: new edges
+
+================================================================================
+
+Function: offset
+Signature: offset(objects: Union[build123d.topology.Edge, build123d.topology.Face, build123d.topology.Solid, build123d.topology.Compound, Iterable[Union[build123d.topology.Edge, build123d.topology.Face, build123d.topology.Solid, build123d.topology.Compound]]] = None, amount: float = 0, openings: Union[build123d.topology.Face, list[build123d.topology.Face]] = None, kind: build123d.build_enums.Kind = <Kind.ARC>, side: build123d.build_enums.Side = <Side.BOTH>, closed: bool = True, min_edge_length: float = None, mode: build123d.build_enums.Mode = <Mode.REPLACE>) -> Union[build123d.topology.Curve, build123d.topology.Sketch, build123d.topology.Part, build123d.topology.Compound]
+Docstring:
+Generic Operation: offset
+
+Applies to 1, 2, and 3 dimensional objects.
+
+Offset the given sequence of Edges, Faces, Compound of Faces, or Solids.
+The kind parameter controls the shape of the transitions. For Solid
+objects, the openings parameter allows selected faces to be open, like
+a hollow box with no lid.
+
+Args:
+    objects (Union[Edge, Face, Solid, Compound]  or Iterable of): objects to offset
+    amount (float): positive values external, negative internal
+    openings (list[Face], optional), sequence of faces to open in part.
+        Defaults to None.
+    kind (Kind, optional): transition shape. Defaults to Kind.ARC.
+    side (Side, optional): side to place offset. Defaults to Side.BOTH.
+    closed (bool, optional): if Side!=BOTH, close the LEFT or RIGHT
+        offset. Defaults to True.
+    min_edge_length (float, optional): repair degenerate edges generated by offset
+        by eliminating edges of minimum length in offset wire. Defaults to None.
+    mode (Mode, optional): combination mode. Defaults to Mode.REPLACE.
+
+Raises:
+    ValueError: missing objects
+    ValueError: Invalid object type
+
+================================================================================
+
+Function: overload
+Signature: overload(func)
+Docstring:
+Decorator for overloaded functions/methods.
+
+In a stub file, place two or more stub definitions for the same
+function in a row, each decorated with @overload.  For example:
+
+  @overload
+  def utf8(value: None) -> None: ...
+  @overload
+  def utf8(value: bytes) -> bytes: ...
+  @overload
+  def utf8(value: str) -> bytes: ...
+
+In a non-stub file (i.e. a regular .py file), do the same but
+follow it with an implementation.  The implementation should *not*
+be decorated with @overload.  For example:
+
+  @overload
+  def utf8(value: None) -> None: ...
+  @overload
+  def utf8(value: bytes) -> bytes: ...
+  @overload
+  def utf8(value: str) -> bytes: ...
+  def utf8(value):
+      # implementation goes here
+
+The overloads for a function can be retrieved at runtime using the
+get_overloads() function.
+
+================================================================================
+
+Function: pack
+Signature: pack(objects: 'Collection[Shape]', padding: 'float', align_z: 'bool' = False) -> 'Collection[Shape]'
+Docstring:
+Pack objects in a squarish area in Plane.XY.
+
+Args:
+    objects (Collection[Shape]): objects to arrange
+    padding (float): space between objects
+    align_z (bool, optional): align shape bottoms to Plane.XY. Defaults to False.
+
+Returns:
+    Collection[Shape]: rearranged objects
+
+================================================================================
+
+Function: polar
+Signature: polar(length: 'float', angle: 'float') -> 'tuple[float, float]'
+Docstring:
+Convert polar coordinates into cartesian coordinates
+
+================================================================================
+
+Function: pretty
+Signature: pretty(obj, verbose=False, max_width=79, newline='\n', max_seq_length=1000)
+Docstring:
+Pretty print the object's representation.
+
+================================================================================
+
+Function: project
+Signature: project(objects: Union[build123d.topology.Edge, build123d.topology.Face, build123d.topology.Wire, build123d.geometry.Vector, build123d.topology.Vertex, Iterable[Union[build123d.topology.Edge, build123d.topology.Face, build123d.topology.Wire, build123d.geometry.Vector, build123d.topology.Vertex]]] = None, workplane: build123d.geometry.Plane = None, target: Union[build123d.topology.Solid, build123d.topology.Compound, build123d.topology.Part] = None, mode: build123d.build_enums.Mode = <Mode.ADD>) -> Union[build123d.topology.Curve, build123d.topology.Sketch, build123d.topology.Compound, build123d.topology.ShapeList[build123d.geometry.Vector]]
+Docstring:
+Generic Operation: project
+
+Applies to 0, 1, and 2 dimensional objects.
+
+Project the given objects or points onto a BuildLine or BuildSketch workplane in
+the direction of the normal of that workplane. When projecting onto a
+sketch a Face(s) are generated while Edges are generated for BuildLine.
+Will only use the first if BuildSketch has multiple active workplanes.
+In algebra mode a workplane must be provided and the output is either
+a Face, Curve, Sketch, Compound, or ShapeList[Vector].
+
+Note that only if mode is not Mode.PRIVATE only Faces can be projected into
+BuildSketch and Edge/Wires into BuildLine.
+
+Args:
+    objects (Union[Edge, Face, Wire, VectorLike, Vertex] or Iterable of):
+        objects or points to project
+    workplane (Plane, optional): screen workplane
+    mode (Mode, optional): combination mode. Defaults to Mode.ADD.
+
+Raises:
+    ValueError: project doesn't accept group_by
+    ValueError: Either a workplane must be provided or a builder must be active
+    ValueError: Points and faces can only be projected in PRIVATE mode
+    ValueError: Edges, wires and points can only be projected in PRIVATE mode
+    RuntimeError: BuildPart doesn't have a project operation
+
+================================================================================
+
+Function: project_workplane
+Signature: project_workplane(origin: 'Union[VectorLike, Vertex]', x_dir: 'Union[VectorLike, Vertex]', projection_dir: 'VectorLike', distance: 'float') -> 'Plane'
+Docstring:
+Part Operation: project_workplane
+
+Return a plane to be used as a BuildSketch or BuildLine workplane
+with a known origin and x direction. The plane's origin will be
+the projection of the provided origin (in 3D space). The plane's
+x direction will be the projection of the provided x_dir (in 3D space).
+
+Args:
+    origin (Union[VectorLike, Vertex]): origin in 3D space
+    x_dir (Union[VectorLike, Vertex]): x direction in 3D space
+    projection_dir (VectorLike): projection direction
+    distance (float): distance from origin to workplane
+
+Raises:
+    RuntimeError: Not suitable for BuildLine or BuildSketch
+    ValueError: x_dir perpendicular to projection_dir
+
+Returns:
+    Plane: workplane aligned for projection
+
+================================================================================
+
+Function: radians
+Signature: radians(x, /)
+Docstring:
+Convert angle x from degrees to radians.
+
+================================================================================
+
+Function: revolve
+Signature: revolve(profiles: 'Union[Face, Iterable[Face]]' = None, axis: 'Axis' = ((0.0, 0.0, 0.0),(0.0, 0.0, 1.0)), revolution_arc: 'float' = 360.0, clean: 'bool' = True, mode: 'Mode' = <Mode.ADD>) -> 'Part'
+Docstring:
+Part Operation: Revolve
+
+Revolve the profile or pending sketches/face about the given axis.
+Note that the most common use case is when the axis is in the same plane as the
+face to be revolved but this isn't required.
+
+Args:
+    profiles (Face, optional): 2D profile(s) to revolve.
+    axis (Axis, optional): axis of rotation. Defaults to Axis.Z.
+    revolution_arc (float, optional): angular size of revolution. Defaults to 360.0.
+    clean (bool, optional): Remove extraneous internal structure. Defaults to True.
+    mode (Mode, optional): combination mode. Defaults to Mode.ADD.
+
+Raises:
+    ValueError: Invalid axis of revolution
+
+================================================================================
+
+Function: scale
+Signature: scale(objects: Union[build123d.topology.Shape, Iterable[build123d.topology.Shape]] = None, by: Union[float, tuple[float, float, float]] = 1, mode: build123d.build_enums.Mode = <Mode.REPLACE>) -> Union[build123d.topology.Curve, build123d.topology.Sketch, build123d.topology.Part, build123d.topology.Compound]
+Docstring:
+Generic Operation: scale
+
+Applies to 1, 2, and 3 dimensional objects.
+
+Scale a sequence of objects. Note that when scaling non-uniformly across
+the three axes, the type of the underlying object may change to bspline from
+line, circle, etc.
+
+Args:
+    objects (Union[Edge, Face, Compound, Solid] or Iterable of): objects to scale
+    by (Union[float, tuple[float, float, float]]): scale factor
+    mode (Mode, optional): combination mode. Defaults to Mode.REPLACE.
+
+Raises:
+    ValueError: missing objects
+
+================================================================================
+
+Function: section
+Signature: section(obj: 'Part' = None, section_by: 'Union[Plane, Iterable[Plane]]' = Plane(o=(0.00, 0.00, 0.00), x=(1.00, 0.00, 0.00), z=(0.00, -1.00, 0.00)), height: 'float' = 0.0, clean: 'bool' = True, mode: 'Mode' = <Mode.PRIVATE>) -> 'Sketch'
+Docstring:
+Part Operation: section
+
+Slices current part at the given height by section_by or current workplane(s).
+
+Args:
+    obj (Part, optional): object to section. Defaults to None.
+    section_by (Plane, optional): plane(s) to section object.
+        Defaults to None.
+    height (float, optional): workplane offset. Defaults to 0.0.
+    clean (bool, optional): Remove extraneous internal structure. Defaults to True.
+    mode (Mode, optional): combination mode. Defaults to Mode.INTERSECT.
+
+================================================================================
+
+Function: shapetype
+Signature: shapetype(obj: 'TopoDS_Shape') -> 'TopAbs_ShapeEnum'
+Docstring:
+Return TopoDS_Shape's TopAbs_ShapeEnum
+
+================================================================================
+
+Function: sin
+Signature: sin(x, /)
+Docstring:
+Return the sine of x (measured in radians).
+
+================================================================================
+
+Function: solid
+Signature: solid(self, select: 'Select' = <Select.ALL>) -> 'Solid'
+Docstring:
+Return Solid
+
+Return a solid.
+
+Args:
+    select (Select, optional): Solid selector. Defaults to Select.ALL.
+
+Returns:
+    Solid: Solid extracted
+
+================================================================================
+
+Function: solids
+Signature: solids(self, select: 'Select' = <Select.ALL>) -> 'ShapeList[Solid]'
+Docstring:
+Return Solids
+
+Return either all or the solids created during the last operation.
+
+Args:
+    select (Select, optional): Solid selector. Defaults to Select.ALL.
+
+Returns:
+    ShapeList[Solid]: Solids extracted
+
+================================================================================
+
+Function: sort_wires_by_build_order
+Signature: sort_wires_by_build_order(wire_list: 'list[Wire]') -> 'list[list[Wire]]'
+Docstring:
+Tries to determine how wires should be combined into faces.
+
+Assume:
+    The wires make up one or more faces, which could have 'holes'
+    Outer wires are listed ahead of inner wires
+    there are no wires inside wires inside wires
+    ( IE, islands -- we can deal with that later on )
+    none of the wires are construction wires
+
+Compute:
+    one or more sets of wires, with the outer wire listed first, and inner
+    ones
+
+Returns, list of lists.
+
+Args:
+  wire_list: list[Wire]:
+
+Returns:
+
+================================================================================
+
+Function: split
+Signature: split(objects: Union[build123d.topology.Edge, build123d.topology.Wire, build123d.topology.Face, build123d.topology.Solid, Iterable[Union[build123d.topology.Edge, build123d.topology.Wire, build123d.topology.Face, build123d.topology.Solid]]] = None, bisect_by: Union[build123d.geometry.Plane, build123d.topology.Face] = Plane(o=(0.00, 0.00, 0.00), x=(1.00, 0.00, 0.00), z=(0.00, -1.00, 0.00)), keep: build123d.build_enums.Keep = <Keep.TOP>, mode: build123d.build_enums.Mode = <Mode.REPLACE>)
+Docstring:
+Generic Operation: split
+
+Applies to 1, 2, and 3 dimensional objects.
+
+Bisect object with plane and keep either top, bottom or both.
+
+Args:
+    objects (Union[Edge, Wire, Face, Solid] or Iterable of), objects to split
+    bisect_by (Union[Plane, Face], optional): plane to segment part.
+        Defaults to Plane.XZ.
+    keep (Keep, optional): selector for which segment to keep. Defaults to Keep.TOP.
+    mode (Mode, optional): combination mode. Defaults to Mode.REPLACE.
+
+Raises:
+    ValueError: missing objects
+
+================================================================================
+
+Function: sqrt
+Signature: sqrt(x, /)
+Docstring:
+Return the square root of x.
+
+================================================================================
+
+Function: svg2paths
+Signature: svg2paths(svg_file_location, return_svg_attributes=False, convert_circles_to_paths=True, convert_ellipses_to_paths=True, convert_lines_to_paths=True, convert_polylines_to_paths=True, convert_polygons_to_paths=True, convert_rectangles_to_paths=True)
+Docstring:
+Converts an SVG into a list of Path objects and attribute dictionaries. 
+
+Converts an SVG file into a list of Path objects and a list of
+dictionaries containing their attributes.  This currently supports
+SVG Path, Line, Polyline, Polygon, Circle, and Ellipse elements.
+
+Args:
+    svg_file_location (string or file-like object): the location of the
+        svg file on disk or a file-like object containing the content of a
+        svg file
+    return_svg_attributes (bool): Set to True and a dictionary of
+        svg-attributes will be extracted and returned.  See also the 
+        `svg2paths2()` function.
+    convert_circles_to_paths: Set to False to exclude SVG-Circle
+        elements (converted to Paths).  By default circles are included as 
+        paths of two `Arc` objects.
+    convert_ellipses_to_paths (bool): Set to False to exclude SVG-Ellipse
+        elements (converted to Paths).  By default ellipses are included as 
+        paths of two `Arc` objects.
+    convert_lines_to_paths (bool): Set to False to exclude SVG-Line elements
+        (converted to Paths)
+    convert_polylines_to_paths (bool): Set to False to exclude SVG-Polyline
+        elements (converted to Paths)
+    convert_polygons_to_paths (bool): Set to False to exclude SVG-Polygon
+        elements (converted to Paths)
+    convert_rectangles_to_paths (bool): Set to False to exclude SVG-Rect
+        elements (converted to Paths).
+
+Returns: 
+    list: The list of Path objects.
+    list: The list of corresponding path attribute dictionaries.
+    dict (optional): A dictionary of svg-attributes (see `svg2paths2()`).
+
+================================================================================
+
+Function: sweep
+Signature: sweep(sections: Union[build123d.topology.Compound, build123d.topology.Edge, build123d.topology.Wire, build123d.topology.Face, build123d.topology.Solid, Iterable[Union[build123d.topology.Compound, build123d.topology.Edge, build123d.topology.Wire, build123d.topology.Face, build123d.topology.Solid]]] = None, path: Union[build123d.topology.Curve, build123d.topology.Edge, build123d.topology.Wire, Iterable[build123d.topology.Edge]] = None, multisection: bool = False, is_frenet: bool = False, transition: build123d.build_enums.Transition = <Transition.TRANSFORMED>, normal: Union[build123d.geometry.Vector, tuple[float, float], tuple[float, float, float], Iterable[float]] = None, binormal: Union[build123d.topology.Edge, build123d.topology.Wire] = None, clean: bool = True, mode: build123d.build_enums.Mode = <Mode.ADD>) -> Union[build123d.topology.Part, build123d.topology.Sketch]
+Docstring:
+Generic Operation: sweep
+
+Sweep pending 1D or 2D objects along path.
+
+Args:
+    sections (Union[Compound, Edge, Wire, Face, Solid]): cross sections to sweep into object
+    path (Union[Curve, Edge, Wire], optional): path to follow.
+        Defaults to context pending_edges.
+    multisection (bool, optional): sweep multiple on path. Defaults to False.
+    is_frenet (bool, optional): use frenet algorithm. Defaults to False.
+    transition (Transition, optional): discontinuity handling option.
+        Defaults to Transition.TRANSFORMED.
+    normal (VectorLike, optional): fixed normal. Defaults to None.
+    binormal (Union[Edge, Wire], optional): guide rotation along path. Defaults to None.
+    clean (bool, optional): Remove extraneous internal structure. Defaults to True.
+    mode (Mode, optional): combination. Defaults to Mode.ADD.
+
+================================================================================
+
+Function: tan
+Signature: tan(x, /)
+Docstring:
+Return the tangent of x (measured in radians).
+
+================================================================================
+
+Function: tcast
+Signature: tcast(typ, val)
+Docstring:
+Cast a value to a type.
+
+This returns the value unchanged.  To the type checker this
+signals that the return value has the designated type, but at
+runtime we intentionally don't check anything (we want this
+to be as fast as possible).
+
+================================================================================
+
+Function: thicken
+Signature: thicken(to_thicken: 'Union[Face, Sketch]' = None, amount: 'float' = None, normal_override: 'VectorLike' = None, both: 'bool' = False, clean: 'bool' = True, mode: 'Mode' = <Mode.ADD>) -> 'Part'
+Docstring:
+Part Operation: thicken
+
+Create a solid(s) from a potentially non planar face(s) by thickening along the normals.
+
+Args:
+    to_thicken (Union[Face, Sketch], optional): object to thicken. Defaults to None.
+    amount (float, optional): distance to extrude, sign controls direction. Defaults to None.
+    normal_override (Vector, optional): The normal_override vector can be used to
+        indicate which way is 'up', potentially flipping the face normal direction
+        such that many faces with different normals all go in the same direction
+        (direction need only be +/- 90 degrees from the face normal). Defaults to None.
+    both (bool, optional): thicken in both directions. Defaults to False.
+    clean (bool, optional): Remove extraneous internal structure. Defaults to True.
+    mode (Mode, optional): combination mode. Defaults to Mode.ADD.
+
+Raises:
+    ValueError: No object to extrude
+    ValueError: No target object
+
+Returns:
+    Part: extruded object
+
+================================================================================
+
+Function: to_align_offset
+Signature: to_align_offset(min_point: 'VectorLike', max_point: 'VectorLike', align: 'Union[Align2DType, Align3DType]', center: 'Optional[VectorLike]' = None) -> 'Vector'
+Docstring:
+Amount to move object to achieve the desired alignment
+
+================================================================================
+
+Function: topo_explore_common_vertex
+Signature: topo_explore_common_vertex(edge1: 'Union[Edge, TopoDS_Edge]', edge2: 'Union[Edge, TopoDS_Edge]') -> 'Union[Vertex, None]'
+Docstring:
+Given two edges, find the common vertex
+
+================================================================================
+
+Function: topo_explore_connected_edges
+Signature: topo_explore_connected_edges(edge: 'Edge', parent: 'Shape' = None) -> 'ShapeList[Edge]'
+Docstring:
+Given an edge extracted from a Shape, return the edges connected to it
+
+================================================================================
+
+Function: trace
+Signature: trace(lines: 'Union[Curve, Edge, Wire, Iterable[Union[Curve, Edge, Wire]]]' = None, line_width: 'float' = 1, mode: 'Mode' = <Mode.ADD>) -> 'Sketch'
+Docstring:
+Sketch Operation: trace
+
+Convert edges, wires or pending edges into faces by sweeping a perpendicular line along them.
+
+Args:
+    lines (Union[Curve, Edge, Wire, Iterable[Union[Curve, Edge, Wire]]], optional): lines to
+        trace. Defaults to sketch pending edges.
+    line_width (float, optional): Defaults to 1.
+    mode (Mode, optional): combination mode. Defaults to Mode.ADD.
+
+Raises:
+    ValueError: No objects to trace
+
+Returns:
+    Sketch: Traced lines
+
+================================================================================
+
+Function: tuplify
+Signature: tuplify(obj: 'Any', dim: 'int') -> 'tuple'
+Docstring:
+Create a size tuple
+
+================================================================================
+
+Function: unit_conversion_scale
+Signature: unit_conversion_scale(from_unit: build123d.build_enums.Unit, to_unit: build123d.build_enums.Unit) -> float
+Docstring:
+Return the multiplicative conversion factor to go from from_unit to to_unit.
+
+================================================================================
+
+Function: unwrap_topods_compound
+Signature: unwrap_topods_compound(compound: 'TopoDS_Compound', fully: 'bool' = True) -> 'Union[TopoDS_Compound, TopoDS_Shape]'
+Docstring:
+Strip unnecessary Compound wrappers
+
+Args:
+    compound (TopoDS_Compound): The TopoDS_Compound to unwrap.
+    fully (bool, optional): return base shape without any TopoDS_Compound
+        wrappers (otherwise one TopoDS_Compound is left). Defaults to True.
+
+Returns:
+    Union[TopoDS_Compound, TopoDS_Shape]: base shape
+
+================================================================================
+
+Function: unwrapped_shapetype
+Signature: unwrapped_shapetype(obj: 'Shape') -> 'TopAbs_ShapeEnum'
+Docstring:
+Return Shape's TopAbs_ShapeEnum
+
+================================================================================
+
+Function: validate_inputs
+Signature: validate_inputs(context: 'Builder', validating_class, objects: 'Iterable[Shape]' = None)
+Docstring:
+A function to wrap the method when used outside of a Builder context
+
+================================================================================
+
+Function: vertex
+Signature: vertex(self, select: 'Select' = <Select.ALL>) -> 'Vertex'
+Docstring:
+Return Vertex
+
+Return a vertex.
+
+Args:
+    select (Select, optional): Vertex selector. Defaults to Select.ALL.
+
+Returns:
+    Vertex: Vertex extracted
+
+================================================================================
+
+Function: vertices
+Signature: vertices(self, select: 'Select' = <Select.ALL>) -> 'ShapeList[Vertex]'
+Docstring:
+Return Vertices
+
+Return either all or the vertices created during the last operation.
+
+Args:
+    select (Select, optional): Vertex selector. Defaults to Select.ALL.
+
+Returns:
+    ShapeList[Vertex]: Vertices extracted
+
+================================================================================
+
+Function: wire
+Signature: wire(self, select: 'Select' = <Select.ALL>) -> 'Wire'
+Docstring:
+Return Wire
+
+Return a wire.
+
+Args:
+    select (Select, optional): Wire selector. Defaults to Select.ALL.
+
+Returns:
+    Wire: Wire extracted
+
+================================================================================
+
+Function: wires
+Signature: wires(self, select: 'Select' = <Select.ALL>) -> 'ShapeList[Wire]'
+Docstring:
+Return Wires
+
+Return either all or the wires created during the last operation.
+
+Args:
+    select (Select, optional): Wire selector. Defaults to Select.ALL.
+
+Returns:
+    ShapeList[Wire]: Wires extracted
+
+================================================================================
+

@@ -5,6 +5,7 @@ import sys
 from abc import ABC
 
 import openai
+import tenacity
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -37,13 +38,22 @@ class LanguageModel(ABC):
             api_key=self.api_key, base_url=self.api_base_url, organization=self.org_id
         )
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),  # Stop after 5 attempts
+        wait=tenacity.wait_random_exponential(
+            multiplier=1, min=2, max=10
+        ),  # Exponential backoff with randomness
+        retry=tenacity.retry_if_exception_type(
+            openai.APIError
+        ),  # Retry only on specific exceptions related to OpenAI API
+        reraise=True,  # Reraise the last exception if all retries fail
+    )
     def query(self, prompt, system_prompt=None):
         if self.model_name == "gpto1preview":
             # Use the prompt interface for gpto1preview, incorporating the system_prompt if provided
             full_prompt = prompt
             if system_prompt:
                 full_prompt = f"{system_prompt}\n\n{prompt}"  # Combine system_prompt and user prompt
-
             response = self.client.completions.create(
                 model=self.model_name,
                 prompt=full_prompt,  # Use the combined prompt

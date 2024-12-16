@@ -6,6 +6,7 @@ from abc import ABC
 from typing import List
 
 import openai
+import tenacity
 
 current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
@@ -36,24 +37,6 @@ class VisionLanguageModel(llm.LanguageModel, ABC):
             org_id,
             **model_kwargs,
         )
-
-    def query(self, prompt, system_prompt=None):
-        messages = [
-            {"role": "user", "content": prompt},
-        ]
-
-        if system_prompt:
-            messages = [
-                {"role": "system", "content": system_prompt},
-            ] + messages
-
-        response = self.client.chat.completions.create(
-            model=self.model_name,
-            messages=messages,
-            **self.model_kwargs,
-        )
-
-        return response.choices[0].message.content.strip()
 
     def _prepare_prompt(
         self,
@@ -107,6 +90,16 @@ class VisionLanguageModel(llm.LanguageModel, ABC):
             },
         ]
 
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),  # Stop after 3 attempts
+        wait=tenacity.wait_random_exponential(
+            multiplier=1, min=2, max=10
+        ),  # Exponential backoff with randomness
+        retry=tenacity.retry_if_exception_type(
+            openai.APIError
+        ),  # Retry only on specific exceptions related to OpenAI API
+        reraise=True,  # Reraise the last exception if all retries fail
+    )
     def query_with_image(
         self,
         prompt: str,
@@ -165,4 +158,6 @@ if __name__ == "__main__":
     response = vlm.query_with_image(
         "Describe this image.", image_data, "you are great visual describer."
     )
+    logging.info(colorstring(response, "white"))
+    response = vlm.query("who made you?")
     logging.info(colorstring(response, "white"))

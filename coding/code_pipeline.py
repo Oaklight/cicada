@@ -36,16 +36,35 @@ class CodeExecutionLoop:
         session_id = self.code_cache.insert_session(description)
         logging.info(colorstring(f"Session started with id: {session_id}", "cyan"))
 
+        # ================================================
+        #                    Plan code
+        # ================================================
+        # Generate plan
+        coding_plan = None
+        coding_plan = self.code_generator.plan_code(description)
+
+        logging.info(colorstring(f"Coding plan:\n{coding_plan}", "white"))
+
+        # Save the coding plan to the session
+        self.code_cache.update_session(session_id, coding_plan=coding_plan)
+        logging.info(colorstring(f"Updated session with id: {session_id}", "cyan"))
+
+        # ================================================
+        #                   Attempt Run
+        # ================================================
+
         while iteration < self.max_iterations:
             logging.info(f"Starting iteration {iteration + 1} of {self.max_iterations}")
 
             # Generate code
-            generated_code = self.code_generator.generate_code(description)
+            generated_code = self.code_generator.generate_code(
+                description, plan=coding_plan
+            )
             if not generated_code:
                 logging.error(colorstring("Failed to generate code.", "red"))
                 break
 
-            logging.info(colorstring(f"Generated code:\n{generated_code}", "cyan"))
+            logging.info(colorstring(f"Generated code:\n{generated_code}", "while"))
 
             # Insert generated code into the iteration table
             iteration_id = self.code_cache.insert_iteration(session_id, generated_code)
@@ -117,7 +136,9 @@ class CodeExecutionLoop:
             if not is_valid:
                 # ================= execution error ==================
                 logging.warning(
-                    colorstring(f"Execution error:\n{execution_result['error']}", "red")
+                    colorstring(
+                        f"Execution error:\n{execution_result['error']}", "yellow"
+                    )
                 )
                 # Insert runtime error into the error table
                 self.code_cache.insert_error(
@@ -131,7 +152,7 @@ class CodeExecutionLoop:
                 )
             else:
                 # ================ execution success =================
-                logging.info(colorstring("Code executed successfully.", "white"))
+                logging.info(colorstring("Code executed successfully.", "blue"))
                 return  # Exit loop on successful execution
 
             iteration += 1

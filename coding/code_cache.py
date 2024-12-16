@@ -1,5 +1,6 @@
-import sqlite3
+import json
 import logging
+import sqlite3
 from sqlite3 import Connection
 
 # Configure logging
@@ -32,6 +33,7 @@ class CodeCache:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 design_goal TEXT NOT NULL,
                 parent_session_id INTEGER,
+                coding_plan TEXT,
                 created_at TIMESTAMP DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
                 FOREIGN KEY (parent_session_id) REFERENCES session(id)
             )
@@ -94,15 +96,17 @@ class CodeCache:
             logging.warning(f"No session found with ID: {session_id}")
             return None
 
-    def insert_session(self, design_goal, parent_session_id=None):
+    def insert_session(
+        self, design_goal, parent_session_id=None, coding_plan=None
+    ):  # Added coding_plan parameter
         conn = self._get_connection()
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO session (design_goal, parent_session_id)
-            VALUES (?, ?)
+            INSERT INTO session (design_goal, parent_session_id, coding_plan)  -- Updated INSERT statement
+            VALUES (?, ?, ?)
             """,
-            (design_goal, parent_session_id),
+            (design_goal, parent_session_id, coding_plan),
         )
         conn.commit()
         session_id = cursor.lastrowid
@@ -110,20 +114,41 @@ class CodeCache:
         logging.info(f"Session inserted with ID: {session_id}")
         return session_id
 
-    def update_session(self, session_id, design_goal):
+    def update_session(
+        self,
+        session_id,
+        design_goal: str | None = None,
+        coding_plan: dict | None = None,
+    ):  # Make design_goal optional and denote coding_plan as dict|None
+        if design_goal is None and coding_plan is None:
+            logging.warning("Either design_goal or coding_plan must be provided.")
+            return
         conn = self._get_connection()
         cursor = conn.cursor()
-        cursor.execute(
-            """
-            UPDATE session SET design_goal = ? WHERE id = ?
-            """,
-            (design_goal, session_id),
-        )
+        if design_goal is not None and coding_plan is not None:
+            cursor.execute(
+                """
+                UPDATE session SET design_goal = ?, coding_plan = ? WHERE id = ?
+                """,
+                (design_goal, json.dumps(coding_plan), session_id),
+            )
+        elif design_goal is not None:
+            cursor.execute(
+                """
+                UPDATE session SET design_goal = ? WHERE id = ?
+                """,
+                (design_goal, session_id),
+            )
+        elif coding_plan is not None:
+            cursor.execute(
+                """
+                UPDATE session SET coding_plan = ? WHERE id = ?
+                """,
+                (json.dumps(coding_plan), session_id),
+            )
         conn.commit()
         self._return_connection(conn)
         logging.info(f"Session with ID {session_id} updated.")
-
-    # Iteration API
 
     def get_iteration(self, iteration_id, fields=None):
         conn = self._get_connection()

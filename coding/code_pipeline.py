@@ -24,12 +24,16 @@ class CodeExecutionLoop:
         code_cache: CodeCache,
         max_iterations=5,
         max_correction_iterations=3,
+        code_master: CodeGenerator = None,
     ):
         self.code_generator = code_generator
         self.code_executor = code_executor
         self.code_cache = code_cache
         self.max_iterations = max_iterations
         self.max_correction_iterations = max_correction_iterations
+
+        if code_master:
+            self.code_master = code_generator
 
     def run(self, description):
         iteration = 0
@@ -40,7 +44,10 @@ class CodeExecutionLoop:
         #                    Plan code
         # ================================================
         # Generate plan
-        coding_plan = self.code_generator.plan_code(description)
+        if code_master:
+            coding_plan = self.code_master.plan_code(description)
+        else:
+            coding_plan = self.code_generator.plan_code(description)
         logging.info(colorstring(f"Coding plan:\n{coding_plan}", "white"))
 
         # Save the coding plan to the session
@@ -55,9 +62,7 @@ class CodeExecutionLoop:
             logging.info(f"Starting iteration {iteration + 1} of {self.max_iterations}")
 
             # Generate code
-            generated_code = self.code_generator.generate_code(
-                description, plan=coding_plan
-            )
+            generated_code = self.code_generator.generate_code(description)
             if not generated_code:
                 logging.error(colorstring("Failed to generate code.", "red"))
                 break
@@ -96,9 +101,17 @@ class CodeExecutionLoop:
                         )
                     )
                     # Generate corrected code
-                    generated_code = self.code_generator.fix_code(
-                        generated_code, description, error_message
-                    )
+                    if (
+                        code_master
+                        and correction_iteration >= self.max_correction_iterations // 2
+                    ):
+                        generated_code = self.code_master.fix_code(
+                            generated_code, description, error_message
+                        )
+                    else:
+                        generated_code = self.code_generator.fix_code(
+                            generated_code, description, error_message
+                        )
                     if not generated_code:
                         logging.error(
                             colorstring("Failed to generate corrected code.", "red")
@@ -158,6 +171,11 @@ class CodeExecutionLoop:
                 )
                 return  # Exit loop on successful execution
 
+            # ===============================================
+            #                 Visual Validation
+            # ===============================================
+            # TODO: implement file saving and visual validation
+
             iteration += 1
 
         logging.info(
@@ -183,16 +201,31 @@ if __name__ == "__main__":
     code_generator = CodeGenerator(
         code_llm_config["api_key"],
         code_llm_config.get("api_base_url"),
-        code_llm_config.get("model_name", "gpt-4o-mini"),
+        code_llm_config.get("model_name"),
         code_llm_config.get("org_id"),
         load_prompts(args.prompts, "code-llm"),
         **code_llm_config.get("model_kwargs", {}),
+    )
+    master_code_llm_config = config.get("master-code-llm", None)
+    code_master = (
+        CodeGenerator(
+            master_code_llm_config["api_key"],
+            master_code_llm_config.get("api_base_url"),
+            master_code_llm_config.get("model_name"),
+            master_code_llm_config.get("org_id"),
+            load_prompts(args.prompts, "code-llm"),
+            **master_code_llm_config.get("model_kwargs", {}),
+        )
+        if master_code_llm_config
+        else None
     )
 
     code_cache = CodeCache(db_file="code-generator.db")
     code_executor = CodeExecutor()
 
-    code_execution_loop = CodeExecutionLoop(code_generator, code_executor, code_cache)
+    code_execution_loop = CodeExecutionLoop(
+        code_generator, code_executor, code_cache, code_master=code_master
+    )
 
     # description = "Create 3 simple cubes with side length of 10, 9 and 8 units respectively. Stack them together, with a 1-unit gap between each cube."
     description = "Create a simple table design, flat circular top, with 4 straight legs. Each leg is about 45 unit long with circular cross section. and the circular top has a radius of 60 units. This is a big table."

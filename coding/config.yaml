@@ -4,15 +4,15 @@ code-llm:
   # api_base_url: "https://oneapi.service.oaklight.cn/v1" # Optional custom API base URL
   # model_name: "yi-lightning"
 
-  ## deepseek v2.5
-  # api_key: "sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc"
-  # api_base_url: "https://oneapi.service.oaklight.cn/v1" # Optional custom API base URL
-  # model_name: "deepseek-chat"
-
-  ## Qwen/Qwen2.5
+  # deepseek v2.5
   api_key: "sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc"
   api_base_url: "https://oneapi.service.oaklight.cn/v1" # Optional custom API base URL
-  model_name: "Qwen/Qwen2.5-72B-Instruct-128K"
+  model_name: "deepseek-chat"
+
+  # ## Qwen/Qwen2.5
+  # api_key: "sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc"
+  # api_base_url: "https://oneapi.service.oaklight.cn/v1" # Optional custom API base URL
+  # model_name: "Qwen/Qwen2.5-72B-Instruct-128K"
 
   # ## OpenAI
   # api_key: "sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc"
@@ -29,6 +29,12 @@ code-llm:
   # api_base_url: "http://localhost:5000/v1" # Optional custom API base URL
   # model_name: "gpto1preview"
 
-  # model_kwargs:
-  #   temperature: 0.3
-  #   top_p: 0.2
+  model_kwargs:
+    temperature: 0.4
+    top_p: 0.2
+
+master-code-llm:
+  ## Argo gpto1preview
+  api_key: "#NbhBUFZwTQaRNd!y$gpgARDtJ3Fd&T$btv@kee6eky#x2!^zm5Kd9rFirswBDk3MY9x%VMWtnlTpBpq3CBxL&"
+  api_base_url: "http://localhost:5000/v1" # Optional custom API base URL
+  model_name: "gpto1preview"

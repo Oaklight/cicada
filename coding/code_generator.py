@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+from typing import Literal
 
 logging.basicConfig(level=logging.INFO)
 
@@ -11,9 +12,10 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.extend([current_dir, parent_dir])
 
+from utils import extract_section_markdown
+
 from common import llm
 from common.utils import load_config, load_prompts
-from utils import extract_section_markdown
 
 
 class CodeGenerator(llm.LanguageModel):
@@ -113,6 +115,40 @@ class CodeGenerator(llm.LanguageModel):
             logging.error(f"API call failed: {e}")
         return None
 
+    def patch_code_to_export(
+        self, code, format: Literal["stl", "step"] = "stl", output_dir=None
+    ) -> tuple[str, str]:
+        """
+        Extends the provided code with export functionality, exporting the result to the specified format.
+
+        Args:
+            code (str): Code to be extended with export functionality.
+            format (Literal["stl", "step"], optional): Desired export format. Defaults to "stl".
+            output_dir (str, optional): Directory to save the exported file. Defaults to None, which will use the code execution directory.
+
+        Returns:
+            patched_code: Extended code with export functionality.
+        """
+
+        # Use '/tmp/codecad/export' as default directory if output_dir is not provided
+        output_dir = output_dir or f"."
+
+        # Define the filename based on format
+        filename = f"exported_model.{format}"
+        file_path = os.path.join(output_dir, filename)
+
+        # Code to append - will depend on the build123d API or relevant method used to export
+        export_code = f"""
+# Export the result to {format} format
+from build123d import export_{format}
+export_{format}(to_export=result, file_path="{file_path}")
+"""
+
+        # Update the code by appending the export functionality
+        patched_code = f"{code}\n{export_code}"
+
+        return patched_code, output_dir
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Assistive Large Language Model")
@@ -122,7 +158,14 @@ if __name__ == "__main__":
     parser.add_argument(
         "--prompts", default="prompts.yaml", help="Path to the prompts YAML file"
     )
+    parser.add_argument(
+        "--output_dir",
+        default="./code_examples",
+        help="Directory to save the generated code",
+    )
     args = parser.parse_args()
+
+    os.makedirs(args.output_dir, exist_ok=True)
 
     config = load_config(args.config)
 
@@ -156,23 +199,41 @@ if __name__ == "__main__":
     if generated_code:
         print("\nGenerated Code:")
         print(generated_code)
-        code_generator.save_code_to_file(generated_code, filename="generated_code.py")
+        code_generator.save_code_to_file(
+            generated_code, filename=os.path.join(args.output_dir, "generated_code.py")
+        )
     else:
         print("Failed to generate code.")
         sys.exit(1)
 
-    # Step 3: Simulate feedback for fixing the code
+    # Step 3: Simulate feedback for fixing the code (Optional)
     feedbacks = [
         "The cube side length should be 20 units instead of 10 units.",
         "Ensure the cube is centered at the origin.",
     ]
 
-    # Step 4: Fix the code based on feedback
+    # Step 4: Fix the code based on feedback (Optional)
     fixed_code = code_generator.fix_code(generated_code, description, feedbacks)
 
     if fixed_code:
         print("\nFixed Code:")
         print(fixed_code)
-        code_generator.save_code_to_file(fixed_code, filename="fixed_code.py")
+        code_generator.save_code_to_file(
+            fixed_code, filename=os.path.join(args.output_dir, "fixed_code.py")
+        )
     else:
         print("Failed to fix the code.")
+
+    # Step 5: Patch code to export with export functionality
+    if fixed_code:
+        patched_code, file_path = code_generator.patch_code_to_export(
+            fixed_code, format="stl"
+        )
+        print("\nPatched Code with Export Functionality:")
+        print(patched_code)
+        code_generator.save_code_to_file(
+            patched_code, filename=os.path.join(args.output_dir, "patched_code.py")
+        )
+        print(f"Export path: {file_path}")
+    else:
+        print("No valid code to patch and export.")

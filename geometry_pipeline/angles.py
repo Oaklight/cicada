@@ -88,3 +88,25 @@ primary_views = [
     "back_upper_right",
     "back_lower_right",
 ]
+
+box_views = [
+    "front_lower_left",
+    "front_upper_left",
+    "front_upper_right",
+    "front_lower_right",
+    "back_lower_left",
+    "back_upper_left",
+    "back_upper_right",
+    "back_lower_right",
+]
+
+common_views = [
+    "front",
+    "back",
+    "left",
+    "right",
+    "top",
+    "bottom",
+]
+
+omni_views = primary_views  # includes both common and box views

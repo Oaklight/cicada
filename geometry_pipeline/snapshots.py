@@ -146,7 +146,13 @@ if __name__ == "__main__":
 
     parser.add_argument("-o", "--out_path", type=str, default="../data/snapshots")
     parser.add_argument("-r", "--resolution", type=int, nargs=2, default=[512, 512])
-    parser.add_argument("-d", "--direction", type=str, default="front")
+    parser.add_argument(
+        "-d",
+        "--direction",
+        type=str,
+        default="front",
+        help="Direction or preset collection of directions: 'box', 'common', 'omni', or a comma-separated list of directions.",
+    )
 
     group2 = parser.add_mutually_exclusive_group(required=True)
     group2.add_argument("-p", "--preview", action="store_true", default=False)
@@ -173,8 +179,24 @@ if __name__ == "__main__":
     mesh = trimesh.load_mesh(obj_file)
     logger.info(colorstring(f"Loaded mesh from {obj_file}", "cyan"))
 
+    if args.direction == "box":
+        directions = angles.box_views
+    elif args.direction == "common":
+        directions = angles.common_views
+    elif args.direction == "omni":
+        directions = angles.omni_views
+    else:
+        # Assume it's a comma-separated list of directions
+        directions = [d.strip() for d in args.direction.split(",")]
+
+    # Validate directions
+    for direction in directions:
+        if direction.lower() not in angles.looking_from:
+            logger.error(f"Invalid direction: {direction}")
+            sys.exit(1)
+
+    logger.info(f"Using directions: {directions}")
     if args.snapshots:
-        directions = angles.primary_views
         camera_poses = [get_camera_pose(direction) for direction in directions]
         camera_distances = [get_adaptive_camera_distance(mesh, 1.5)] * len(camera_poses)
         names = [f"snapshot_{direction}" for direction in directions]

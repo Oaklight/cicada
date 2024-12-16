@@ -40,9 +40,7 @@ class CodeExecutionLoop:
         #                    Plan code
         # ================================================
         # Generate plan
-        coding_plan = None
         coding_plan = self.code_generator.plan_code(description)
-
         logging.info(colorstring(f"Coding plan:\n{coding_plan}", "white"))
 
         # Save the coding plan to the session
@@ -64,7 +62,7 @@ class CodeExecutionLoop:
                 logging.error(colorstring("Failed to generate code.", "red"))
                 break
 
-            logging.info(colorstring(f"Generated code:\n{generated_code}", "while"))
+            logging.info(colorstring(f"Generated code:\n{generated_code}", "white"))
 
             # Insert generated code into the iteration table
             iteration_id = self.code_cache.insert_iteration(session_id, generated_code)
@@ -97,7 +95,7 @@ class CodeExecutionLoop:
                             "cyan",
                         )
                     )
-                    # Generate corrected code using the fix_code function
+                    # Generate corrected code
                     generated_code = self.code_generator.fix_code(
                         generated_code, description, error_message
                     )
@@ -152,7 +150,12 @@ class CodeExecutionLoop:
                 )
             else:
                 # ================ execution success =================
-                logging.info(colorstring("Code executed successfully.", "blue"))
+                logging.info(colorstring("Code executed **successfully**.", "white"))
+                # Set is_correct=True for the successful iteration
+                self.code_cache.update_iteration(iteration_id, is_runnable=True)
+                logging.info(
+                    colorstring(f"Marked iteration {iteration_id} as runnable.", "cyan")
+                )
                 return  # Exit loop on successful execution
 
             iteration += 1

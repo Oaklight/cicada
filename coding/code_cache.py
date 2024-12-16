@@ -47,6 +47,8 @@ class CodeCache:
                 session_id INTEGER NOT NULL,
                 code TEXT NOT NULL,
                 feedback TEXT,
+                is_correct INTEGER DEFAULT 0,  -- 1 for True, 0 for False
+                is_runnable INTEGER DEFAULT 0, -- 1 for True, 0 for False
                 created_at TIMESTAMP DEFAULT (STRFTIME('%Y-%m-%d %H:%M:%f', 'NOW')),
                 FOREIGN KEY (session_id) REFERENCES session(id)
             )
@@ -204,8 +206,8 @@ class CodeCache:
         cursor = conn.cursor()
         cursor.execute(
             """
-            INSERT INTO iteration (session_id, code, feedback)
-            VALUES (?, ?, ?)
+            INSERT INTO iteration (session_id, code, feedback, is_correct, is_runnable)
+            VALUES (?, ?, ?, 0, 1)  -- 0 for False, 1 for True
             """,
             (session_id, code, feedback),
         )
@@ -215,31 +217,30 @@ class CodeCache:
         logging.info(f"Iteration inserted with ID: {iteration_id}")
         return iteration_id
 
-    def update_iteration(self, iteration_id, code=None, feedback=None):
+    def update_iteration(
+        self, iteration_id, code=None, feedback=None, is_correct=None, is_runnable=None
+    ):
         conn = self._get_connection()
         cursor = conn.cursor()
-        if code is not None and feedback is not None:
-            cursor.execute(
-                """
-                UPDATE iteration SET code = ?, feedback = ? WHERE id = ?
-                """,
-                (code, feedback, iteration_id),
-            )
-        elif code is not None:
-            cursor.execute(
-                """
-                UPDATE iteration SET code = ? WHERE id = ?
-                """,
-                (code, iteration_id),
-            )
-        elif feedback is not None:
-            cursor.execute(
-                """
-                UPDATE iteration SET feedback = ? WHERE id = ?
-                """,
-                (feedback, iteration_id),
-            )
-        conn.commit()
+        set_clauses = []
+        params = []
+        if code is not None:
+            set_clauses.append("code = ?")
+            params.append(code)
+        if feedback is not None:
+            set_clauses.append("feedback = ?")
+            params.append(feedback)
+        if is_correct is not None:
+            set_clauses.append("is_correct = ?")
+            params.append(int(is_correct))
+        if is_runnable is not None:
+            set_clauses.append("is_runnable = ?")
+            params.append(int(is_runnable))
+        if set_clauses:
+            query = f"UPDATE iteration SET {', '.join(set_clauses)} WHERE id = ?"
+            params.append(iteration_id)
+            cursor.execute(query, tuple(params))
+            conn.commit()
         self._return_connection(conn)
         logging.info(f"Iteration with ID {iteration_id} updated.")
 
@@ -274,6 +275,13 @@ class CodeCache:
     def insert_error(self, iteration_id, error_type, error_message, error_line=None):
         conn = self._get_connection()
         cursor = conn.cursor()
+        # Set is_runnable to False if any error is present
+        cursor.execute(
+            """
+            UPDATE iteration SET is_runnable = 0 WHERE id = ?
+            """,
+            (iteration_id,),
+        )
         cursor.execute(
             """
             INSERT INTO error (iteration_id, error_type, error_message, error_line)
@@ -361,16 +369,28 @@ if __name__ == "__main__":
         session_id_1, 'print("Hello, World!")', "Looks good"
     )
     code_id_2 = code_cache.insert_iteration(
-        session_id_1, 'print("Goodbye!")', "Looks good"
+        session_id_1, 'print("Goodbye!")', "Syntax error"
     )
 
-    # Insert errors for the first iteration
-    code_cache.insert_error(code_id_1, "syntax", "IndentationError", 2)
-    code_cache.insert_error(code_id_2, "runtime", "NameError", 1)
+    # Insert errors for the second iteration
+    code_cache.insert_error(code_id_2, "syntax", "IndentationError", 2)
 
-    # Retrieve and print session history
-    session_history = code_cache.get_session_history(session_id_1)
-    logging.info(f"Session history for session {session_id_1}: {session_history}")
+    # After fixing errors, update iteration flags
+    # Assuming errors are fixed
+    code_cache.update_iteration(code_id_2, is_runnable=True)
+
+    # Validate and set is_correct to True
+    # Assuming external validation confirms correctness
+    code_cache.update_iteration(code_id_1, is_correct=True)
+
+    # Retrieve and print iterations with their flags
+    iterations = code_cache.get_iterations(
+        session_id_1, fields=["id", "code", "is_correct", "is_runnable"]
+    )
+    for iteration in iterations:
+        logging.info(
+            f"Iteration ID: {iteration['id']}, Code: {iteration['code']}, Correct: {bool(iteration['is_correct'])}, Runnable: {bool(iteration['is_runnable'])}"
+        )
 
     # Clean up resources
     code_cache.close()

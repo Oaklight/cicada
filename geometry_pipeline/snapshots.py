@@ -14,6 +14,7 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 parent_dir = os.path.dirname(current_dir)
 sys.path.append(parent_dir)
 from geometry_pipeline import angles, convert
+from common.utils import colorstring
 
 LOG_LEVEL = "DEBUG"
 
@@ -141,6 +142,7 @@ if __name__ == "__main__":
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--obj_file", type=str)
     group.add_argument("--step_file", type=str)
+    group.add_argument("--stl_file", type=str)
 
     parser.add_argument("-o", "--out_path", type=str, default="../data/snapshots")
     parser.add_argument("-r", "--resolution", type=int, nargs=2, default=[512, 512])
@@ -158,15 +160,18 @@ if __name__ == "__main__":
         obj_file = os.path.join(
             obj_path, os.path.basename(step_file).replace(".step", ".obj")
         )
-
         obj_file = convert.step2obj(step_file, obj_path)
     elif args.obj_file:
         obj_file = args.obj_file
+    elif args.stl_file:
+        obj_file = args.stl_file  # Directly use STL file
 
-    obj_name = os.path.basename(obj_file).replace(".obj", "")
+    # Use base name without extension for output folder
+    obj_name = os.path.splitext(os.path.basename(obj_file))[0]
+    pic_path = os.path.join(args.out_path, obj_name)
 
     mesh = trimesh.load_mesh(obj_file)
-    pic_path = os.path.join(args.out_path, obj_name)
+    logger.info(colorstring(f"Loaded mesh from {obj_file}", "cyan"))
 
     if args.snapshots:
         directions = angles.primary_views

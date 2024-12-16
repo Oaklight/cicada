@@ -79,6 +79,39 @@ def step2obj(step_path: str, out_path: str) -> str:
     return obj_path
 
 
+def step2stl(step_path: str, out_path: str) -> str:
+    """Convert STEP file to STL format."""
+    mesh = step2mesh(step_path)
+    stl_path = os.path.join(
+        out_path, os.path.basename(step_path).replace(".step", ".stl")
+    )
+    mesh.export(stl_path, file_type="stl")
+    logger.info(f"STEP file converted to STL: {stl_path}")
+    return stl_path
+
+
+def stl2obj(stl_path: str, out_path: str) -> str:
+    """Convert STL file to OBJ format."""
+    mesh = trimesh.load_mesh(stl_path)
+    obj_path = os.path.join(
+        out_path, os.path.basename(stl_path).replace(".stl", ".obj")
+    )
+    mesh.export(obj_path, file_type="obj")
+    logger.info(f"STL file converted to OBJ: {obj_path}")
+    return obj_path
+
+
+def obj2stl(obj_path: str, out_path: str) -> str:
+    """Convert OBJ file to STL format."""
+    mesh = trimesh.load_mesh(obj_path)
+    stl_path = os.path.join(
+        out_path, os.path.basename(obj_path).replace(".obj", ".stl")
+    )
+    mesh.export(stl_path, file_type="stl")
+    logger.info(f"OBJ file converted to STL: {stl_path}")
+    return stl_path
+
+
 def write_ply(points, filename, text=False, default_rgb=DEFAULT_RGB):
     """input: Nx3, write points to filename as PLY format."""
     points = [
@@ -127,29 +160,57 @@ def obj2pc(obj_path: str, out_path: str) -> str:
     return pc_path
 
 
-if __name__ == "__main__":
+def stl2pc(stl_path: str, out_path: str) -> str:
+    """Convert STL file to point cloud (PLY format)."""
+    mesh = trimesh.load_mesh(stl_path)
+    pc_path = os.path.join(out_path, os.path.basename(stl_path).replace(".stl", ".ply"))
+    pc = trimesh.PointCloud(mesh.sample(POINTCLOUD_N_POINTS))
+    write_ply(pc.vertices, pc_path)
+    logger.info(f"STL file converted to point cloud: {pc_path}")
+    return pc_path
 
+
+if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    # either of these two is required, but exclusive
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--step_file", type=str)
     group.add_argument("--obj_file", type=str)
+    group.add_argument("--step_file", type=str)
+    group.add_argument("--stl_file", type=str)
+
+    group_action = parser.add_mutually_exclusive_group(required=True)
+    group_action.add_argument("--convert_step2obj", action="store_true")
+    group_action.add_argument("--convert_obj2pc", action="store_true")
+    group_action.add_argument("--convert_step2stl", action="store_true")
+    group_action.add_argument("--convert_obj2stl", action="store_true")
+    group_action.add_argument("--convert_stl2obj", action="store_true")
+    group_action.add_argument("--convert_stl2pc", action="store_true")
+
     args = parser.parse_args()
 
-    if args.step_file:
-        step_file = args.step_file
-        out_path = os.path.dirname(step_file)
-        obj_file = os.path.join(
-            out_path, os.path.basename(step_file).replace(".step", ".obj")
-        )
-
-        step2obj(step_file, out_path)
-        obj2pc(obj_file, out_path)
-    elif args.obj_file:
+    if args.obj_file:
         obj_file = args.obj_file
         out_path = os.path.dirname(obj_file)
-        pc_file = os.path.join(
-            out_path, os.path.basename(obj_file).replace(".obj", ".ply")
-        )
-
-        obj2pc(obj_file, out_path)
+        if args.convert_obj2pc:
+            obj2pc(obj_file, out_path)
+        elif args.convert_obj2stl:
+            obj2stl(obj_file, out_path)
+        else:
+            logger.error("No valid action selected for OBJ file.")
+    elif args.step_file:
+        step_file = args.step_file
+        out_path = os.path.dirname(step_file)
+        if args.convert_step2obj:
+            step2obj(step_file, out_path)
+        elif args.convert_step2stl:
+            step2stl(step_file, out_path)
+        else:
+            logger.error("No valid action selected for STEP file.")
+    elif args.stl_file:
+        stl_file = args.stl_file
+        out_path = os.path.dirname(stl_file)
+        if args.convert_stl2obj:
+            stl2obj(stl_file, out_path)
+        elif args.convert_stl2pc:
+            stl2pc(stl_file, out_path)
+        else:
+            logger.error("No valid action selected for STL file.")

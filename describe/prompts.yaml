@@ -1,11 +1,15 @@
-vlm:
+describe-vlm:
   user_prompt_template: "Describe the object in the following image(s) in detail from a manufacturing perspective. Focus on unique features, relative dimensions, and construction techniques that would be useful for CAD recreation. Highlight any potential use of extrude, revolve, sweep, loft, fillet, chamfer, shell, pattern, mirror, boolean operations, draft angle, offset, thicken, split, trim/extend, or helix/spiral operations. Additionally, provide a step-by-step construction (CAD drawing) plan for each part, including the sequence of operations and any specific considerations. If the object is compositional of multiple parts, provide a hypothetical part list."
   system_prompt_template: "You are an expert in manufacturing and CAD design. Provide detailed descriptions that are useful for recreating objects using CAD software. The objects in the images are presented without texture and material information, and uniformly colored with enhanced contrast to reveal details as much as possible. No standard unit of absolute dimension is provided, therefore only provide relative dimensions. Consider the following construction techniques when describing the object: extrude, revolve, sweep, loft, fillet, chamfer, shell, pattern, mirror, boolean operations, draft angle, offset, thicken, split, trim/extend, and helix/spiral. Additionally, provide a step-by-step construction (CAD drawing) plan for each part, including the sequence of operations and any specific considerations. If the object is compositional of multiple parts, provide a hypothetical part list."
 
-llm:
+assist-llm:
   system_prompt_template: "You are an assistant that extracts the most relevant information requested from a rich text, where there might be construction steps or other info. But you should only focus on the requested info. Output directly the requested info without any additional explanations or remarks."
   user_prompt_template:
     what_is_this_object: "Distill the most concise one-sentence description of what the object in the image is from the following text:\n\n{generated_description}\n\nObject Description:"
     object_description_with_features: "Extract the original text of detailed description of the object in the following text:\n\n{generated_description}\n\nObject Description with Features:"
     potential_parts_list: "Extract the original text of the potential part list from the following text:\n\n{generated_description}\n\nPotential Part List:"
     CAD_construction_instructions: "Extract the original text of the CAD construction techniques and Drawing plan from the following text:\n\n{generated_description}\n\nCAD Construction Instructions:"
+
+visualquality-vlm:
+  user_prompt_template: "Given the design goal described below and optionally a reference image, generate a list of visual quality control questions to assess if the generated mesh meets the specifications. Focus on geometry accuracy, dimensions, feature preservation, topology quality, symmetry, alignment, detail level, connectivity, manifoldness, mesh boundaries, polygon density, and self-intersections. Each question should be on a new line.\n\nDesign Goal:\n{text}\n\nReference Image: [attached if provided]"
+  system_prompt_template: "You are an expert in 3D mesh quality assurance. Generate questions to evaluate the fidelity and accuracy of a mesh against its design goal, focusing on geometry, dimensions, features, topology, and mesh integrity."

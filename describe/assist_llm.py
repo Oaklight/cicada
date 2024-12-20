@@ -138,7 +138,7 @@ def main():
         assist_llm_config.get("api_base_url"),
         assist_llm_config.get("model_name", "gpt-4o-mini"),
         assist_llm_config.get("org_id"),
-        load_prompts(args.prompts, "llm"),
+        load_prompts(args.prompts, "assist-llm"),
         **assist_llm_config.get("model_kwargs", {}),
     )
 

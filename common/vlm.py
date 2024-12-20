@@ -44,20 +44,24 @@ class VisionLanguageModel(llm.LanguageModel, ABC):
         text_data: str | List[str],
     ):
         """
-        Prepare the prompt for the API based on the model.
+        Prepares the prompt for the API based on the provided image and text data.
 
-        :param image_data: Base64 encoded string of the image.
-        :param text_data: Optional pre-description text for the image.
-        :return: Prepared prompt for the API.
+        This function accepts base64-encoded image data and optional text descriptions.
+        It constructs a prompt suitable for the API by pairing images with their corresponding
+        text descriptions. If the number of images and text descriptions mismatches, it
+        assumes a single set of text descriptions for all images.
+
+        :param image_data: A single base64-encoded image or a list of such images.
+        :param text_data: A single text description or a list of text descriptions.
+                          These descriptions are optional and can be empty strings.
+        :return: A list containing a single "user" role prompt with the prepared content.
         """
         if not isinstance(image_data, list):
             image_data = [image_data]
         if not isinstance(text_data, list):
             text_data = [text_data]
 
-        len_image_data = len(image_data)
-        len_text_data = len(text_data)
-        if len_image_data != len_text_data:
+        if len(image_data) != len(text_data):
             # single pre description mode
             content = [
                 {

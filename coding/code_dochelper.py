@@ -1,5 +1,7 @@
-import inspect
+import argparse
 import importlib
+import inspect
+from functools import lru_cache
 
 
 def get_function_info(function_path, with_docstring=False):
@@ -35,6 +37,7 @@ def get_function_info(function_path, with_docstring=False):
         return {"error": f"Error getting function info: {e}"}
 
 
+@lru_cache(maxsize=128)
 def get_class_info(class_path, with_docstring=False):
     """
     Retrieve the signature, methods, variables, and optionally the docstring of a class.
@@ -267,20 +270,30 @@ def dict_to_markdown(data, show_docstring=True):
         return "# Unknown\nInvalid data format."
 
 
-# Example usage
+def main():
+    """
+    Command Line Interface for querying module, class, function, or method information.
+    """
+    parser = argparse.ArgumentParser(
+        description="Query module, class, function, or method information."
+    )
+    parser.add_argument(
+        "path",
+        type=str,
+        help="The full import path or keyword to query (e.g., 'Box' or 'build123d.Box').",
+    )
+    parser.add_argument(
+        "--docstring",
+        action="store_true",
+        help="Include the docstring in the output.",
+    )
+    args = parser.parse_args()
+
+    # Get the information based on the provided path
+    info = get_info(args.path, with_docstring=args.docstring)
+    # Convert the information to Markdown and print it
+    print(dict_to_markdown(info, show_docstring=args.docstring))
+
+
 if __name__ == "__main__":
-    # # Example: Get info about the 'Box' class from the 'build123d' library
-    # class_info = get_class_info("build123d.Box", with_docstring=True)
-    # print(dict_to_markdown(class_info, show_docstring=False))
-
-    # # Example: Get info about the 'BuildPart' function from the 'build123d' library
-    # func_info = get_function_info("build123d.BuildPart", with_docstring=True)
-    # print(dict_to_markdown(func_info, show_docstring=True))
-
-    # # Example: Get info about the 'build123d' module
-    # module_info = get_module_info("build123d", with_docstring=True)
-    # print(dict_to_markdown(module_info, show_docstring=True))
-
-    # Example: Get info about the 'bounding_box' method of the 'Box' class
-    method_info = get_info("build123d.BuildPart.wires", with_docstring=True)
-    print(dict_to_markdown(method_info, show_docstring=False))
+    main()

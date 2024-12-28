@@ -1,12 +1,67 @@
 import argparse
 import importlib
 import inspect
+import os
+import pickle
 from functools import lru_cache
+
+from thefuzz import process  # For fuzzy matching
 
 
 class CodeDocHelper:
-    def __init__(self):
+    def __init__(self, fuzzy_threshold=80, cache_file="code_doc_cache.pkl"):
+        """
+        Initialize the CodeDocHelper with a cache and fuzzy matching threshold.
+
+        Parameters:
+        fuzzy_threshold (int): The minimum similarity score (0-100) for fuzzy matching.
+        cache_file (str): The file to store the cache for persistence.
+        """
         self.query_cache = {}
+        self.fuzzy_threshold = fuzzy_threshold
+        self.cache_file = cache_file
+        # Load cache from file if it exists
+        self._load_cache()
+
+    def __del__(self):
+        """
+        Save the cache to a file when the CodeDocHelper instance is destroyed.
+        """
+        self._save_cache()
+
+    def _load_cache(self):
+        """
+        Load the cache from a file if it exists.
+        """
+        if os.path.exists(self.cache_file):
+            with open(self.cache_file, "rb") as f:
+                self.query_cache = pickle.load(f)
+
+    def _save_cache(self):
+        """
+        Save the cache to a file.
+        """
+        with open(self.cache_file, "wb") as f:
+            pickle.dump(self.query_cache, f)
+
+    def _fuzzy_match_cache(self, query):
+        """
+        Perform fuzzy matching on the cache keys to find the closest match.
+
+        Parameters:
+        query (str): The query to match against cache keys.
+
+        Returns:
+        tuple: The closest matching cache key and its score, or (None, 0) if no match is found.
+        """
+        if not self.query_cache:
+            return None, 0
+
+        # Extract all cache keys
+        cache_keys = list(self.query_cache.keys())
+        # Perform fuzzy matching
+        match, score = process.extractOne(query, cache_keys)
+        return match, score
 
     def get_function_info(self, function_path, with_docstring=False):
         """
@@ -22,6 +77,11 @@ class CodeDocHelper:
         cache_key = (function_path, with_docstring)
         if cache_key in self.query_cache:
             return self.query_cache[cache_key]
+
+        # Fuzzy match for similar queries
+        match, score = self._fuzzy_match_cache(function_path)
+        if score >= self.fuzzy_threshold:
+            return self.query_cache[match]
 
         try:
             parts = function_path.split(".")
@@ -41,6 +101,7 @@ class CodeDocHelper:
             if with_docstring:
                 data["docstring"] = inspect.getdoc(obj) or "No docstring available."
             self.query_cache[cache_key] = data
+            self._save_cache()  # Save cache after updating
             return data
         except Exception as e:
             return {"error": f"Error getting function info: {e}"}
@@ -60,6 +121,11 @@ class CodeDocHelper:
         cache_key = (class_path, with_docstring)
         if cache_key in self.query_cache:
             return self.query_cache[cache_key]
+
+        # Fuzzy match for similar queries
+        match, score = self._fuzzy_match_cache(class_path)
+        if score >= self.fuzzy_threshold:
+            return self.query_cache[match]
 
         try:
             parts = class_path.split(".")
@@ -105,6 +171,7 @@ class CodeDocHelper:
                 if not inspect.isfunction(member) and not name.startswith("_"):
                     data["variables"].append(name)
             self.query_cache[cache_key] = data
+            self._save_cache()  # Save cache after updating
             return data
         except Exception as e:
             return {"error": f"Error getting class info: {e}"}
@@ -123,6 +190,11 @@ class CodeDocHelper:
         cache_key = (module_name, with_docstring)
         if cache_key in self.query_cache:
             return self.query_cache[cache_key]
+
+        # Fuzzy match for similar queries
+        match, score = self._fuzzy_match_cache(module_name)
+        if score >= self.fuzzy_threshold:
+            return self.query_cache[match]
 
         try:
             module = importlib.import_module(module_name)
@@ -164,6 +236,7 @@ class CodeDocHelper:
                     }
                     data["variables"].append(variable_info)
             self.query_cache[cache_key] = data
+            self._save_cache()  # Save cache after updating
             return data
         except ImportError:
             return {"error": f"Module '{module_name}' not found."}
@@ -184,6 +257,11 @@ class CodeDocHelper:
         cache_key = (path, with_docstring)
         if cache_key in self.query_cache:
             return self.query_cache[cache_key]
+
+        # Fuzzy match for similar queries
+        match, score = self._fuzzy_match_cache(path)
+        if score >= self.fuzzy_threshold:
+            return self.query_cache[match]
 
         try:
             parts = path.split(".")
@@ -208,6 +286,7 @@ class CodeDocHelper:
                     "value": str(obj),
                 }
             self.query_cache[cache_key] = result
+            self._save_cache()  # Save cache after updating
             return result
         except ImportError:
             return {"error": f"Module '{module_name}' not found."}

@@ -3,6 +3,7 @@ import importlib
 import inspect
 import os
 import pickle
+import re
 from functools import lru_cache
 
 from thefuzz import process  # For fuzzy matching
@@ -62,6 +63,79 @@ class CodeDocHelper:
         # Perform fuzzy matching
         match, score = process.extractOne(query, cache_keys)
         return match, score
+
+    def pre_fill_cache(self, markdown_file):
+        """
+        Pre-fill the cache with objects/functions extracted from a markdown file.
+
+        Parameters:
+        markdown_file (str): The path to the markdown file.
+
+        Returns:
+        dict: A dictionary containing the parts of the cache that were changed during the pre-fill process.
+        """
+
+        def extract_objects_from_markdown(markdown_content):
+            """
+            Extract objects/functions from the markdown content.
+
+            Parameters:
+            markdown_content (str): The content of the markdown file.
+
+            Returns:
+            list: A list of objects/functions extracted from the markdown.
+            """
+            # Regular expressions to match stateful contexts, objects, operations, selectors, etc.
+            stateful_context_pattern = re.compile(r"\* \*\*(\w+)\*\* \(`([\w\.]+)`\)")
+            object_pattern = re.compile(r"\* \*\*(\w+)\*\* \(`([\w\.]+)`\)")
+            operation_pattern = re.compile(r"\* \*\*(\w+)\*\* \(`([\w\.]+)`\)")
+            selector_pattern = re.compile(r"\* \*\*(\w+)\*\* \(`([\w\.]+)`\)")
+            enum_pattern = re.compile(r"\| \*\*(\w+)\*\*")
+
+            # Extract stateful contexts
+            stateful_contexts = stateful_context_pattern.findall(markdown_content)
+
+            # Extract objects
+            objects = object_pattern.findall(markdown_content)
+
+            # Extract operations
+            operations = operation_pattern.findall(markdown_content)
+
+            # Extract selectors
+            selectors = selector_pattern.findall(markdown_content)
+
+            # Extract enums
+            enums = enum_pattern.findall(markdown_content)
+
+            # Combine all extracted objects/functions
+            objects_functions = (
+                [f"{context[1]}" for context in stateful_contexts]
+                + [f"{obj[1]}" for obj in objects]
+                + [f"{op[1]}" for op in operations]
+                + [f"{sel[1]}" for sel in selectors]
+                + [f"{enum}" for enum in enums]
+            )
+
+            return objects_functions
+
+        # Read the markdown file
+        with open(markdown_file, "r", encoding="utf-8") as file:
+            markdown_content = file.read()
+
+        # Extract objects/functions from the markdown content
+        objects_functions = extract_objects_from_markdown(markdown_content)
+
+        # Track changes to the cache
+        changed_cache = {}
+
+        # Fill the cache with the extracted objects/functions
+        for obj in objects_functions:
+            # Query the object/function and cache the result
+            result = self.get_info(f"build123d.{obj}", with_docstring=True)
+            if "error" not in result:
+                changed_cache[obj] = result
+
+        return changed_cache
 
     def get_function_info(self, function_path, with_docstring=False):
         """
@@ -384,24 +458,42 @@ def main():
     parser = argparse.ArgumentParser(
         description="Query module, class, function, or method information."
     )
-    parser.add_argument(
+    # Exclusive group for path or fill_cache
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument(
         "path",
         type=str,
+        nargs="?",  # Makes the path argument optional (consumes one argument if provided)
         help="The full import path or keyword to query (e.g., 'Box' or 'build123d.Box').",
     )
+    group.add_argument(
+        "-cfm",
+        "--cache_from_cheatsheet",
+        type=str,
+        help="Pre-fill the cache using a markdown file.",
+    )
+    # --docstring only applies to the path branch
     parser.add_argument(
         "--docstring",
         action="store_true",
-        help="Include the docstring in the output.",
+        help="Include the docstring in the output (only applies to path queries).",
     )
     args = parser.parse_args()
 
     # Initialize the CodeDocHelper
     helper = CodeDocHelper()
-    # Get the information based on the provided path
-    info = helper.get_info(args.path, with_docstring=args.docstring)
-    # Convert the information to Markdown and print it
-    print(helper.dict_to_markdown(info, show_docstring=args.docstring))
+
+    if args.cache_from_cheatsheet:
+        # Pre-fill the cache and print the changed parts
+        changed_cache = helper.pre_fill_cache(args.cache_from_cheatsheet)
+        print("Cache pre-filled with the following items:")
+        for key, value in changed_cache.items():
+            print(f"{key}: {value}")
+    else:
+        # Get the information based on the provided path
+        info = helper.get_info(args.path, with_docstring=args.docstring)
+        # Convert the information to Markdown and print it
+        print(helper.dict_to_markdown(info, show_docstring=args.docstring))
 
 
 if __name__ == "__main__":

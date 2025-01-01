@@ -28,6 +28,16 @@ class LanguageModel(ABC):
         org_id,
         **model_kwargs,
     ):
+        """
+        Initialize the LanguageModel instance.
+
+        Args:
+            api_key (str): The API key for the language model.
+            api_base_url (str): The base URL for the API.
+            model_name (str): The name of the model to use.
+            org_id (str): The organization ID for the API.
+            **model_kwargs: Additional keyword arguments for the model.
+        """
         self.api_key = api_key
         self.api_base_url = api_base_url
         self.model_name = model_name
@@ -49,6 +59,16 @@ class LanguageModel(ABC):
         reraise=True,  # Reraise the last exception if all retries fail
     )
     def query(self, prompt, system_prompt=None):
+        """
+        Query the language model with a prompt and optionally a system prompt.
+
+        Args:
+            prompt (str): The user prompt to send to the model.
+            system_prompt (str, optional): The system prompt to guide the model's behavior.
+
+        Returns:
+            str: The model's response.
+        """
         if self.model_name == "gpto1preview":
             # Use the prompt interface for gpto1preview, incorporating the system_prompt if provided
             full_prompt = prompt
@@ -82,6 +102,11 @@ class LanguageModel(ABC):
 
 
 if __name__ == "__main__":
+    """
+    Main entry point for the script.
+
+    Parses command-line arguments, loads configuration, and queries the language model.
+    """
     parser = argparse.ArgumentParser(description="Language Model")
     parser.add_argument(
         "--config", default="config.yaml", help="Path to the configuration YAML file"

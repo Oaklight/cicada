@@ -24,12 +24,21 @@ logging.basicConfig(
 class VisionLanguageModel(llm.LanguageModel, ABC):
     def __init__(
         self,
-        api_key,
-        api_base_url,
-        model_name,
-        org_id,
+        api_key: str,
+        api_base_url: str,
+        model_name: str,
+        org_id: str,
         **model_kwargs,
     ):
+        """
+        Initialize the VisionLanguageModel.
+
+        :param api_key: The API key for the OpenAI service.
+        :param api_base_url: The base URL for the OpenAI API.
+        :param model_name: The name of the model to use.
+        :param org_id: The organization ID for the OpenAI service.
+        :param model_kwargs: Additional keyword arguments for the model.
+        """
         super().__init__(
             api_key,
             api_base_url,
@@ -42,18 +51,12 @@ class VisionLanguageModel(llm.LanguageModel, ABC):
         self,
         image_data: bytes | List[bytes],
         text_data: str | List[str],
-    ):
+    ) -> List[dict]:
         """
-        Prepares the prompt for the API based on the provided image and text data.
-
-        This function accepts base64-encoded image data and optional text descriptions.
-        It constructs a prompt suitable for the API by pairing images with their corresponding
-        text descriptions. If the number of images and text descriptions mismatches, it
-        assumes a single set of text descriptions for all images.
+        Prepare the prompt for the API based on the provided image and text data.
 
         :param image_data: A single base64-encoded image or a list of such images.
         :param text_data: A single text description or a list of text descriptions.
-                          These descriptions are optional and can be empty strings.
         :return: A list containing a single "user" role prompt with the prepared content.
         """
         if not isinstance(image_data, list):
@@ -109,7 +112,7 @@ class VisionLanguageModel(llm.LanguageModel, ABC):
         prompt: str,
         image: bytes | List[bytes],
         system_prompt: str = None,
-    ):
+    ) -> str:
         """
         Query the VisionLanguageModel with an additional image.
 

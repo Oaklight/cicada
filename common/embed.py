@@ -23,12 +23,22 @@ logging.basicConfig(
 class Embed(ABC):
     def __init__(
         self,
-        api_key,
-        api_base_url,
-        model_name,
-        org_id,
+        api_key: str,
+        api_base_url: str,
+        model_name: str,
+        org_id: str,
         **model_kwargs,
     ):
+        """
+        Initialize the Embed class with OpenAI API configurations.
+
+        Args:
+            api_key (str): The API key for OpenAI.
+            api_base_url (str): The base URL for the OpenAI API.
+            model_name (str): The name of the embedding model.
+            org_id (str): The organization ID for OpenAI.
+            **model_kwargs: Additional keyword arguments for the model.
+        """
         self.api_key = api_key
         self.api_base_url = api_base_url
         self.model_name = model_name
@@ -50,7 +60,15 @@ class Embed(ABC):
         reraise=True,  # Reraise the last exception if all retries fail
     )
     def embed(self, texts: List[str]) -> List[List[float]]:
-        """Generate embeddings for a list of texts."""
+        """
+        Generate embeddings for a list of texts using the OpenAI API.
+
+        Args:
+            texts (List[str]): A list of text strings to generate embeddings for.
+
+        Returns:
+            List[List[float]]: A list of embeddings, where each embedding is a list of floats.
+        """
         response = self.client.embeddings.create(
             input=texts,
             model=self.model_name,

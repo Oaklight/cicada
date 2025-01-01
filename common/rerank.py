@@ -13,7 +13,6 @@ sys.path.extend([_current_dir, _parent_dir])
 
 from common.utils import colorstring, load_config
 
-# Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
@@ -30,10 +29,11 @@ class Rerank(ABC):
         """
         Initialize the Rerank class.
 
-        :param api_key: API key for authentication.
-        :param api_base_url: Base URL for the rerank API.
-        :param model_name: Name of the rerank model.
-        :param model_kwargs: Additional model-specific parameters.
+        Args:
+            api_key (str): API key for authentication.
+            api_base_url (str, optional): Base URL for the rerank API. Defaults to "https://api.siliconflow.cn/v1/rerank".
+            model_name (str, optional): Name of the rerank model. Defaults to "BAAI/bge-reranker-v2-m3".
+            **model_kwargs: Additional model-specific parameters.
         """
         self.api_key = api_key
         self.api_base_url = api_base_url
@@ -41,14 +41,10 @@ class Rerank(ABC):
         self.model_kwargs = model_kwargs
 
     @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),  # Stop after 3 attempts
-        wait=tenacity.wait_random_exponential(
-            multiplier=1, min=2, max=10
-        ),  # Exponential backoff with randomness
-        retry=tenacity.retry_if_exception_type(
-            requests.exceptions.RequestException
-        ),  # Retry on request exceptions
-        reraise=True,  # Reraise the last exception if all retries fail
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_random_exponential(multiplier=1, min=2, max=10),
+        retry=tenacity.retry_if_exception_type(requests.exceptions.RequestException),
+        reraise=True,
     )
     def rerank(
         self,
@@ -60,11 +56,14 @@ class Rerank(ABC):
         """
         Rerank a list of documents based on a query.
 
-        :param query: The query to rerank documents against.
-        :param documents: List of documents to rerank.
-        :param top_n: Number of top documents to return.
-        :param return_documents: Whether to return the full documents or just scores.
-        :return: List of reranked documents or scores.
+        Args:
+            query (str): The query to rerank documents against.
+            documents (List[str]): List of documents to rerank.
+            top_n (int, optional): Number of top documents to return. Defaults to 4.
+            return_documents (bool, optional): Whether to return the full documents or just scores. Defaults to False.
+
+        Returns:
+            List[Dict]: List of reranked documents or scores.
         """
         payload = {
             "model": self.model_name,
@@ -72,7 +71,7 @@ class Rerank(ABC):
             "documents": documents,
             "top_n": top_n,
             "return_documents": return_documents,
-            **self.model_kwargs,  # Include additional model-specific parameters
+            **self.model_kwargs,
         }
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -81,7 +80,7 @@ class Rerank(ABC):
 
         try:
             response = requests.post(self.api_base_url, json=payload, headers=headers)
-            response.raise_for_status()  # Raise an exception for HTTP errors
+            response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
             logging.error(colorstring(f"Failed to rerank documents: {e}", "red"))

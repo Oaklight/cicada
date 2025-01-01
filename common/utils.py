@@ -6,11 +6,24 @@ from PIL import Image
 
 
 def load_config(config_path: str) -> dict:
+    """
+    Load a YAML configuration file and return its contents as a dictionary.
+
+    :param config_path: Path to the YAML configuration file.
+    :return: Dictionary containing the configuration data.
+    """
     with open(config_path, "r") as file:
         return yaml.safe_load(file)
 
 
 def load_prompts(prompts_path: str, which_model: str = "vlm") -> dict:
+    """
+    Load prompts from a YAML file and return prompts for a specific model.
+
+    :param prompts_path: Path to the YAML file containing prompts.
+    :param which_model: Key specifying which model's prompts to load. Default is "vlm".
+    :return: Dictionary containing prompts for the specified model.
+    """
     prompts_all = load_config(prompts_path)
     return prompts_all[which_model]
 
@@ -40,7 +53,7 @@ def colorstring(message: str, color: str) -> str:
     return f"{color_code}{message}\033[0m"
 
 
-def image_to_base64(image: Image.Image | str):
+def image_to_base64(image: Image.Image | str) -> str:
     """
     Convert the image to a base64 encoded string.
 

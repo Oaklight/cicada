@@ -1,10 +1,10 @@
 import argparse
+import json
 import logging
 import os
 import sys
-from typing import List
+from typing import List, Literal
 
-from tqdm import tqdm
 import yaml
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -40,16 +40,73 @@ class VisualQualityVLM(vlm.VisionLanguageModel):
         )
         self.user_prompt_template = prompt_templates.get("user_prompt_template", "")
         self.system_prompt_template = prompt_templates.get("system_prompt_template", "")
+        self.examples = prompt_templates.get("examples", {})
+
+    def _format_examples_into_prompt(
+        self, example_set: Literal["complete", "simple", None]
+    ) -> str:
+        """
+        Format the selected example set into a string to be appended to the prompt.
+
+        :param example_set: The example set to include ("complete" or "simple").
+        :return: A formatted string containing the examples.
+        """
+        if not example_set or example_set not in self.examples:
+            return ""
+
+        example_text = ""
+        if example_set == "complete":
+            example_text += "\n\nComplete Examples:\n"
+            for example in self.examples["complete"]:
+                example_text += f"Description: {example['description']}\n"
+                for category in example["questions"]:
+                    example_text += f"{category}:\n"
+                    for question in category:
+                        example_text += f"- {question}\n"
+                example_text += "\n"
+        elif example_set == "simple":
+            example_text += "\nSimple Examples:\n"
+            for example in self.examples["simple"]:
+                example_text += f"- {example}\n"
+
+        return example_text
+
+    def _parse_questions(self, response: str) -> dict:
+        """
+        Parse the response from the VLM to extract questions by category.
+
+        :param response: The raw response from the VLM.
+        :return: A dictionary with categories as keys and lists of questions as values.
+        """
+        questions = {}
+        current_category = None
+
+        for line in response.split("\n"):
+            line = line.strip()
+            if line.startswith("### "):  # Category header
+                current_category = line[4:].strip()
+                questions[current_category] = []
+            elif line and line[0].isdigit():  # Question line (starts with a number)
+                if current_category:
+                    # Extract the question text (remove the leading number and period)
+                    question_text = line.split(". ", 1)[1].strip()
+                    questions[current_category].append(question_text)
+
+        return questions
 
     def generate_visual_questions_from_description(
-        self, text_data: str, image_data: bytes | List[bytes] = None
+        self,
+        text_data: str,
+        image_data: bytes | List[bytes] = None,
+        example_set: Literal["complete", "simple", None] = "simple",
     ) -> dict:
         """
         Generate visual quality control questions from the given text and optional image data.
 
         :param text_data: The text description of the design goal.
         :param image_data: Byte data or list of byte data representing image(s) (optional).
-        :return: Dictionary with categories as keys and lists of questions as values.
+        :param example_set: Which example set to include ("complete" or "simple") (optional).
+        :return: A JSON-formatted dictionary with categories as keys and lists of questions as values.
         """
         # Use the user prompt template and format it with the text data
         prompt = self.user_prompt_template.format(text=text_data)
@@ -57,6 +114,10 @@ class VisualQualityVLM(vlm.VisionLanguageModel):
         # If image data is provided, append a note about the attached image
         if image_data:
             prompt += "\nReference Image: [attached]"
+
+        # Include examples if requested
+        if example_set:
+            prompt += self._format_examples_into_prompt(example_set)
 
         # Query the VLM with the appropriate method
         if image_data:
@@ -68,21 +129,11 @@ class VisualQualityVLM(vlm.VisionLanguageModel):
         else:
             response = self.query(prompt, system_prompt=self.system_prompt_template)
 
-        logging.info(response)
         # Parse the response to extract questions by category
-        # Assuming the model responds with categories and questions in a structured format
-        # This is a simplified example; actual parsing may require more complex logic
-        response_lines = response.split("\n")
-        questions = {}
-        current_category = None
-        for line in response_lines:
-            if line.strip().endswith(":"):
-                current_category = line.strip()[:-1]
-                questions[current_category] = []
-            elif line.strip().startswith("- "):
-                if current_category:
-                    questions[current_category].append(line.strip()[2:])
-        return questions
+        questions = self._parse_questions(response)
+
+        # Convert the dictionary to a JSON-formatted string
+        return json.dumps(questions, indent=4)
 
 
 def _main():
@@ -137,11 +188,11 @@ def _main():
 
         logging.info(f"object_description:\n{text_data}")
         questions = vlm.generate_visual_questions_from_description(
-            text_data, image_data
+            text_data, image_data, example_set="complete"
         )
 
         logging.info(f"Generated Questions for {obj_meta.get('object_id', 'Unknown')}:")
-        logging.info(questions)
+        logging.info(colorstring(questions, "white"))
         logging.info("-" * 40)
 
 

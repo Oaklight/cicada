@@ -22,7 +22,7 @@ class Rerank(ABC):
     def __init__(
         self,
         api_key: str,
-        api_base_url: str = "https://api.siliconflow.cn/v1/rerank",
+        api_base_url: str = "https://api.siliconflow.cn/v1",
         model_name: str = "BAAI/bge-reranker-v2-m3",
         **model_kwargs,
     ):
@@ -31,12 +31,12 @@ class Rerank(ABC):
 
         Args:
             api_key (str): API key for authentication.
-            api_base_url (str, optional): Base URL for the rerank API. Defaults to "https://api.siliconflow.cn/v1/rerank".
+            api_base_url (str, optional): Base URL for the rerank API. Defaults to "https://api.siliconflow.cn/v1".
             model_name (str, optional): Name of the rerank model. Defaults to "BAAI/bge-reranker-v2-m3".
             **model_kwargs: Additional model-specific parameters.
         """
         self.api_key = api_key
-        self.api_base_url = api_base_url
+        self.api_base_url = os.path.join(api_base_url, "rerank")
         self.model_name = model_name
         self.model_kwargs = model_kwargs
 
@@ -100,9 +100,8 @@ if __name__ == "__main__":
 
     rerank = Rerank(
         api_key=rerank_config["api_key"],
-        api_base_url=os.path.join(
-            rerank_config.get("api_base_url", "https://api.siliconflow.cn/v1/"),
-            "rerank",
+        api_base_url=rerank_config.get(
+            "api_base_url", "https://api.siliconflow.cn/v1/"
         ),
         model_name=rerank_config.get("model_name", "BAAI/bge-reranker-v2-m3"),
         **rerank_config.get("model_kwargs", {}),

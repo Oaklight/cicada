@@ -230,6 +230,7 @@ def _main():
 
     # Import the SiliconFlowEmbeddings class
     from siliconflow_embeddings import SiliconFlowEmbeddings
+    from siliconflow_rerank import SiliconFlowRerank
 
     # Initialize SiliconFlowEmbeddings
     embedding_model = SiliconFlowEmbeddings(
@@ -260,6 +261,13 @@ def _main():
         "12345",  # Numbers
         "Café au lait",  # French with special character
         "🍎🍐🍇",  # Emojis
+        "manzana",  # Spanish for apple
+        "pomme",  # French for apple
+        "苹果",  # Chinese for apple
+        "grape",  # English for grape
+        "uva",  # Spanish for grape
+        "fox",  # English for fox
+        "zorro",  # Spanish for fox
     ]
     metadatas = [{"source": f"test{i+1}"} for i in range(len(texts))]
     ids = pg_vector.add_texts(texts, metadatas)
@@ -276,11 +284,27 @@ def _main():
         "Café",  # French word with special character
         "123",  # Partial number
     ]
+
     for query in queries:
-        results = pg_vector.similarity_search(query, k=2)
-        print(colorstring(f"Results for query '{query}':", "cyan"))
-        for result in results:
-            print(f"Document: {result.page_content}, Metadata: {result.metadata}")
+        print(colorstring(f"\nQuery: {query}", "blue"))
+        results = pg_vector.similarity_search(query, k=10)
+        print(colorstring(f"Similarity search results: {results}", "yellow"))
+
+        # Initialize SiliconFlowRerank
+        rerank_model = SiliconFlowRerank(
+            api_key="sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc",
+            api_base_url="https://oneapi.service.oaklight.cn/v1",
+            model_name="BAAI/bge-reranker-v2-m3",
+        )
+
+        # Rerank the results
+        reranked_results = rerank_model.rerank(
+            query,
+            results,
+            top_n=5,
+            return_documents=True,
+        )
+        print(colorstring(f"Reranked results: {reranked_results}", "cyan"))
 
     # Clean up (optional)
     with pg_vector._Session() as session:

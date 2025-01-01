@@ -43,13 +43,13 @@ class VisualQualityVLM(vlm.VisionLanguageModel):
 
     def generate_visual_questions_from_description(
         self, text_data: str, image_data: bytes | List[bytes] = None
-    ) -> List[str]:
+    ) -> dict:
         """
         Generate visual quality control questions from the given text and optional image data.
 
         :param text_data: The text description of the design goal.
         :param image_data: Byte data or list of byte data representing image(s) (optional).
-        :return: List of generated questions.
+        :return: Dictionary with categories as keys and lists of questions as values.
         """
         # Use the user prompt template and format it with the text data
         prompt = self.user_prompt_template.format(text=text_data)
@@ -68,10 +68,20 @@ class VisualQualityVLM(vlm.VisionLanguageModel):
         else:
             response = self.query(prompt, system_prompt=self.system_prompt_template)
 
-        # Parse the response to extract questions
-        # Assuming the model responds with a list of questions, each on a new line
-        questions = [q.strip() for q in response.split("\n") if q.strip()]
-
+        logging.info(response)
+        # Parse the response to extract questions by category
+        # Assuming the model responds with categories and questions in a structured format
+        # This is a simplified example; actual parsing may require more complex logic
+        response_lines = response.split("\n")
+        questions = {}
+        current_category = None
+        for line in response_lines:
+            if line.strip().endswith(":"):
+                current_category = line.strip()[:-1]
+                questions[current_category] = []
+            elif line.strip().startswith("- "):
+                if current_category:
+                    questions[current_category].append(line.strip()[2:])
         return questions
 
 
@@ -131,8 +141,7 @@ def main():
         )
 
         logging.info(f"Generated Questions for {obj_meta.get('object_id', 'Unknown')}:")
-        for q in questions:
-            logging.info(f"- {q}")
+        logging.info(questions)
         logging.info("-" * 40)
 
 

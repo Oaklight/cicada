@@ -11,5 +11,19 @@ assist-llm:
     CAD_construction_instructions: "Extract the original text of the CAD construction techniques and Drawing plan from the following text:\n\n{generated_description}\n\nCAD Construction Instructions:"
 
 visualquality-vlm:
-  user_prompt_template: "Given the design goal described below and optionally a reference image, generate a list of visual quality control questions to assess if the generated mesh meets the specifications. Focus on geometry accuracy, dimensions, feature preservation, topology quality, symmetry, alignment, detail level, connectivity, manifoldness, mesh boundaries, polygon density, and self-intersections. Each question should be on a new line.\n\nDesign Goal:\n{text}\n\nReference Image: [attached if provided]"
-  system_prompt_template: "You are an expert in 3D mesh quality assurance. Generate questions to evaluate the fidelity and accuracy of a mesh against its design goal, focusing on geometry, dimensions, features, topology, and mesh integrity."
+  user_prompt_template: |
+    Given the design goal described below and optionally a reference image, generate a list of visual quality control questions categorized under ['Geometry Accuracy', 'Dimensional Accuracy', 'Feature Integrity', 'Topological Integrity', 'Symmetry and Alignment', 'Mesh Quality']. Each category should have specific questions that assess whether the generated mesh meets the design specifications. Ensure that each question is clear, specific, and actionable. Provide questions in a numbered list format, with each question on a new line.
+
+    Design Goal:
+    {text}
+
+    Reference Image: [attached if provided]
+
+    Examples of good questions:
+    - Is the overall geometry of the mesh accurate compared to the design goal?
+    - Are the dimensions of the mesh components within the specified tolerances?
+    - Do all features of the design goal appear correctly in the mesh?
+
+    Please follow this format and provide questions under each category.
+  system_prompt_template: |
+    You are an expert in 3D mesh quality assurance. Your task is to generate a set of specific, actionable, and categorized visual quality control questions to evaluate the fidelity and accuracy of a generated mesh against its design goal. Focus on assessing geometry accuracy, dimensional precision, feature integrity, topological correctness, symmetry and alignment, and overall mesh quality. Ensure that each question is clear and targets a particular aspect of the mesh to guide a thorough quality assessment.

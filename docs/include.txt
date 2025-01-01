@@ -1,0 +1,6 @@
+# Include these paths
+coding
+common
+describe
+retrieval/core
+geometry_pipeline

@@ -32,6 +32,8 @@ Base = declarative_base()
 
 
 class CollectionStore(Base):
+    """Represents a collection in the database."""
+
     __tablename__ = "langchain_pg_collection"
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String)
@@ -42,6 +44,8 @@ class CollectionStore(Base):
 
 
 class EmbeddingStore(Base):
+    """Represents an embedding in the database."""
+
     __tablename__ = "langchain_pg_embedding"
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     collection_id = Column(
@@ -56,6 +60,8 @@ class EmbeddingStore(Base):
 
 
 class PGVector(VectorStore):
+    """A vector store implementation using PostgreSQL and pgvector."""
+
     def __init__(
         self,
         connection_string: str,
@@ -63,6 +69,14 @@ class PGVector(VectorStore):
         collection_name: str = "langchain",
         pool_size: int = 5,
     ):
+        """Initialize the PGVector instance.
+
+        Args:
+            connection_string (str): The PostgreSQL connection string.
+            embedding (Embeddings): The embedding model to use.
+            collection_name (str, optional): The name of the collection. Defaults to "langchain".
+            pool_size (int, optional): The size of the connection pool. Defaults to 5.
+        """
         self._engine = create_engine(
             connection_string, pool_size=pool_size, max_overflow=10
         )
@@ -73,7 +87,7 @@ class PGVector(VectorStore):
         self.create_collection()
 
     def create_tables_if_not_exists(self) -> None:
-        """Create tables if they don't exist."""
+        """Create tables in the database if they don't exist."""
         try:
             Base.metadata.create_all(self._engine)
             logger.info(
@@ -103,7 +117,14 @@ class PGVector(VectorStore):
     def add_texts(
         self, texts: List[str], metadatas: Optional[List[Dict]] = None
     ) -> List[str]:
-        """Add texts to the vector store."""
+        """Add texts to the vector store.
+        Args:
+            texts (List[str]): The texts to add.
+            metadatas (Optional[List[Dict]], optional): Metadata for each text. Defaults to None.
+
+        Returns:
+            List[str]: The IDs of the added texts.
+        """
         session = self._Session()
         try:
             embeddings = self._embedding.embed_documents(texts)
@@ -140,7 +161,15 @@ class PGVector(VectorStore):
             session.close()
 
     def similarity_search(self, query: str, k: int = 4) -> List[Document]:
-        """Perform a similarity search."""
+        """Perform a similarity search for a query.
+
+        Args:
+            query (str): The query to search for.
+            k (int, optional): The number of results to return. Defaults to 4.
+
+        Returns:
+            List[Document]: The documents that match the query.
+        """
         try:
             embedding = self._embedding.embed_query(query)
             logger.info(
@@ -156,7 +185,15 @@ class PGVector(VectorStore):
     def similarity_search_by_vector(
         self, embedding: List[float], k: int = 4
     ) -> List[Document]:
-        """Perform a similarity search by vector."""
+        """Perform a similarity search by vector.
+
+        Args:
+            embedding (List[float]): The embedding vector to search for.
+            k (int, optional): The number of results to return. Defaults to 4.
+
+        Returns:
+            List[Document]: The documents that match the vector.
+        """
         session = self._Session()
         try:
             collection = (

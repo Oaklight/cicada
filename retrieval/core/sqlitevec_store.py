@@ -27,6 +27,14 @@ class SQLiteVec(VectorStore):
         pool_size: int = 5,
         embedding: Embeddings = None,
     ):
+        """Initialize the SQLiteVec instance.
+
+        Args:
+            table (str): The name of the table to store the vectors.
+            db_file (str, optional): The path to the SQLite database file. Defaults to "vec.db".
+            pool_size (int, optional): The size of the connection pool. Defaults to 5.
+            embedding (Embeddings, optional): The embedding model to use. Defaults to None.
+        """
         self._db_file = db_file
         self._table = table
         self._embedding = embedding
@@ -34,7 +42,13 @@ class SQLiteVec(VectorStore):
         self.create_table_if_not_exists()
 
     def _create_connection_pool(self, pool_size: int) -> sqlite3.Connection:
-        """Create a connection pool for SQLite."""
+        """Create a connection pool for SQLite.
+        Args:
+            pool_size (int): The size of the connection pool.
+
+        Returns:
+            sqlite3.Connection: A list of SQLite connections.
+        """
         pool = []
         for _ in range(pool_size):
             connection = self._create_connection()
@@ -47,7 +61,11 @@ class SQLiteVec(VectorStore):
         return pool
 
     def _get_connection(self) -> sqlite3.Connection:
-        """Get a connection from the pool."""
+        """Get a connection from the pool.
+
+        Returns:
+            sqlite3.Connection: A SQLite connection.
+        """
         if not self._pool:
             logger.warning(
                 colorstring(
@@ -58,11 +76,22 @@ class SQLiteVec(VectorStore):
         return self._pool.pop()
 
     def _release_connection(self, connection: sqlite3.Connection):
-        """Release a connection back to the pool."""
+        """Release a connection back to the pool.
+        Args:
+            connection (sqlite3.Connection): The SQLite connection to release.
+        """
         self._pool.append(connection)
 
     def _create_connection(self) -> sqlite3.Connection:
-        """Create a single SQLite connection."""
+        """Create a single SQLite connection.
+
+        Returns:
+            sqlite3.Connection: A SQLite connection.
+
+        Raises:
+            ImportError: If the sqlite_vec extension is not installed.
+            sqlite3.Error: If the connection to the database fails.
+        """
         try:
             import sqlite_vec
 
@@ -93,7 +122,11 @@ class SQLiteVec(VectorStore):
             raise e
 
     def create_table_if_not_exists(self) -> None:
-        """Create tables if they don't exist."""
+        """Create tables if they don't exist.
+
+        Raises:
+            sqlite3.Error: If the table creation fails.
+        """
         connection = self._get_connection()
         try:
             connection.execute(
@@ -130,7 +163,18 @@ class SQLiteVec(VectorStore):
     def add_texts(
         self, texts: List[str], metadatas: Optional[List[Dict]] = None
     ) -> List[str]:
-        """Add texts to the vector store."""
+        """Add texts to the vector store.
+
+        Args:
+            texts (List[str]): The list of texts to add.
+            metadatas (Optional[List[Dict]], optional): The list of metadata dictionaries. Defaults to None.
+
+        Returns:
+            List[str]: The list of row IDs for the added texts.
+
+        Raises:
+            sqlite3.Error: If the addition of texts fails.
+        """
         connection = self._get_connection()
         try:
             embeds = self._embedding.embed_documents(texts)
@@ -168,7 +212,18 @@ class SQLiteVec(VectorStore):
             self._release_connection(connection)
 
     def similarity_search(self, query: str, k: int = 4) -> List[Document]:
-        """Perform a similarity search."""
+        """Perform a similarity search.
+
+        Args:
+            query (str): The query string.
+            k (int, optional): The number of results to return. Defaults to 4.
+
+        Returns:
+            List[Document]: The list of documents that match the query.
+
+        Raises:
+            Exception: If the similarity search fails.
+        """
         try:
             embedding = self._embedding.embed_query(query)
             logger.info(
@@ -184,7 +239,18 @@ class SQLiteVec(VectorStore):
     def similarity_search_by_vector(
         self, embedding: List[float], k: int = 4
     ) -> List[Document]:
-        """Perform a similarity search by vector."""
+        """Perform a similarity search by vector.
+
+        Args:
+            embedding (List[float]): The embedding vector to search with.
+            k (int, optional): The number of results to return. Defaults to 4.
+
+        Returns:
+            List[Document]: The list of documents that match the query.
+
+        Raises:
+            sqlite3.Error: If the similarity search fails.
+        """
         connection = self._get_connection()
         try:
             cursor = connection.cursor()
@@ -219,11 +285,22 @@ class SQLiteVec(VectorStore):
 
     @staticmethod
     def serialize_f32(vector: List[float]) -> bytes:
-        """Serialize a list of floats into bytes."""
+        """Serialize a list of floats into bytes.
+
+        Args:
+            vector (List[float]): The list of floats to serialize.
+
+        Returns:
+            bytes: The serialized bytes.
+        """
         return struct.pack(f"{len(vector)}f", *vector)
 
     def get_dimensionality(self) -> int:
-        """Get the dimensionality of the embeddings."""
+        """Get the dimensionality of the embeddings.
+
+        Returns:
+            int: The dimensionality of the embeddings.
+        """
         return len(self._embedding.embed_query("dummy text"))
 
 

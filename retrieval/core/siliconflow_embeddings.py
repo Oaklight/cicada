@@ -54,12 +54,33 @@ class SiliconFlowEmbeddings(Embeddings):
         )
 
     def embed_query(self, text: str) -> List[float]:
-        """Generate an embedding for a single query text."""
+        """
+        Generate an embedding for a single query text.
+
+        Args:
+            text (str): The query text to embed.
+
+        Returns:
+            List[float]: The embedding of the query text.
+        """
         return self.embed_documents(text)[0]
 
     def embed_documents(
         self, texts: Union[List[str], str, Document, List[Document]]
     ) -> List[List[float]]:
+        """
+        Generate embeddings for a list of texts or documents.
+
+        Args:
+            texts (Union[List[str], str, Document, List[Document]]): The input texts or documents to embed.
+
+        Returns:
+            List[List[float]]: A list of embeddings for the input texts or documents.
+
+        Raises:
+            ValueError: If the input list contains mixed types of strings and Documents.
+            TypeError: If the input is not a string, Document, list of strings, or list of Documents.
+        """
         # Normalize input to a list of strings
         if isinstance(texts, str):
             texts = [texts]

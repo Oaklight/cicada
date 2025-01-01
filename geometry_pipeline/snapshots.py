@@ -25,10 +25,18 @@ logger.addHandler(logging.StreamHandler())
 
 def get_adaptive_camera_distance(
     mesh: trimesh.Trimesh,
-    scale_factor=3,
+    scale_factor: float = 3,
 ) -> float:
-    """Calculates a suitable camera distance based on the mesh's bounding box."""
-    bounding_box = mesh.bounding_box.extents  # Get dimensions of the bounding box
+    """Calculates a suitable camera distance based on the mesh's bounding box.
+
+    Args:
+        mesh (trimesh.Trimesh): The mesh for which to calculate the camera distance.
+        scale_factor (float, optional): Scaling factor for the camera distance. Defaults to 3.
+
+    Returns:
+        float: The calculated camera distance.
+    """
+    bounding_box = mesh.bounding_box.extents
     logger.debug(f"Bounding box: {bounding_box}")
 
     diagonal_length = np.linalg.norm(bounding_box)  # Diagonal of bounding box
@@ -39,26 +47,36 @@ def get_adaptive_camera_distance(
 
 
 def get_camera_pose(
-    looking_from_direction="near",
-):
-    euler_angles = angles.looking_from.get(looking_from_direction.lower())
+    looking_from_direction: str = "near",
+) -> np.ndarray:
+    """Retrieves the camera pose (Euler angles) for a given direction.
 
+    Args:
+        looking_from_direction (str, optional): The direction from which the camera is looking. Defaults to "near".
+
+    Returns:
+        np.ndarray: The Euler angles representing the camera pose.
+    """
+    euler_angles = angles.looking_from.get(looking_from_direction.lower())
     return euler_angles
 
 
 def preview_scene_interactive(
     mesh: trimesh.Trimesh, camera_orientation: np.ndarray, camera_distance: float
-):
-    """Creates an interactive scene preview using trimesh.SceneViewer."""
-    # Create a trimesh Scene for interactive viewing
+) -> None:
+    """Creates an interactive scene preview using trimesh.SceneViewer.
+
+    Args:
+        mesh (trimesh.Trimesh): The mesh to be displayed in the scene.
+        camera_orientation (np.ndarray): The Euler angles for the camera orientation.
+        camera_distance (float): The distance of the camera from the mesh.
+    """
     scene = trimesh.Scene()
     scene.add_geometry(mesh)
 
-    # Add directional light above the object
     light = trimesh.scene.lighting.autolight(scene)
     scene.add_geometry(light)
 
-    # Set the camera parameters using set_camera
     scene.set_camera(
         angles=camera_orientation,
         distance=camera_distance,
@@ -71,19 +89,32 @@ def preview_scene_interactive(
     logger.debug(f"Camera K: \n{scene.camera.K}")
     logger.debug(f"centroid: \n{mesh.centroid}")
 
-    # Show the interactive viewer
     viewer = scene.show()
 
 
-def rgba_to_rgb(rgba_image):
-    """Convert an RGBA image to RGB."""
+def rgba_to_rgb(rgba_image: Image.Image) -> Image.Image:
+    """Converts an RGBA image to RGB.
+
+    Args:
+        rgba_image (Image.Image): The RGBA image to convert.
+
+    Returns:
+        Image.Image: The converted RGB image.
+    """
     return rgba_image.convert("RGB")
 
 
-def enhance_color_contrast(image):
-    """Enhance the color contrast of the image."""
+def enhance_color_contrast(image: Image.Image) -> Image.Image:
+    """Enhances the color contrast of the image.
+
+    Args:
+        image (Image.Image): The image to enhance.
+
+    Returns:
+        Image.Image: The enhanced image.
+    """
     enhancer = ImageEnhance.Contrast(image)
-    enhanced_image = enhancer.enhance(1.3)  # Increase contrast by a factor of 2
+    enhanced_image = enhancer.enhance(1.3)
     return enhanced_image
 
 
@@ -93,9 +124,18 @@ def capture_snapshots(
     camera_distances: List[float],
     out_path: str,
     names: Optional[List[str]] = None,
-    resolution=[512, 512],
-):
-    """Creates an interactive scene preview using trimesh.SceneViewer."""
+    resolution: List[int] = [512, 512],
+) -> None:
+    """Captures snapshots of the mesh from different camera orientations and distances.
+
+    Args:
+        mesh (trimesh.Trimesh): The mesh to capture snapshots of.
+        camera_orientations (np.ndarray): List of camera orientations (Euler angles).
+        camera_distances (List[float]): List of camera distances.
+        out_path (str): The output directory to save the snapshots.
+        names (Optional[List[str]], optional): List of names for the snapshots. Defaults to None.
+        resolution (List[int], optional): The resolution of the snapshots. Defaults to [512, 512].
+    """
     if not os.path.exists(out_path):
         os.makedirs(out_path)
 

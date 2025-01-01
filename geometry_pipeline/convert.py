@@ -21,11 +21,18 @@ logger.addHandler(logging.StreamHandler())
 def recenter_and_reaxis_mesh(
     mesh: trimesh.Trimesh,
 ) -> Tuple[trimesh.Trimesh, np.ndarray]:
-    # calculate the principal inertia transform
+    """
+    Recenter and reaxis the mesh using its principal inertia transform.
+
+    Args:
+        mesh (trimesh.Trimesh): The input mesh.
+
+    Returns:
+        Tuple[trimesh.Trimesh, np.ndarray]: The transformed mesh and the transformation matrix.
+    """
     transformation_matrix = mesh.principal_inertia_transform
     logger.debug(f"[Transform] principal inertia transform: \n{transformation_matrix}")
 
-    # transform the mesh
     transformed_mesh = mesh.copy()
     transformed_mesh.apply_transform(transformation_matrix)
     logger.debug(f"[Transform] mesh transformed with principal inertia transform")
@@ -33,43 +40,48 @@ def recenter_and_reaxis_mesh(
     return transformed_mesh, transformation_matrix
 
 
-def step2mesh(step_path: str):
+def step2mesh(step_path: str) -> trimesh.Trimesh:
     """
-    According to https://gmsh.info/doc/texinfo/gmsh.html#Mesh-options,
-    for the fastest 2D meshing, use Algorithm 3 (Initial Mesh Only) or Algorithm 5 (Delaunay).
-    for the fastest 3D meshing, use Algorithm 1 (Delaunay) or Algorithm 3 (Initial Mesh Only).
+    Convert a STEP file to a mesh using GMSH.
+
+    Args:
+        step_path (str): Path to the STEP file.
+
+    Returns:
+        trimesh.Trimesh: The generated mesh.
     """
     mesh = trimesh.Trimesh(
         **trimesh.interfaces.gmsh.load_gmsh(
             file_name=step_path,
             gmsh_args=[
-                ("Mesh.Algorithm", 5),  # Different algorithm types, check them out
-                ("Mesh.Algorithm3D", 1),  # Different algorithm types, check them out
-                (
-                    "Mesh.CharacteristicLengthFromCurvature",
-                    50,
-                ),  # Tuning the smoothness, + smoothness = + time
-                ("General.NumThreads", 10),  # Multithreading capability
+                ("Mesh.Algorithm", 5),
+                ("Mesh.Algorithm3D", 1),
+                ("Mesh.CharacteristicLengthFromCurvature", 50),
+                ("General.NumThreads", 10),
                 ("Mesh.MinimumCirclePoints", 32),
             ],
         )
     )
-    logger.debug(  # add function name in the beginning []
-        # f"[{}] <mesh> from {step_path} with {mesh.vertices.shape[0]} vertices"
+    logger.debug(
         f"[step2mesh] mesh loaded from {step_path}, {mesh.vertices.shape[0]} vertices"
     )
-
     return mesh
 
 
 def step2obj(step_path: str, out_path: str) -> str:
+    """
+    Convert a STEP file to an OBJ file.
 
+    Args:
+        step_path (str): Path to the STEP file.
+        out_path (str): Directory to save the OBJ file.
+
+    Returns:
+        str: Path to the saved OBJ file.
+    """
     m = step2mesh(step_path)
-
-    # recenter and reaxis the mesh
     m, _ = recenter_and_reaxis_mesh(m)
 
-    # save the mesh to obj file
     obj_path = os.path.join(
         out_path, os.path.basename(step_path).replace(".step", ".obj")
     )
@@ -80,40 +92,83 @@ def step2obj(step_path: str, out_path: str) -> str:
 
 
 def step2stl(step_path: str, out_path: str) -> str:
-    """Convert STEP file to STL format."""
+    """
+    Convert a STEP file to an STL file.
+
+    Args:
+        step_path (str): Path to the STEP file.
+        out_path (str): Directory to save the STL file.
+
+    Returns:
+        str: Path to the saved STL file.
+    """
     mesh = step2mesh(step_path)
     stl_path = os.path.join(
         out_path, os.path.basename(step_path).replace(".step", ".stl")
     )
     mesh.export(stl_path, file_type="stl")
     logger.info(f"STEP file converted to STL: {stl_path}")
+
     return stl_path
 
 
 def stl2obj(stl_path: str, out_path: str) -> str:
-    """Convert STL file to OBJ format."""
+    """
+    Convert an STL file to an OBJ file.
+
+    Args:
+        stl_path (str): Path to the STL file.
+        out_path (str): Directory to save the OBJ file.
+
+    Returns:
+        str: Path to the saved OBJ file.
+    """
     mesh = trimesh.load_mesh(stl_path)
     obj_path = os.path.join(
         out_path, os.path.basename(stl_path).replace(".stl", ".obj")
     )
     mesh.export(obj_path, file_type="obj")
     logger.info(f"STL file converted to OBJ: {obj_path}")
+
     return obj_path
 
 
 def obj2stl(obj_path: str, out_path: str) -> str:
-    """Convert OBJ file to STL format."""
+    """
+    Convert an OBJ file to an STL file.
+
+    Args:
+        obj_path (str): Path to the OBJ file.
+        out_path (str): Directory to save the STL file.
+
+    Returns:
+        str: Path to the saved STL file.
+    """
     mesh = trimesh.load_mesh(obj_path)
     stl_path = os.path.join(
         out_path, os.path.basename(obj_path).replace(".obj", ".stl")
     )
     mesh.export(stl_path, file_type="stl")
     logger.info(f"OBJ file converted to STL: {stl_path}")
+
     return stl_path
 
 
-def write_ply(points, filename, text=False, default_rgb=DEFAULT_RGB):
-    """input: Nx3, write points to filename as PLY format."""
+def write_ply(
+    points: np.ndarray,
+    filename: str,
+    text: bool = False,
+    default_rgb: Tuple[int, int, int] = DEFAULT_RGB,
+) -> None:
+    """
+    Write points to a PLY file.
+
+    Args:
+        points (np.ndarray): Nx3 array of points.
+        filename (str): Path to save the PLY file.
+        text (bool): Whether to save the PLY file in text format.
+        default_rgb (Tuple[int, int, int]): Default RGB color for the points.
+    """
     points = [
         (
             points[i, 0],
@@ -143,12 +198,20 @@ def write_ply(points, filename, text=False, default_rgb=DEFAULT_RGB):
 
 
 def obj2pc(obj_path: str, out_path: str) -> str:
-    # obj_path, out_path
+    """
+    Convert an OBJ file to a point cloud (PLY format).
+
+    Args:
+        obj_path (str): Path to the OBJ file.
+        out_path (str): Directory to save the PLY file.
+
+    Returns:
+        str: Path to the saved PLY file.
+    """
     m = trimesh.load_mesh(obj_path)
     logger.debug(
         f"[obj2pc] mesh loaded from {obj_path} with {m.vertices.shape[0]} vertices"
     )
-
     pc_path = os.path.join(out_path, os.path.basename(obj_path).replace(".obj", ".ply"))
     pc = trimesh.PointCloud(m.sample(POINTCLOUD_N_POINTS))
     logger.debug(f"[obj2pc] convert to pointcloud, with {pc.vertices.shape[0]} points")
@@ -161,12 +224,22 @@ def obj2pc(obj_path: str, out_path: str) -> str:
 
 
 def stl2pc(stl_path: str, out_path: str) -> str:
-    """Convert STL file to point cloud (PLY format)."""
+    """
+    Convert an STL file to a point cloud (PLY format).
+
+    Args:
+        stl_path (str): Path to the STL file.
+        out_path (str): Directory to save the PLY file.
+
+    Returns:
+        str: Path to the saved PLY file.
+    """
     mesh = trimesh.load_mesh(stl_path)
     pc_path = os.path.join(out_path, os.path.basename(stl_path).replace(".stl", ".ply"))
     pc = trimesh.PointCloud(mesh.sample(POINTCLOUD_N_POINTS))
     write_ply(pc.vertices, pc_path)
     logger.info(f"STL file converted to point cloud: {pc_path}")
+
     return pc_path
 
 

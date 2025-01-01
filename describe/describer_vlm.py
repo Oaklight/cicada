@@ -6,9 +6,9 @@ from typing import List
 
 from tqdm import tqdm
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.extend([current_dir, parent_dir])
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+sys.path.extend([_current_dir, _parent_dir])
 
 from common import vlm
 from common.utils import colorstring, image_to_base64, load_config, load_prompts
@@ -92,7 +92,7 @@ class DescriberVLM(vlm.VisionLanguageModel):
         return description_collection
 
 
-def main():
+def _main():
     parser = argparse.ArgumentParser(description="Vision Language Model")
     parser.add_argument(
         "--config", default="config.yaml", help="Path to the configuration YAML file"
@@ -140,4 +140,4 @@ def main():
 
 # Example usage
 if __name__ == "__main__":
-    main()
+    _main()

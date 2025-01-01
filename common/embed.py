@@ -8,9 +8,9 @@ from typing import List
 import openai
 import tenacity
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.extend([current_dir, parent_dir])
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+sys.path.extend([_current_dir, _parent_dir])
 
 from common.utils import colorstring, load_config
 

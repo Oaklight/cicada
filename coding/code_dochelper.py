@@ -451,7 +451,7 @@ class CodeDocHelper:
             return "# Unknown\nInvalid data format."
 
 
-def main():
+def _main():
     """
     Command Line Interface for querying module, class, function, or method information.
     """
@@ -497,4 +497,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    _main()

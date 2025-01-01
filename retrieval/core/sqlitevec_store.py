@@ -6,10 +6,10 @@ import struct
 import sys
 from typing import Dict, List, Optional
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-grandparent_dir = os.path.dirname(parent_dir)
-sys.path.extend([parent_dir, grandparent_dir])
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+_grandparent_dir = os.path.dirname(_parent_dir)
+sys.path.extend([_parent_dir, _grandparent_dir])
 
 from common.utils import colorstring
 from retrieval.core.basics import Document, Embeddings, VectorStore
@@ -227,7 +227,7 @@ class SQLiteVec(VectorStore):
         return len(self._embedding.embed_query("dummy text"))
 
 
-def main():
+def _main():
     """Test the SQLiteVec class with SiliconFlowEmbeddings."""
 
     # Import the SiliconFlowEmbeddings class
@@ -290,4 +290,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    _main()

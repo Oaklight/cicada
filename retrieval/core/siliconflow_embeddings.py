@@ -3,10 +3,10 @@ import os
 import sys
 from typing import List
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-grandparent_dir = os.path.dirname(parent_dir)
-sys.path.extend([parent_dir, grandparent_dir])
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+_grandparent_dir = os.path.dirname(_parent_dir)
+sys.path.extend([_parent_dir, _grandparent_dir])
 
 from typing import List, Union
 

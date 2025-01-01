@@ -6,9 +6,9 @@ from typing import List
 
 from tqdm import tqdm
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.extend([current_dir, parent_dir])
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+sys.path.extend([_current_dir, _parent_dir])
 
 from common import llm
 from common.utils import load_config, load_prompts
@@ -107,7 +107,7 @@ def load_object_metadata(task_path: str) -> List[dict]:
     return metadata_collection
 
 
-def main():
+def _main():
     parser = argparse.ArgumentParser(description="Assistive Large Language Model")
     parser.add_argument(
         "--config", default="config.yaml", help="Path to the configuration YAML file"
@@ -174,4 +174,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    _main()

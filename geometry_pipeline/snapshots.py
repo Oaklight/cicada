@@ -10,9 +10,9 @@ import trimesh
 from PIL import Image, ImageEnhance
 from tqdm import tqdm
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+sys.path.append(_parent_dir)
 from geometry_pipeline import angles, convert
 from common.utils import colorstring
 

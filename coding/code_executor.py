@@ -8,9 +8,9 @@ import sys
 import tempfile
 from subprocess import TimeoutExpired, run
 
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(current_dir)
-sys.path.append(parent_dir)
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+sys.path.append(_parent_dir)
 
 from common.utils import colorstring
 

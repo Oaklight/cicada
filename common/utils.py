@@ -5,6 +5,31 @@ import yaml
 from PIL import Image
 
 
+class PromptBuilder:
+    def __init__(self):
+        self.messages = []
+
+    def add_system_prompt(self, content):
+        self.messages.append({"role": "system", "content": content})
+
+    def add_user_prompt(self, content):
+        self.messages.append({"role": "user", "content": content})
+
+    def add_image(self, image_data):
+        self.messages.append(
+            {
+                "role": "user",
+                "content": {
+                    "type": "image_url",
+                    "image_url": {"url": f"data:image/png;base64,{image_data}"},
+                },
+            }
+        )
+
+    def add_text(self, content):
+        self.messages.append({"role": "user", "content": content})
+
+
 def load_config(config_path: str) -> dict:
     """
     Load a YAML configuration file and return its contents as a dictionary.

@@ -1,4 +1,4 @@
-visualquality-vlm:
+visual_question:
   user_prompt_template: |
     Given the design goal described below and optionally a reference image, generate a list of visual quality control questions categorized under ['Geometry Accuracy', 'Dimensional Accuracy', 'Feature Integrity', 'Topological Integrity', 'Symmetry and Alignment']. Each category should have specific questions that assess whether the rendered object meets the design specifications. Ensure that each question is clear, specific, and actionable. Provide questions in a numbered list format, with each question on a new line.
 
@@ -98,3 +98,27 @@ visualquality-vlm:
       - "Do all features of the design goal appear correctly in the rendered object?"
       - "Is the object stable and functional as intended?"
       - "Are the components of the object properly aligned and symmetrical?"
+
+visual_feedback:
+  user_prompt_template: |
+    Compare the rendered object with the design goal and reference images (if provided). Focus on the geometry, shape, and physical feasibility of the object. Identify what aspects of the rendered object meet the design specifications (hits) and what aspects do not (misses). Provide this feedback in a clear, concise paragraph. Do not comment on material, texture, or finish.
+
+    Design Goal:
+    {text}
+
+    Reference Image: [attached if provided]
+  system_prompt_template: |
+    You are an expert in 3D object quality assurance. Your task is to compare the rendered object with the design goal and reference images, focusing on geometry, shape, and physical feasibility. Identify what aspects of the rendered object meet the design specifications (hits) and what aspects do not (misses). Provide this feedback in a clear, concise paragraph. Do not comment on material, texture, or finish.
+  examples:
+    - description: "I want a chair with four legs, a curved backrest, and a circular seat."
+      feedback: |
+        Hits: The chair has four legs and a circular seat as specified. The overall shape is consistent with the design goal.
+        Misses: The backrest is not curved as described. The legs are unevenly spaced, which may affect stability.
+    - description: "I want a bookshelf with three shelves, each 30 cm apart."
+      feedback: |
+        Hits: The bookshelf has three shelves, and the spacing between them is accurate.
+        Misses: The frame of the bookshelf is not sturdy enough to support the shelves, which may cause it to collapse.
+
+visual_answer:
+  user_prompt_template: "" # Placeholder for future implementation
+  system_prompt_template: "" # Placeholder for future implementation

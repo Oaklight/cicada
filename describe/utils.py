@@ -10,6 +10,17 @@ sys.path.append(_parent_dir)
 from common.utils import load_config
 
 
+def get_images_from_folder(folder_path: str) -> List[str]:
+    """Get all image files from the specified folder."""
+    valid_extensions = [".jpg", ".jpeg", ".png", ".bmp", ".gif"]
+    images = [
+        os.path.join(folder_path, f)
+        for f in os.listdir(folder_path)
+        if os.path.splitext(f)[1].lower() in valid_extensions
+    ]
+    return images
+
+
 def save_descriptions(base_dirs: str | List[str], descriptions: dict | List[dict]):
 
     if not isinstance(base_dirs, list):

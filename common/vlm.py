@@ -3,7 +3,7 @@ import logging
 import os
 import sys
 from abc import ABC
-from typing import List
+from typing import List, Union
 
 import openai
 import tenacity
@@ -49,53 +49,69 @@ class VisionLanguageModel(llm.LanguageModel, ABC):
 
     def _prepare_prompt(
         self,
-        image_data: bytes | List[bytes],
-        text_data: str | List[str],
+        images_with_text: List[Union[str, bytes]] | None = None,
+        prompt: str | None = None,
+        images: bytes | List[bytes] | None = None,
+        max_items_per_message: int = 4,  # Adjust as needed
     ) -> List[dict]:
         """
-        Prepare the prompt for the API based on the provided image and text data.
+        Prepare the prompt for the API by splitting the content into multiple messages if needed.
 
-        :param image_data: A single base64-encoded image or a list of such images.
-        :param text_data: A single text description or a list of text descriptions.
-        :return: A list containing a single "user" role prompt with the prepared content.
+        :param images_with_text: A list of mixed text (str) and image (bytes) data.
+        :param prompt: Optional user prompt text.
+        :param images: Optional image data (single or list of bytes).
+        :param max_items_per_message: Maximum items per message.
+        :return: A list of messages with prepared content.
         """
-        if not isinstance(image_data, list):
-            image_data = [image_data]
-        if not isinstance(text_data, list):
-            text_data = [text_data]
+        content = []
+        messages = []
 
-        if len(image_data) != len(text_data):
-            # single pre description mode
-            content = [
-                {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{each_image_data}"},
-                }
-                for each_image_data in image_data
-            ]
-            if len(each_text_data):
-                content.append({"type": "text", "text": text_data})
-        else:
-            # multiple pre description mode
+        if prompt:
+            messages.append({"role": "user", "content": prompt})
+
+        # either images or images_with_text
+        # Handle images
+        if images:
+            if not isinstance(images, list):
+                images = [images]
             content = []
-            for each_image_data, each_text_data in zip(image_data, text_data):
+            for image_data in images:
                 content.append(
                     {
                         "type": "image_url",
-                        "image_url": {
-                            "url": f"data:image/png;base64,{each_image_data}"
-                        },
+                        "image_url": {"url": f"data:image/jpeg;base64,{image_data}"},
                     }
                 )
-                if len(each_text_data):
-                    content.append({"type": "text", "text": each_text_data})
+                if len(content) >= max_items_per_message:
+                    messages.append({"role": "user", "content": content})
+                    content = []
+            if content:  # Add remaining items
+                messages.append({"role": "user", "content": content})
 
-        return [
-            {
-                "role": "user",
-                "content": content,
-            },
-        ]
+        # Handle images_with_text
+        elif images_with_text:
+            content = []
+            for item in images_with_text:
+                if isinstance(item, str):
+                    content.append({"type": "text", "text": item})
+                elif isinstance(item, bytes):
+                    content.append(
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/jpeg;base64,{item}"},
+                        }
+                    )
+                else:
+                    raise ValueError(
+                        f"Unsupported type in images_with_text: {type(item)}"
+                    )
+                if len(content) >= max_items_per_message:
+                    messages.append({"role": "user", "content": content})
+                    content = []
+            if content:  # Add remaining items
+                messages.append({"role": "user", "content": content})
+
+        return messages
 
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(3),  # Stop after 3 attempts
@@ -109,22 +125,24 @@ class VisionLanguageModel(llm.LanguageModel, ABC):
     )
     def query_with_image(
         self,
-        prompt: str,
-        image: bytes | List[bytes],
-        system_prompt: str = None,
+        prompt: str | None = None,
+        images: bytes | List[bytes] | None = None,
+        images_with_text: List[Union[str, bytes]] | None = None,
+        system_prompt: str | None = None,
     ) -> str:
         """
-        Query the VisionLanguageModel with an additional image.
+        Query the VisionLanguageModel with mixed text and image data.
 
-        :param prompt: User prompt text.
-        :param image: PIL Image object or image path.
+        :param prompt: Optional user prompt text.
+        :param images: Optional image data (single or list of bytes).
+        :param images_with_text: Optional list of mixed text (str) and image (bytes) data.
         :param system_prompt: Optional system prompt text.
         :return: Generated response from the model.
         """
-
-        # Prepare the prompt for the API using _prepare_prompt
-        full_prompt = self._prepare_prompt(image, prompt)
-
+        full_prompt = self._prepare_prompt(
+            images_with_text=images_with_text, prompt=prompt, images=images
+        )
+        logging.info(colorstring(len(full_prompt), "white"))
         if system_prompt:
             full_prompt = [
                 {"role": "system", "content": system_prompt},
@@ -163,7 +181,9 @@ if __name__ == "__main__":
         **describe_vlm_config.get("model_kwargs", {}),
     )
     response = vlm.query_with_image(
-        "Describe this image.", image_data, "you are great visual describer."
+        "Describe this image.",
+        image_data,
+        system_prompt="you are great visual describer.",
     )
     logging.info(colorstring(response, "white"))
     response = vlm.query("who made you?")

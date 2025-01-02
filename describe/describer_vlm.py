@@ -1,6 +1,7 @@
 import argparse
 import logging
 import os
+import random
 import sys
 from typing import List
 
@@ -18,6 +19,8 @@ from describe.utils import load_object_metadata, save_descriptions
 logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
 )
+
+MAX_IMAGES_PER_QUERY = 9  # to prevent input exceed max input token
 
 
 class DescriberVLM(vlm.VisionLanguageModel):
@@ -72,7 +75,26 @@ class DescriberVLM(vlm.VisionLanguageModel):
                 "error": None,
             }
             try:
-                description = self.query_with_image(pre_descriptions, image_data)
+                # Flatten the sampled pairs into a list
+                # images_with_pre_descriptions = [
+                #     item for pair in zip(pre_descriptions, image_data) for item in pair
+                # ]
+                # sample uniformly half of the zip
+                packed_images = list(
+                    zip(pre_descriptions, image_data)
+                )  # Pack images and pre-descriptions together
+                images_with_pre_descriptions = random.sample(
+                    packed_images, min(MAX_IMAGES_PER_QUERY, len(packed_images))
+                )
+                images_with_pre_descriptions = [
+                    item for pair in images_with_pre_descriptions for item in pair
+                ]  # Flatten the sampled pairs into a list
+                description = self.query_with_image(
+                    prompt=self.user_prompt_template,
+                    images_with_text=images_with_pre_descriptions,
+                    system_prompt=self.system_prompt_template,
+                )
+
                 metadata_dict.update({"generated_description": description})
 
             except Exception as e:
@@ -122,7 +144,7 @@ def _main():
         describe_vlm_config.get("api_base_url"),
         describe_vlm_config.get("model_name", "gpt-4o"),
         describe_vlm_config.get("org_id"),
-        load_prompts(args.prompts, "vlm"),
+        load_prompts(args.prompts, "describe-vlm"),
         **describe_vlm_config.get("model_kwargs", {}),
     )
     descriptions = vlm.generate_descriptions_metadata(image_metadata, args.save)

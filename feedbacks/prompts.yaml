@@ -1,0 +1,100 @@
+visualquality-vlm:
+  user_prompt_template: |
+    Given the design goal described below and optionally a reference image, generate a list of visual quality control questions categorized under ['Geometry Accuracy', 'Dimensional Accuracy', 'Feature Integrity', 'Topological Integrity', 'Symmetry and Alignment']. Each category should have specific questions that assess whether the rendered object meets the design specifications. Ensure that each question is clear, specific, and actionable. Provide questions in a numbered list format, with each question on a new line.
+
+    Design Goal:
+    {text}
+
+    Reference Image: [attached if provided]
+  system_prompt_template: |
+    You are an expert in 3D object quality assurance. Your task is to generate a set of specific, actionable, and categorized visual quality control questions to evaluate the fidelity and accuracy of a rendered object against its design goal. Focus on assessing geometry accuracy, dimensional precision, feature integrity, topological correctness, and symmetry and alignment. Ensure that each question is clear and targets a particular aspect of the object to guide a thorough quality assessment. Use terms like "object" or specific object concepts (e.g., table, chair, cylinder) mentioned in the design goal.
+  examples:
+    complete:
+      - description: "I want a table."
+        questions:
+          - Geometry Accuracy:
+              - Does the object resemble a table in terms of its overall shape and structure?
+              - Are the legs of the table evenly spaced and proportional to the tabletop?
+          - Dimensional Accuracy:
+              - Is the height of the table within a reasonable range for a standard table?
+              - Is the tabletop large enough to function as a usable surface?
+          - Feature Integrity:
+              - Does the table have a flat and stable tabletop?
+              - Are the legs of the table sturdy and properly attached to the tabletop?
+          - Symmetry and Alignment:
+              - Are the legs of the table symmetrically placed?
+              - Is the tabletop aligned evenly with the legs?
+      - description: "I want a chair with four legs, a curved backrest, and a circular seat."
+        questions:
+          - Geometry Accuracy:
+              - Does the chair have a curved backrest as described in the design goal?
+              - Is the seat of the chair circular in shape?
+          - Dimensional Accuracy:
+              - Are the legs of the chair of equal length and height?
+              - Is the backrest tall enough to provide adequate support?
+          - Feature Integrity:
+              - Is the seat of the chair smooth and free of deformations?
+              - Is the backrest securely attached to the seat?
+          - Symmetry and Alignment:
+              - Are the four legs of the chair evenly spaced and aligned?
+              - Is the backrest centered relative to the seat?
+      - description: "I want a bookshelf with three shelves, each 30 cm apart. The frame should be made of wood, and the shelves should be 1 cm thick. The bookshelf should be 1.5 meters tall and 80 cm wide."
+        questions:
+          - Geometry Accuracy:
+              - Does the bookshelf have three shelves as described in the design goal?
+              - Is the frame of the bookshelf made of wood?
+          - Dimensional Accuracy:
+              - Are the shelves spaced 30 cm apart?
+              - Is the bookshelf 1.5 meters tall and 80 cm wide?
+              - Are the shelves 1 cm thick?
+          - Feature Integrity:
+              - Are the shelves flat and free of warping?
+              - Is the frame sturdy and properly assembled?
+          - Symmetry and Alignment:
+              - Are the shelves evenly spaced and parallel to each other?
+              - Is the frame of the bookshelf aligned with the shelves?
+      - description: "I want a cylindrical lamp with a height of 40 cm and a diameter of 15 cm. The lamp should have a hollow interior to house the bulb, and the top should have a small opening for ventilation. The base should be flat and wide enough to ensure stability. The lamp should be made of metal, and the surface should have a brushed finish."
+        questions:
+          - Geometry Accuracy:
+              - Is the lamp cylindrical in shape with a height of 40 cm and a diameter of 15 cm?
+              - Does the lamp have a hollow interior to house the bulb?
+          - Dimensional Accuracy:
+              - Is the top of the lamp properly sized with a small opening for ventilation?
+              - Is the base of the lamp wide enough to ensure stability?
+          - Feature Integrity:
+              - Is the surface of the lamp finished with a brushed texture?
+              - Is the lamp made of metal as specified in the design goal?
+          - Symmetry and Alignment:
+              - Is the cylindrical shape of the lamp uniform and free of deformations?
+              - Is the top opening centered and aligned with the base?
+      - description: "I want a futuristic-looking vase with organic curves and a glossy finish."
+        questions:
+          - Geometry Accuracy:
+              - Does the vase have organic curves as described in the design goal?
+              - Does the overall shape of the vase look futuristic?
+          - Feature Integrity:
+              - Is the surface of the vase smooth and glossy?
+              - Are the curves of the vase free of sharp edges or deformations?
+          - Symmetry and Alignment:
+              - Are the curves of the vase balanced and aesthetically pleasing?
+              - Is the vase stable when placed on a flat surface?
+      - description: "I want a storage box with a hinged lid, dimensions 50 cm x 30 cm x 20 cm. The lid should open smoothly, and the box should have a handle on the top for easy carrying."
+        questions:
+          - Geometry Accuracy:
+              - Does the storage box have a hinged lid as described in the design goal?
+              - Is the box rectangular with dimensions 50 cm x 30 cm x 20 cm?
+          - Dimensional Accuracy:
+              - Is the handle on the top of the box properly sized for easy carrying?
+              - Does the lid open smoothly without obstruction?
+          - Feature Integrity:
+              - Is the handle securely attached to the box?
+              - Are the edges of the box smooth and free of sharp corners?
+          - Symmetry and Alignment:
+              - Is the lid aligned evenly with the box when closed?
+              - Is the handle centered on the top of the box?
+    simple:
+      - "Is the overall geometry of the object accurate compared to the design goal?"
+      - "Are the dimensions of the object components within the specified tolerances?"
+      - "Do all features of the design goal appear correctly in the rendered object?"
+      - "Is the object stable and functional as intended?"
+      - "Are the components of the object properly aligned and symmetrical?"

@@ -9,11 +9,11 @@ _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
 from common import vlm
-from common.utils import colorstring, image_to_base64, load_config, load_prompts
-from describe.utils import (
-    get_images_from_folder,
-    load_object_metadata,
-    save_descriptions,
+from common.utils import (
+    PromptBuilder,
+    colorstring,
+    load_config,
+    load_prompts,
 )
 
 # Configure logging
@@ -44,8 +44,8 @@ class VisualFeedback(vlm.VisionLanguageModel):
     def generate_feedback_paragraph(
         self,
         design_goal: str,
-        reference_images: List[bytes],
-        rendered_images: List[bytes],
+        reference_images: List[str] | None,
+        rendered_images: List[str],
     ) -> str:
         """
         Generate a feedback paragraph comparing the rendered object with the design goal and reference images.
@@ -61,15 +61,17 @@ class VisualFeedback(vlm.VisionLanguageModel):
             text=design_goal
         )
 
-        # Attach reference and rendered images
-        images = reference_images + rendered_images
+        pb = PromptBuilder()
+        pb.add_system_prompt(self.visual_feedback_prompts["system_prompt_template"])
+        pb.add_user_prompt(prompt)
+        if reference_images:
+            pb.add_text("The following is a set of reference images:")
+            pb.add_images(reference_images)
+        pb.add_text("The following is a set of rendered object images:")
+        pb.add_images(rendered_images)
 
         # Query the VLM with images and prompt
-        response = self.query_with_image(
-            prompt,
-            images,
-            system_prompt=self.visual_feedback_prompts["system_prompt_template"],
-        )
+        response = self.query_with_promptbuilder(pb)
 
         # Extract and return the feedback paragraph
         feedback = response.strip()
@@ -98,9 +100,8 @@ def _main():
     args = parser.parse_args()
 
     config = load_config(args.config).get("visual_feedback")
-    print(config)
     prompt_templates = load_prompts(args.prompts, "visual_feedback")
-    print(prompt_templates)
+
     # Initialize the VisualFeedback
     visual_feedback = VisualFeedback(
         config["api_key"],
@@ -111,23 +112,13 @@ def _main():
         **config.get("model_kwargs", {}),
     )
 
-    # Convert images to base64
-    reference_images = (
-        [image_to_base64(img) for img in get_images_from_folder(args.reference_images)]
-        if args.reference_images
-        else []
-    )
-    rendered_images = [
-        image_to_base64(img) for img in get_images_from_folder(args.rendered_images)
-    ]
-
     # Generate feedback
     feedback = visual_feedback.generate_feedback_paragraph(
-        args.design_goal, reference_images, rendered_images
+        args.design_goal, args.reference_images, args.rendered_images
     )
 
     # Print the feedback
-    print(feedback)
+    print(colorstring(feedback, "white"))
 
 
 if __name__ == "__main__":

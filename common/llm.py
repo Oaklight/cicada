@@ -118,7 +118,7 @@ class LanguageModel(ABC):
         :return: Generated response from the model.
         """
         messages = pb.messages
-        logging.info(colorstring(json.dumps(messages, indent=4), "white"))
+        # logging.info(colorstring(json.dumps(messages, indent=4), "white"))
 
         if self.model_name == "gpto1preview":
             raise NotImplementedError("gpto1preview does not support PromptBuilder")

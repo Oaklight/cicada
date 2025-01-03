@@ -1,5 +1,7 @@
 import base64
 import io
+import os
+from typing import List
 
 import yaml
 from PIL import Image
@@ -13,16 +15,29 @@ class PromptBuilder:
         self.messages.append({"role": "system", "content": content})
 
     def add_user_prompt(self, content):
-        self.messages.append({"role": "user", "content": content})
+        self.add_text(content)
 
-    def add_image(self, image_data):
+    def add_images(self, image_data: list[str] | str):
+        """
+        Add images to the messages. Accepts a list of image paths or a single image path.
+
+        :param image_data: List of image paths or a single image path.
+        """
+        image_files = get_image_paths(image_data)
+        for image_file in image_files:
+            b64_image = image_to_base64(image_file)
+            self._add_image_message(b64_image)
+
+    def _add_image_message(self, b64_image):
         self.messages.append(
             {
                 "role": "user",
-                "content": {
-                    "type": "image_url",
-                    "image_url": {"url": f"data:image/png;base64,{image_data}"},
-                },
+                "content": [
+                    {
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{b64_image}"},
+                    }
+                ],
             }
         )
 
@@ -76,6 +91,39 @@ def colorstring(message: str, color: str) -> str:
     color_code = colors.get(color.lower(), "\033[37m")
 
     return f"{color_code}{message}\033[0m"
+
+
+def get_image_paths(path: str) -> List[str]:
+    """
+    Get image file paths from a specified folder or a single image file.
+
+    Parameters:
+    path (str): The path to the folder or the single image file.
+
+    Returns:
+    List[str]: A list of image file paths.
+
+    Raises:
+    ValueError: If the path does not exist or is not a valid image file or folder of images.
+    """
+    if not os.path.exists(path):
+        raise ValueError(f"The path '{path}' does not exist.")
+
+    valid_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".gif"}
+
+    if os.path.isfile(path):
+        if os.path.splitext(path)[1].lower() in valid_extensions:
+            return [path]
+        raise ValueError(f"The file '{path}' is not a recognized image file.")
+
+    if os.path.isdir(path):
+        return [
+            os.path.join(path, f)
+            for f in os.listdir(path)
+            if os.path.splitext(f)[1].lower() in valid_extensions
+        ]
+
+    raise ValueError(f"The path '{path}' is neither a file nor a directory of image.")
 
 
 def image_to_base64(image: Image.Image | str) -> str:

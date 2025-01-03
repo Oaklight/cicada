@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import sys
@@ -11,7 +12,7 @@ _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
-from common.utils import colorstring, load_config
+from common.utils import PromptBuilder, colorstring, load_config
 
 # Configure logging
 logging.basicConfig(
@@ -92,6 +93,36 @@ class LanguageModel(ABC):
                     {"role": "system", "content": system_prompt},
                 ] + messages
 
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                **self.model_kwargs,
+            )
+
+        return response.choices[0].message.content.strip()
+
+    @tenacity.retry(
+        stop=tenacity.stop_after_attempt(3),  # Stop after 5 attempts
+        wait=tenacity.wait_random_exponential(
+            multiplier=1, min=2, max=10
+        ),  # Exponential backoff with randomness
+        retry=tenacity.retry_if_exception_type(
+            openai.APIError
+        ),  # Retry only on specific exceptions related to OpenAI API
+        reraise=True,  # Reraise the last exception if all retries fail
+    )
+    def query_with_promptbuilder(self, pb: PromptBuilder) -> str:
+        """
+        Query the LanguageModel using a PromptBuilder object.
+        :param pb: The PromptBuilder object containing the prompt.
+        :return: Generated response from the model.
+        """
+        messages = pb.messages
+        logging.info(colorstring(json.dumps(messages, indent=4), "white"))
+
+        if self.model_name == "gpto1preview":
+            raise NotImplementedError("gpto1preview does not support PromptBuilder")
+        else:
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,

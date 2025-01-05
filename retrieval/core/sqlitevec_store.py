@@ -202,7 +202,7 @@ class SQLiteVec(VectorStore):
 
             connection.commit()
             logger.info(
-                colorstring(f"Added {len(texts)} texts to the vector store", "green")
+                colorstring(f"Added {len(texts)} texts to the vector store", "blue")
             )
             return [str(rowid) for rowid in rowids]
         except sqlite3.Error as e:
@@ -347,7 +347,7 @@ def _main():
     ]
     metadatas = [{"source": f"test{i+1}"} for i in range(len(texts))]
     ids = sqlite_vec.add_texts(texts, metadatas)
-    print(colorstring(f"Added texts with IDs: {ids}", "green"))
+    print(colorstring(f"Added texts with IDs: {ids}", "blue"))
 
     # Perform similarity search
     queries = [

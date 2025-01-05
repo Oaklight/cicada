@@ -90,9 +90,7 @@ class PGVector(VectorStore):
         """Create tables in the database if they don't exist."""
         try:
             Base.metadata.create_all(self._engine)
-            logger.info(
-                colorstring("Tables created or verified in PostgreSQL", "green")
-            )
+            logger.info(colorstring("Tables created or verified in PostgreSQL", "blue"))
         except Exception as e:
             logger.error(colorstring(f"Failed to create tables: {e}", "red"))
             raise e
@@ -105,7 +103,7 @@ class PGVector(VectorStore):
             session.add(collection)
             session.commit()
             logger.info(
-                colorstring(f"Collection '{self._collection_name}' created", "green")
+                colorstring(f"Collection '{self._collection_name}' created", "blue")
             )
         except Exception as e:
             session.rollback()
@@ -150,7 +148,7 @@ class PGVector(VectorStore):
             session.bulk_save_objects(documents)
             session.commit()
             logger.info(
-                colorstring(f"Added {len(texts)} texts to the vector store", "green")
+                colorstring(f"Added {len(texts)} texts to the vector store", "blue")
             )
             return ids
         except Exception as e:
@@ -271,7 +269,7 @@ def _main():
     ]
     metadatas = [{"source": f"test{i+1}"} for i in range(len(texts))]
     ids = pg_vector.add_texts(texts, metadatas)
-    print(colorstring(f"Added texts with IDs: {ids}", "green"))
+    print(colorstring(f"Added texts with IDs: {ids}", "blue"))
 
     # Perform similarity search
     queries = [

@@ -347,6 +347,40 @@ class CodeCache:
         session += (iterations,)
         return session
 
+    def get_session_id(self, identifier, type_="iteration"):
+        conn = self._get_connection()
+        cursor = conn.cursor()
+
+        if type_ == "iteration":
+            cursor.execute(
+                """
+                SELECT session_id FROM iteration WHERE id = ?
+                """,
+                (identifier,),
+            )
+        elif type_ == "error":
+            cursor.execute(
+                """
+                SELECT session_id FROM iteration WHERE id = (
+                    SELECT iteration_id FROM error WHERE id = ?
+                )
+                """,
+                (identifier,),
+            )
+        else:
+            self._return_connection(conn)
+            logging.error(f"Invalid type: {type_}")
+            return None
+
+        result = cursor.fetchone()
+        self._return_connection(conn)
+
+        if result:
+            return result[0]
+        else:
+            logging.warning(f"No session found for {type_} ID: {identifier}")
+            return None
+
     def close(self):
         for conn in self.connection_pool:
             if conn:

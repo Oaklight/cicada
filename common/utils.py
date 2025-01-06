@@ -1,7 +1,7 @@
 import base64
 import io
 import os
-from typing import List
+from typing import Iterable, List
 
 import yaml
 from PIL import Image
@@ -151,45 +151,59 @@ def image_to_base64(image: Image.Image | str) -> str:
 
 
 def find_files_with_extensions(
-    directory_path: str, extensions: str | tuple[str, ...]
-) -> list[str]:
+    directory_path: str,
+    extensions: str | Iterable[str],
+    return_all: bool = False,
+) -> str | List[str] | None:
     """
-    Find all files in a directory with the specified extensions.
+    Find files with the specified extensions in the given directory.
+    If `return_all` is False (default), returns the first matching file based on priority.
+    If `return_all` is True, returns a list of all matching files, sorted by priority.
 
-    This function scans the given directory and returns a list of file paths that match
-    the provided extensions. The extensions can be provided as a single string or a tuple
-    of strings. The search is case-insensitive.
+    Args:
+        directory_path (str): Path to the directory to search.
+        extensions (Union[str, List[str]]): A single extension or a list of extensions.
+        return_all (bool): If True, return all matching files; otherwise, return the first match.
 
-    :param directory_path: Path to the directory to search for files.
-    :param extensions: A single extension or a tuple of extensions to match (e.g., ".txt" or (".jpg", ".png")).
-    :return: A list of file paths that match the specified extensions.
-    :raises FileNotFoundError: If the directory does not exist.
-    :raises PermissionError: If there is no permission to access the directory.
+    Returns:
+        Union[str, List[str], None]: A single file path, a list of file paths, or None if no files are found.
     """
-    # Ensure extensions is a tuple for consistent handling
+    # Ensure extensions is a list for consistent handling
     if isinstance(extensions, str):
-        extensions = (extensions,)
+        extensions = [extensions]
 
-    # List to store matching file paths
-    matching_files = []
+    # List to store all matching files
+    all_matching_files = []
 
     try:
         # Walk through the directory
         for root, _, files in os.walk(directory_path):
             for file in files:
                 # Check if the file ends with any of the specified extensions
-                if file.endswith(extensions):
-                    # Construct the full file path and add it to the list
-                    full_path = os.path.join(root, file)
-                    matching_files.append(full_path)
+                for ext in extensions:
+                    if file.endswith(f".{ext}"):
+                        full_path = os.path.join(root, file)
+                        if not return_all:
+                            # Return the first matching file based on priority
+                            return full_path
+                        else:
+                            # Add to the list of matching files
+                            all_matching_files.append((ext, full_path))
     except FileNotFoundError:
         print(f"Error: The directory '{directory_path}' does not exist.")
-        return []
+        return None if not return_all else []
     except PermissionError:
         print(f"Error: Permission denied to access the directory '{directory_path}'.")
-        return []
+        return None if not return_all else []
 
-    return matching_files
+    if return_all:
+        # Sort the matching files by extension priority
+        all_matching_files.sort(key=lambda x: extensions.index(x[0]))
+        # Return only the file paths (without the extension used for sorting)
+        return [file_path for _, file_path in all_matching_files]
+    else:
+        # Return None if no matching file is found
+        return None
 
 
 if __name__ == "__main__":

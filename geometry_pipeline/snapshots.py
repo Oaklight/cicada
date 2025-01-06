@@ -3,7 +3,7 @@ import io
 import logging
 import os
 import sys
-from typing import List, Optional
+from typing import List, Literal, Optional
 
 import numpy as np
 import trimesh
@@ -13,8 +13,8 @@ from tqdm import tqdm
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 sys.path.append(_parent_dir)
-from geometry_pipeline import angles, convert
 from common.utils import colorstring
+from geometry_pipeline import angles, convert
 
 LOG_LEVEL = "DEBUG"
 
@@ -177,46 +177,49 @@ def capture_snapshots(
 
 
 def generate_snapshots(
-    obj_file: Optional[str] = None,
-    step_file: Optional[str] = None,
-    stl_file: Optional[str] = None,
+    file_path: str,
     out_path: str = "../data/snapshots",
     resolution: List[int] = [512, 512],
-    direction: str = "front",
+    direction: str | Literal["common", "box", "omni"] = "common",
     preview: bool = False,
-    snapshots: bool = False,
 ) -> None:
     """Generates snapshots or previews of a 3D mesh from different camera orientations and distances.
 
     Args:
-        obj_file (Optional[str], optional): Path to the OBJ file. Defaults to None.
-        step_file (Optional[str], optional): Path to the STEP file. Defaults to None.
-        stl_file (Optional[str], optional): Path to the STL file. Defaults to None.
+        file_path (str): Path to the 3D file (OBJ, STEP, or STL).
         out_path (str, optional): The output directory to save the snapshots. Defaults to "../data/snapshots".
         resolution (List[int], optional): The resolution of the snapshots. Defaults to [512, 512].
-        direction (str, optional): Direction or preset collection of directions: 'box', 'common', 'omni', or a comma-separated list of directions. Defaults to "front".
+        direction (str | Literal["common", "box", "omni"], optional): Direction or preset collection of directions: 'box', 'common', 'omni', or a comma-separated list of directions. Defaults to "common".
         preview (bool, optional): Whether to preview the scene interactively. Defaults to False.
         snapshots (bool, optional): Whether to capture snapshots. Defaults to False.
     """
-    if step_file:
-        obj_path = os.path.dirname(step_file)
+    if not file_path:
+        raise ValueError("A file path must be provided.")
+
+    # Infer file type from the extension
+    file_extension = os.path.splitext(file_path)[1].lower()
+
+    if file_extension == ".step":
+        obj_path = os.path.dirname(file_path)
         obj_file = os.path.join(
-            obj_path, os.path.basename(step_file).replace(".step", ".obj")
+            obj_path, os.path.basename(file_path).replace(".step", ".obj")
         )
-        obj_file = convert.step2obj(step_file, obj_path)
-    elif obj_file:
-        pass  # Use the provided OBJ file
-    elif stl_file:
-        obj_file = stl_file  # Directly use STL file
+        obj_file = convert.step2obj(file_path, obj_path)
+    elif file_extension == ".obj":
+        obj_file = file_path  # Directly use OBJ file
+    elif file_extension == ".stl":
+        obj_file = file_path  # Directly use STL file
     else:
-        raise ValueError("Either obj_file, step_file, or stl_file must be provided.")
+        raise ValueError(
+            "Unsupported file type. Only OBJ, STEP, and STL files are supported."
+        )
 
     # Use base name without extension for output folder
     obj_name = os.path.splitext(os.path.basename(obj_file))[0]
     pic_path = os.path.join(out_path, obj_name)
 
     mesh = trimesh.load_mesh(obj_file)
-    logger.info(colorstring(f"Loaded mesh from {obj_file}", "cyan"))
+    logger.info(f"Loaded mesh from {obj_file}")
 
     if direction == "box":
         directions = angles.box_views
@@ -226,7 +229,7 @@ def generate_snapshots(
         directions = angles.omni_views
     else:
         # Assume it's a comma-separated list of directions
-        directions = [d.strip() for d in direction.split(",")]
+        directions = [d.strip() for d in direction.split(",") if d.strip()]
 
     # Validate directions
     for direction in directions:
@@ -235,7 +238,13 @@ def generate_snapshots(
             sys.exit(1)
 
     logger.info(f"Using directions: {directions}")
-    if snapshots:
+
+    if preview:
+        camera_pose = get_camera_pose(direction)
+        camera_distance = get_adaptive_camera_distance(mesh, 1.5)
+        preview_scene_interactive(mesh, camera_pose, camera_distance)
+
+    else:
         camera_poses = [get_camera_pose(direction) for direction in directions]
         camera_distances = [get_adaptive_camera_distance(mesh, 1.5)] * len(camera_poses)
         names = [f"snapshot_{direction}" for direction in directions]
@@ -243,11 +252,6 @@ def generate_snapshots(
         capture_snapshots(
             mesh, camera_poses, camera_distances, pic_path, names, resolution
         )
-
-    elif preview:
-        camera_pose = get_camera_pose(direction)
-        camera_distance = get_adaptive_camera_distance(mesh, 1.5)
-        preview_scene_interactive(mesh, camera_pose, camera_distance)
 
 
 if __name__ == "__main__":
@@ -267,10 +271,7 @@ if __name__ == "__main__":
         default="front",
         help="Direction or preset collection of directions: 'box', 'common', 'omni', or a comma-separated list of directions.",
     )
-
-    group2 = parser.add_mutually_exclusive_group(required=True)
-    group2.add_argument("-p", "--preview", action="store_true", default=False)
-    group2.add_argument("-s", "--snapshots", action="store_true", default=False)
+    parser.add_argument("-p", "--preview", action="store_true", default=False)
 
     args = parser.parse_args()
 
@@ -282,5 +283,4 @@ if __name__ == "__main__":
         resolution=args.resolution,
         direction=args.direction,
         preview=args.preview,
-        snapshots=args.snapshots,
     )

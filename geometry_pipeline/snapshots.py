@@ -220,6 +220,7 @@ def generate_snapshots(
     resolution: List[int] = [512, 512],
     direction: str | Literal["common", "box", "omni"] = "common",
     preview: bool = False,
+    mesh_color: Optional[List[int]] = None,  # Add a color parameter
     **kwargs,
 ) -> List[str]:
     """Generates snapshots or previews of a 3D mesh from different camera orientations and distances.
@@ -230,6 +231,7 @@ def generate_snapshots(
         resolution (List[int], optional): The resolution of the snapshots. Defaults to [512, 512].
         direction (str | Literal["common", "box", "omni"], optional): Direction or preset collection of directions: 'box', 'common', 'omni', or a comma-separated list of directions. Defaults to "common".
         preview (bool, optional): Whether to preview the scene interactively. Defaults to False.
+        mesh_color (Optional[List[int]], optional): The color to apply to the mesh in RGB format (e.g., [255, 0, 0] for red). Defaults to None.
 
     Returns:
         List[str]: A list of paths to the saved snapshot images.
@@ -263,6 +265,11 @@ def generate_snapshots(
 
     mesh = trimesh.load_mesh(obj_file)
     logger.info(f"Loaded mesh from {obj_file}")
+
+    # Set the mesh color if provided
+    if mesh_color is not None:
+        mesh.visual.vertex_colors = mesh_color  # Set vertex colors
+        logger.info(f"Mesh color set to {mesh_color}")
 
     if direction == "box":
         directions = angles.box_views
@@ -372,6 +379,7 @@ if __name__ == "__main__":
             resolution=args.resolution,
             direction=args.direction,
             preview=args.preview,
+            mesh_color=(0, 102, 204),
         )
 
         if not args.preview:

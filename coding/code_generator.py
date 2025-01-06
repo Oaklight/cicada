@@ -12,7 +12,7 @@ _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
-from utils import extract_section_markdown
+from coding.utils import extract_section_markdown
 
 from common import llm
 from common.utils import load_config, load_prompts
@@ -116,7 +116,7 @@ class CodeGenerator(llm.LanguageModel):
         return None
 
     def patch_code_to_export(
-        self, code, format: Literal["stl", "step"] = "stl", output_dir=None
+        self, code, format: Literal["stl", "step"] = "stl", target_output_dir=None
     ) -> tuple[str, str]:
         """
         Extends the provided code with export functionality, exporting the result to the specified format.
@@ -124,18 +124,18 @@ class CodeGenerator(llm.LanguageModel):
         Args:
             code (str): Code to be extended with export functionality.
             format (Literal["stl", "step"], optional): Desired export format. Defaults to "stl".
-            output_dir (str, optional): Directory to save the exported file. Defaults to None, which will use the code execution directory.
+            target_output_dir (str, optional): Directory to save the exported 3D file. Defaults to None, which will use the code execution directory.
 
         Returns:
             patched_code: Extended code with export functionality.
+            target_output_dir: Directory where the exported 3D file will be saved.
         """
 
-        # Use '/tmp/codecad/export' as default directory if output_dir is not provided
-        output_dir = output_dir or f"."
+        target_output_dir = target_output_dir or f"."
 
         # Define the filename based on format
         filename = f"exported_model.{format}"
-        file_path = os.path.join(output_dir, filename)
+        file_path = os.path.join(target_output_dir, filename)
 
         # Code to append - will depend on the build123d API or relevant method used to export
         export_code = f"""
@@ -147,7 +147,7 @@ export_{format}(to_export=result, file_path="{file_path}")
         # Update the code by appending the export functionality
         patched_code = f"{code}\n{export_code}"
 
-        return patched_code, output_dir
+        return patched_code, target_output_dir
 
 
 if __name__ == "__main__":

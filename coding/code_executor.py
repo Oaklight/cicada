@@ -14,7 +14,7 @@ sys.path.append(_parent_dir)
 
 from common.utils import colorstring
 
-logging.basicConfig(level=logging.INFO)
+logging.basicConfig(level=logging.DEBUG)
 
 
 class CodeExecutor:
@@ -52,6 +52,7 @@ class CodeExecutor:
                 return False, {"error": error_message}
             else:
                 if test_run:
+                    logging.info("Test run successful.")
                     return True, {"output": completed_process.stdout}
                 else:
                     # Collect all files generated during execution.
@@ -63,6 +64,7 @@ class CodeExecutor:
                             with open(file_path, "rb") as f:
                                 content = f.read()
                                 output_files[rel_path] = content
+                    logging.info("Execution successful. Collecting output files.")
                     return True, {
                         "output": completed_process.stdout,
                         "files": output_files,
@@ -99,6 +101,7 @@ class CodeExecutor:
             os.makedirs(output_path)
 
         files = result.get("files", {})
+        logging.debug(f"Output files: {files}")
         for file_path, content in files.items():
             if certain_file_types is not None and not file_path.endswith(
                 tuple(certain_file_types)

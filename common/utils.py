@@ -1,10 +1,20 @@
 import base64
 import io
 import os
-from typing import Iterable, List
+from typing import Iterable, List, Optional
 
 import yaml
 from PIL import Image
+
+
+# a class called DesignGoal, with text and images field
+class DesignGoal:
+    def __init__(self, text: str, images: Optional[list[str]] = None):
+        self.text = text
+        self.images = images
+
+    def __str__(self):
+        return f"DesignGoal(text='{self.text}', images={self.images})"
 
 
 class PromptBuilder:
@@ -68,7 +78,7 @@ def load_prompts(prompts_path: str, which_model: str = "vlm") -> dict:
     return prompts_all[which_model]
 
 
-def colorstring(message: str, color: str) -> str:
+def colorstring(message: str, color: Optional[str] = "green") -> str:
     """
     Returns a colored string using ANSI escape codes.
 

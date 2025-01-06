@@ -58,6 +58,7 @@ class CodeExecutionLoop:
 
     def run(self, design_goal: DesignGoal, output_dir: str):
         # generate_executable_code
+
         generated_code = self._generate_executable_code(design_goal)
         logging.info(colorstring(f"Generated code:\n{generated_code}", "green"))
 
@@ -67,7 +68,9 @@ class CodeExecutionLoop:
         )
 
         # get_visual_feedback
-        self._get_visual_feedback(design_goal, render_dir, snapshot_directions="omni")
+        is_success, visual_feedback = self._get_visual_feedback(
+            design_goal, render_dir, snapshot_directions="omni"
+        )
 
         pass
 
@@ -96,6 +99,8 @@ class CodeExecutionLoop:
             file_path=rendered_obj_path,
             output_dir=snapshots_dir,
             direction=snapshot_directions,
+            mesh_color=[0, 102, 204],
+            reaxis_gravity=True,
         )
         logging.info(colorstring(f"Snapshot paths: {snapshot_paths}", "magenta"))
 
@@ -105,6 +110,8 @@ class CodeExecutionLoop:
         )
 
         logging.info(colorstring(f"Visual feedback: {visual_feedback}", "cyan"))
+
+        return True, visual_feedback
 
     def _render_from_code(
         self,

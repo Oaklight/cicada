@@ -260,7 +260,7 @@ def generate_snapshots(
         resolution (List[int], optional): The resolution of the snapshots. Defaults to [512, 512].
         direction (str | Literal["common", "box", "omni"], optional): Direction or preset collection of directions: 'box', 'common', 'omni', or a comma-separated list of directions. Defaults to "common".
         preview (bool, optional): Whether to preview the scene interactively. Defaults to False.
-        mesh_color (Optional[List[int]], optional): The color to apply to the mesh in RGB format (e.g., [255, 0, 0] for red). Defaults to None.
+        mesh_color (Optional[List[int]], optional): The color to apply to the mesh in RGB format (e.g., [0, 102, 204] for blue). Defaults to None.
         reaxis_gravity (bool, optional): Whether to reaxis and recenter the mesh before capturing snapshots. Defaults to False.
 
     Returns:

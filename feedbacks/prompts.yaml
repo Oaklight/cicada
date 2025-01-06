@@ -102,24 +102,29 @@ visual_qa:
 
 visual_feedback:
   user_prompt_template: |
-    Compare the rendered object with the design goal and reference images (if provided). Focus on the geometry, shape, and physical feasibility of the object. Identify what aspects of the rendered object meet the design specifications (hits) and what aspects do not (misses). Provide this feedback in a clear, concise paragraph. Do not comment on material, texture, or finish.
+    Compare the rendered object with the design goal and reference images (if provided). Focus on the geometry, shape, proportions, alignment, and physical feasibility of the object. Avoid assumptions beyond what is explicitly visible in the rendering. Identify:
+    - What aspects of the rendered object meet the design specifications (hits).
+    - What aspects deviate from the design specifications (misses).
+    - Suggestions to address the misses.
 
     Design Goal:
     {text}
 
     Reference Image: [attached if provided]
   system_prompt_template: |
-    You are an expert in 3D object quality assurance. Your task is to compare the rendered object with the design goal and reference images, focusing on geometry, shape, and physical feasibility. Identify what aspects of the rendered object meet the design specifications (hits) and what aspects do not (misses). Provide this feedback in a clear, concise paragraph. Do not comment on material, texture, or finish.
+    You are an expert in 3D object quality assurance. Your task is to compare the rendered object with the design goal and reference images. Your analysis must:
+    - Focus solely on geometry, shape, proportions, alignment, and physical feasibility.
+    - Be based on the visible elements in the rendering. Avoid assumptions about material, texture, or finish.
+    - Identify hits (what meets the specifications), misses (what deviates), and provide suggestions for improvement.
+    - Ensure feedback is clear, concise, and actionable.
   examples:
     - description: "I want a chair with four legs, a curved backrest, and a circular seat."
       feedback: |
-        Hits: The chair has four legs and a circular seat as specified. The overall shape is consistent with the design goal.
-        Misses: The backrest is not curved as described. The legs are unevenly spaced, which may affect stability.
-    - description: "I want a bookshelf with three shelves, each 30 cm apart."
+        Hits: The chair has four legs and a circular seat, aligning with the design goal.
+        Misses: The backrest is not curved as specified. The legs appear unevenly spaced, which may affect stability.
+        Suggestions: Adjust the backrest to add curvature and ensure legs are evenly spaced for stability.
+    - description: "I want a table with a flat circular top and straight legs, with the top having a radius of 60 units and the legs 45 units in length."
       feedback: |
-        Hits: The bookshelf has three shelves, and the spacing between them is accurate.
-        Misses: The frame of the bookshelf is not sturdy enough to support the shelves, which may cause it to collapse.
-
-visual_answer:
-  user_prompt_template: "" # Placeholder for future implementation
-  system_prompt_template: "" # Placeholder for future implementation
+        Hits: The circular top is consistent with the design goal in shape.
+        Misses: The top appears slightly oversized and does not match the specified radius of 60 units. The legs are either missing or not represented adequately.
+        Suggestions: Resize the top to the correct radius and add or adjust the legs to meet length specifications and ensure proper alignment for stability.

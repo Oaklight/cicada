@@ -81,8 +81,9 @@ def preview_scene_interactive(
         angles=camera_orientation,
         distance=camera_distance,
         center=mesh.centroid,
-        fov=(45, 45),  # Field of view in degrees (horizontal, vertical)
+        fov=(30, 30),  # Adjust FoV
     )
+    scene.camera.orthographic = True  # Enable orthographic view
 
     logger.debug(f"Camera position: \n{scene.camera_transform}")
     logger.debug(f"Camera K: \n{scene.camera.K}")
@@ -172,8 +173,9 @@ def capture_snapshots(
             angles=co,
             distance=cd,
             center=mesh.centroid,
-            fov=(45, 45),  # Field of view in degrees (horizontal, vertical)
+            fov=(30, 30),  # Field of view in degrees (horizontal, vertical)
         )
+        scene.camera.orthographic = True
 
         # save image, 720p
         png = scene.save_image(resolution=resolution, visible=False)

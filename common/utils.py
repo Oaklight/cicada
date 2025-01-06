@@ -150,6 +150,48 @@ def image_to_base64(image: Image.Image | str) -> str:
     return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
 
+def find_files_with_extensions(
+    directory_path: str, extensions: str | tuple[str, ...]
+) -> list[str]:
+    """
+    Find all files in a directory with the specified extensions.
+
+    This function scans the given directory and returns a list of file paths that match
+    the provided extensions. The extensions can be provided as a single string or a tuple
+    of strings. The search is case-insensitive.
+
+    :param directory_path: Path to the directory to search for files.
+    :param extensions: A single extension or a tuple of extensions to match (e.g., ".txt" or (".jpg", ".png")).
+    :return: A list of file paths that match the specified extensions.
+    :raises FileNotFoundError: If the directory does not exist.
+    :raises PermissionError: If there is no permission to access the directory.
+    """
+    # Ensure extensions is a tuple for consistent handling
+    if isinstance(extensions, str):
+        extensions = (extensions,)
+
+    # List to store matching file paths
+    matching_files = []
+
+    try:
+        # Walk through the directory
+        for root, _, files in os.walk(directory_path):
+            for file in files:
+                # Check if the file ends with any of the specified extensions
+                if file.endswith(extensions):
+                    # Construct the full file path and add it to the list
+                    full_path = os.path.join(root, file)
+                    matching_files.append(full_path)
+    except FileNotFoundError:
+        print(f"Error: The directory '{directory_path}' does not exist.")
+        return []
+    except PermissionError:
+        print(f"Error: Permission denied to access the directory '{directory_path}'.")
+        return []
+
+    return matching_files
+
+
 if __name__ == "__main__":
     print(colorstring("This is a red message", "red"))
     print(colorstring("This is a green message", "green"))

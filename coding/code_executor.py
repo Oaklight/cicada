@@ -18,7 +18,12 @@ logging.basicConfig(level=logging.INFO)
 
 
 class CodeExecutor:
-    def execute_code(self, code: str, timeout: int = 10) -> tuple[bool, dict]:
+    def execute_code(
+        self,
+        code: str,
+        timeout: int = 10,
+        test_run: bool = False,
+    ) -> tuple[bool, dict]:
         """
         Executes the provided Python code in a temporary directory and returns the results.
 
@@ -46,15 +51,22 @@ class CodeExecutor:
                 error_message = completed_process.stderr
                 return False, {"error": error_message}
             else:
-                output_files = {}
-                for root, _, files in os.walk(temp_dir):
-                    for filename in files:
-                        file_path = os.path.join(root, filename)
-                        rel_path = os.path.relpath(file_path, temp_dir)
-                        with open(file_path, "rb") as f:
-                            content = f.read()
-                            output_files[rel_path] = content
-                return True, {"output": completed_process.stdout, "files": output_files}
+                if test_run:
+                    return True, {"output": completed_process.stdout}
+                else:
+                    # Collect all files generated during execution.
+                    output_files = {}
+                    for root, _, files in os.walk(temp_dir):
+                        for filename in files:
+                            file_path = os.path.join(root, filename)
+                            rel_path = os.path.relpath(file_path, temp_dir)
+                            with open(file_path, "rb") as f:
+                                content = f.read()
+                                output_files[rel_path] = content
+                    return True, {
+                        "output": completed_process.stdout,
+                        "files": output_files,
+                    }
         except TimeoutExpired:
             return False, {"error": "Execution timed out."}
         finally:

@@ -1,7 +1,7 @@
 import argparse
 import logging
 import os
-from typing import Literal
+from typing import List, Literal
 
 logging.basicConfig(level=logging.INFO)
 
@@ -54,7 +54,7 @@ class CodeGenerator(llm.LanguageModel):
         else:
             return response.strip()
 
-    def generate_code(self, description: str, plan: dict = None):
+    def generate_code(self, description: str, plan: dict = None) -> str:
         if plan:
             prompt = (
                 f"Generate a build123d script to create a 3D model based on the following description and plan:\n"
@@ -80,7 +80,7 @@ class CodeGenerator(llm.LanguageModel):
             f.write(code)
         logging.info(f"Code saved to {filename}")
 
-    def fix_code(self, code, description, feedbacks):
+    def fix_code(self, code: str, description: str, feedbacks: List[str] | None) -> str:
         if isinstance(feedbacks, list):
             feedbacks = "\n".join(feedbacks)
 

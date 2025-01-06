@@ -172,3 +172,5 @@ coding/coding.db
 coding/fixed_code.py
 coding/generated_code.py
 retrieval/docs/
+coding/code_doc_cache.pkl
+workflow/results/

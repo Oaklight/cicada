@@ -25,13 +25,15 @@ logger.addHandler(logging.StreamHandler())
 
 def get_adaptive_camera_distance(
     mesh: trimesh.Trimesh,
-    scale_factor: float = 3,
+    scale_factor: float = 1,
+    fov: float = 30,  # Field of view in degrees
 ) -> float:
     """Calculates a suitable camera distance based on the mesh's bounding box.
 
     Args:
         mesh (trimesh.Trimesh): The mesh for which to calculate the camera distance.
-        scale_factor (float, optional): Scaling factor for the camera distance. Defaults to 3.
+        scale_factor (float, optional): Scaling factor for the camera distance. Defaults to 1.
+        fov (float, optional): Field of view in degrees. Defaults to 30.
 
     Returns:
         float: The calculated camera distance.
@@ -42,8 +44,16 @@ def get_adaptive_camera_distance(
     diagonal_length = np.linalg.norm(bounding_box)  # Diagonal of bounding box
     logger.debug(f"Diagonal length: {diagonal_length}")
 
-    logger.debug(f"Adaptive camera distance: {scale_factor * diagonal_length}")
-    return scale_factor * diagonal_length  # Scale distance for better fit
+    # Calculate the required distance based on the diagonal length and FoV
+    # The formula ensures that the entire bounding box fits within the camera's view
+    # The factor 1.2 is a safety margin to ensure the entire object is visible
+    required_distance = (diagonal_length / 2) / np.tan(np.radians(fov / 2)) * 1.2
+
+    # Scale the distance by the provided scale_factor
+    camera_distance = scale_factor * required_distance
+
+    logger.debug(f"Adaptive camera distance: {camera_distance}")
+    return camera_distance
 
 
 def get_camera_pose(
@@ -293,13 +303,15 @@ def generate_snapshots(
 
     if preview:
         camera_pose = get_camera_pose(direction)
-        camera_distance = get_adaptive_camera_distance(mesh, 1.5)
+        camera_distance = get_adaptive_camera_distance(mesh, scale_factor=1, fov=30)
         preview_scene_interactive(mesh, camera_pose, camera_distance)
         return []  # Return an empty list if previewing
 
     else:
         camera_poses = [get_camera_pose(direction) for direction in directions]
-        camera_distances = [get_adaptive_camera_distance(mesh, 1.5)] * len(camera_poses)
+        camera_distances = [
+            get_adaptive_camera_distance(mesh, scale_factor=1, fov=30)
+        ] * len(camera_poses)
         names = [f"snapshot_{direction}" for direction in directions]
 
         if contrast_factor := kwargs.get("contrast_factor", 1.2):

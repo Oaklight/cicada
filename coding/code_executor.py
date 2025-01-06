@@ -199,7 +199,9 @@ class CodeExecutor:
                 return False, result.stdout
 
             logging.info(
-                colorstring("Flake8 check passed: no syntax errors found.", "blue")
+                colorstring(
+                    "Flake8 check passed: no syntax errors found.", "bright_blue"
+                )
             )
             return True, None
 

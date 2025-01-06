@@ -133,7 +133,7 @@ class CodeExecutionLoop:
             )
         else:
             logging.info(
-                colorstring(f"Code is valid during export: {messages}", "blue")
+                colorstring(f"Code is valid during export: {messages}", "bright_blue")
             )
 
         return is_valid, messages, render_path
@@ -238,86 +238,10 @@ class CodeExecutionLoop:
             logging.info(colorstring(f"Generated code:\n{generated_code}", "white"))
         return generated_code
 
-    def _insert_iteration(self, session_id, generated_code):
-        iteration_id = self.code_cache.insert_iteration(session_id, generated_code)
-        logging.info(colorstring(f"Inserted iteration with id: {iteration_id}", "blue"))
-        return iteration_id
-
-        for correction_iteration in range(self.max_correction_iterations):
-            # Validate the code
-            is_valid, error_message = self.code_executor.validate_code(generated_code)
-            if is_valid:
-                # Execute the code if it's valid
-                is_execution_valid, execution_result = self.code_executor.execute_code(
-                    generated_code, timeout=10
-                )
-                if is_execution_valid:
-                    return True, execution_result
-                else:
-                    # Handle execution errors
-                    logging.warning(
-                        colorstring(
-                            f"Execution error:\n{execution_result['error']}", "yellow"
-                        )
-                    )
-                    self.code_cache.insert_error(
-                        iteration_id, "runtime", execution_result["error"]
-                    )
-                    logging.info(
-                        colorstring(
-                            f"Inserted runtime error for iteration id: {iteration_id}",
-                            "blue",
-                        )
-                    )
-            else:
-                # Handle syntax errors
-                logging.warning(
-                    colorstring(f"Syntax error detected:\n{error_message}", "yellow")
-                )
-                self.code_cache.insert_error(iteration_id, "syntax", error_message)
-                logging.info(
-                    colorstring(
-                        f"Inserted syntax error for iteration id: {iteration_id}",
-                        "blue",
-                    )
-                )
-
-            # Fix the code based on the error
-            if (
-                self.code_master
-                and correction_iteration >= self.max_correction_iterations // 2
-            ):
-                # Use the master code generator for fixing code if it exists and we're past half the correction iterations
-                generated_code = self.code_master.fix_code(
-                    generated_code, description, error_message
-                )
-            else:
-                # Otherwise, use the standard code generator for fixing code
-                generated_code = self.code_generator.fix_code(
-                    generated_code, description, error_message
-                )
-
-            if not generated_code:
-                logging.error(colorstring("Failed to generate corrected code.", "red"))
-                return False, None
-
-            session_id = self.code_cache.get_session_id(iteration_id)
-            self.code_cache.insert_iteration(session_id, code=generated_code)
-            logging.info(
-                colorstring(
-                    f"Updated iteration with corrected code, id: {iteration_id}", "blue"
-                )
-            )
-
-        logging.warning(
-            colorstring("Max correction attempts reached. Abandoning code.", "yellow")
-        )
-        return False, None
-
     def _mark_iteration_as_runnable(self, iteration_id):
         self.code_cache.update_iteration(iteration_id, is_runnable=True)
         logging.info(
-            colorstring(f"Marked iteration {iteration_id} as runnable.", "blue")
+            colorstring(f"Marked iteration {iteration_id} as runnable.", "bright_blue")
         )
 
     def _render_and_visual_feedback(self, generated_code):

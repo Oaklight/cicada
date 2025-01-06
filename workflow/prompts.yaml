@@ -131,3 +131,88 @@ visual_feedback:
         Hits: The circular top is consistent with the design goal in shape.
         Misses: The top appears slightly oversized and does not match the specified radius of 60 units. The legs are either missing or not represented adequately. There is also a visible gap between the top and the support structure, which compromises stability.
         Suggestions: Resize the top to the correct radius, add or adjust the legs to meet length specifications, and ensure proper connections between the top and support structure for stability.
+
+feedback_judge:
+  is_feedback_better:
+    prompt_template: |
+      You are evaluating two iterations of a design based on their feedback. The feedback describes how well each iteration aligns with the design goal. Compare the feedback for the current iteration (New Feedback) with the feedback for the previous iteration (Old Feedback) and determine if the current iteration represents an improvement over the previous iteration.
+
+      **Design Goal:**
+      {design_goal}
+
+      **Old Feedback (Previous Iteration):**
+      {old_feedback}
+
+      **New Feedback (Current Iteration):**
+      {new_feedback}
+
+      **Response Format:**
+      - **Decision:** Yes/No
+      - **Explanation:** [Brief explanation of why the current iteration is better or worse than the previous iteration]
+    system_prompt: |
+      You are an expert in evaluating design iterations. Your task is to compare two iterations of a design based on their feedback and determine if the current iteration represents an improvement over the previous iteration. Focus on how well each iteration aligns with the design goal, and consider factors such as geometry accuracy, feature integrity, and physical feasibility. Provide a clear and concise explanation for your decision.
+    examples: |
+      - description: "Compare iterations for a chair design."
+        design_goal: "A chair with four legs, a curved backrest, and a circular seat."
+        old_feedback: |
+          Hits: The chair has four legs and a circular seat.
+          Misses: The backrest is not curved as specified. The legs are unevenly spaced.
+          Suggestions: Adjust the backrest to add curvature and ensure legs are evenly spaced.
+        new_feedback: |
+          Hits: The chair has four legs and a circular seat. The backrest is now curved as specified.
+          Misses: The legs are still unevenly spaced.
+          Suggestions: Ensure legs are evenly spaced for stability.
+        response: |
+          - **Decision:** Yes
+          - **Explanation:** The current iteration improves on the previous iteration by addressing the curved backrest, which was a key design requirement. However, the issue of unevenly spaced legs remains.
+      - description: "Compare iterations for a table design."
+        design_goal: "A table with a flat circular top and straight legs, with the top having a radius of 60 units and the legs 45 units in length."
+        old_feedback: |
+          Hits: The circular top is consistent with the design goal in shape.
+          Misses: The top appears slightly oversized. The legs are missing.
+          Suggestions: Resize the top to the correct radius and add legs.
+        new_feedback: |
+          Hits: The circular top is consistent with the design goal in shape.
+          Misses: The top is still oversized. The legs are now present but are too short.
+          Suggestions: Resize the top to the correct radius and adjust the leg length.
+        response: |
+          - **Decision:** No
+          - **Explanation:** The current iteration does not represent an improvement over the previous iteration. While the legs have been added, they are too short, and the top remains oversized. Both issues need to be addressed.
+
+  is_design_goal_achieved:
+    prompt_template: |
+      Evaluate the following feedback based on the design goal. Determine if the design goal has been achieved and provide a score between 0 and 1 indicating how close the feedback is to the design goal. Use the following format for your response:
+
+      **Design Goal:**
+      {design_goal}
+
+      **Feedback:**
+      {feedback}
+
+      **Response Format:**
+      - **Achieved:** Yes/No
+      - **Score:** [Score between 0 and 1]
+      - **Explanation:** [Brief explanation of why the design goal has or has not been achieved]
+    system_prompt: |
+      You are an expert in evaluating design feedback. Your task is to determine if the design goal has been achieved based on the feedback provided. Provide a score between 0 and 1 indicating how close the feedback is to the design goal, along with a clear explanation for your decision.
+    examples: |
+      - description: "Evaluate feedback for a chair design."
+        design_goal: "A chair with four legs, a curved backrest, and a circular seat."
+        feedback: |
+          Hits: The chair has four legs and a circular seat, aligning with the design goal.
+          Misses: The backrest is not curved as specified. The legs appear unevenly spaced, which may affect stability.
+          Suggestions: Adjust the backrest to add curvature and ensure legs are evenly spaced for stability.
+        response: |
+          - **Achieved:** No
+          - **Score:** 0.6
+          - **Explanation:** The feedback indicates that the chair meets some design specifications (four legs, circular seat) but fails to achieve the curved backrest and has unevenly spaced legs, which are critical aspects of the design goal.
+      - description: "Evaluate feedback for a table design."
+        design_goal: "A table with a flat circular top and straight legs, with the top having a radius of 60 units and the legs 45 units in length."
+        feedback: |
+          Hits: The circular top is consistent with the design goal in shape and size. The legs are correctly placed and aligned.
+          Misses: None.
+          Suggestions: None.
+        response: |
+          - **Achieved:** Yes
+          - **Score:** 1.0
+          - **Explanation:** The feedback confirms that all aspects of the design goal have been met, with no misses or suggestions for improvement.

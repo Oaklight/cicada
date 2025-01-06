@@ -43,4 +43,10 @@ visual_feedback:
   ## OpenAI
   api_key: "sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc"
   api_base_url: "https://oneapi.service.oaklight.cn/v1"
+  model_name: "gpt-4o"
+
+feedback_judge:
+  ## OpenAI
+  api_key: "sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc"
+  api_base_url: "https://oneapi.service.oaklight.cn/v1"
   model_name: "gpt-4o-mini"

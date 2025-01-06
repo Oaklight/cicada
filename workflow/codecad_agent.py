@@ -16,25 +16,17 @@ from coding.code_cache import CodeCache
 from coding.code_executor import CodeExecutor
 from coding.code_generator import CodeGenerator
 from common.utils import (
+    DesignGoal,
     colorstring,
     find_files_with_extensions,
     load_config,
     load_prompts,
 )
-from geometry_pipeline.snapshots import generate_snapshots
+from feedbacks.feedback_judge import FeedbackJudge
 from feedbacks.visual_feedback import VisualFeedback
+from geometry_pipeline.snapshots import generate_snapshots
 
 logging.basicConfig(level=logging.INFO)
-
-
-# a class called DesignGoal, with text and images field
-class DesignGoal:
-    def __init__(self, text: str, images: Optional[list[str]] = None):
-        self.text = text
-        self.images = images
-
-    def __str__(self):
-        return f"DesignGoal(text='{self.text}', images={self.images})"
 
 
 class CodeExecutionLoop:
@@ -44,35 +36,101 @@ class CodeExecutionLoop:
         code_executor: CodeExecutor,
         code_cache: CodeCache,
         visual_feedback: VisualFeedback,
+        feedback_judge: FeedbackJudge,
+        code_master: CodeGenerator = None,
         max_iterations=5,
         max_correction_iterations=3,
-        code_master: CodeGenerator = None,
     ):
         self.code_generator = code_generator
         self.code_executor = code_executor
         self.visual_feedback = visual_feedback
+        self.feedback_judge = feedback_judge
         self.code_cache = code_cache
         self.max_iterations = max_iterations
         self.max_correction_iterations = max_correction_iterations
         self.code_master = code_master
 
-    def run(self, design_goal: DesignGoal, output_dir: str):
-        # generate_executable_code
+    def run(self, design_goal: DesignGoal, output_dir: str, max_iterations: int = 10):
+        iteration = 0
+        best_code = None
+        best_feedback = None
+        while iteration < max_iterations:
 
-        generated_code = self._generate_executable_code(design_goal)
-        logging.info(colorstring(f"Generated code:\n{generated_code}", "green"))
+            # generate_executable_code
+            generated_code = self._generate_executable_code(design_goal)
+            if generated_code is None:
+                logging.error(
+                    colorstring(
+                        f"Iteration {iteration + 1} - No executable code generated.",
+                        "red",
+                    )
+                )
+                iteration += 1
+                continue
 
-        # render_from_code
-        is_success, messages, render_dir = self._render_from_code(
-            generated_code, output_dir, format="stl"
-        )
+            # render_from_code
+            is_success, messages, render_dir = self._render_from_code(
+                generated_code, output_dir, format="stl"
+            )
+            if not is_success:
+                logging.error(
+                    colorstring(
+                        f"Iteration {iteration + 1} - Rendering failed: {messages}",
+                        "red",
+                    )
+                )
+                iteration += 1
+                continue
 
-        # get_visual_feedback
-        is_success, visual_feedback = self._get_visual_feedback(
-            design_goal, render_dir, snapshot_directions="omni"
-        )
+            # get_visual_feedback
+            is_success, visual_feedback = self._get_visual_feedback(
+                design_goal, render_dir, snapshot_directions="omni"
+            )
+            if not is_success:
+                logging.error(
+                    colorstring(
+                        f"Iteration {iteration + 1} - Visual feedback failed", "red"
+                    )
+                )
+                iteration += 1
+                continue
 
-        pass
+            # # Check if the current feedback is better than the best feedback so far
+            # if best_feedback is None:
+            #     best_code = generated_code
+            #     best_feedback = visual_feedback
+            #     logging.info(
+            #         colorstring(
+            #             f"Iteration {iteration + 1} - Initial feedback received",
+            #             "cyan",
+            #         )
+            #     )
+            # elif self.feedback_judge.is_feedback_better(
+            #     visual_feedback, best_feedback, design_goal.text
+            # ):
+            #     best_code = generated_code
+            #     best_feedback = visual_feedback
+            #     logging.info(
+            #         colorstring(
+            #             f"Iteration {iteration + 1} - Improved feedback received",
+            #             "cyan",
+            #         )
+            #     )
+
+            # Check if the design goal has been achieved
+            is_achieved, score = self.feedback_judge.is_design_goal_achieved(
+                visual_feedback, design_goal.text
+            )
+            if is_achieved:
+                logging.info(
+                    colorstring(
+                        f"Iteration {iteration + 1} - Design goal achieved! (Score: {score})",
+                        "green",
+                    )
+                )
+                break
+
+            iteration += 1
 
     def _get_visual_feedback(
         self,
@@ -109,7 +167,7 @@ class CodeExecutionLoop:
             design_goal.text, design_goal.images, snapshot_paths
         )
 
-        logging.info(colorstring(f"Visual feedback: {visual_feedback}", "cyan"))
+        logging.info(colorstring(f"Visual feedback: {visual_feedback}", "white"))
 
         return True, visual_feedback
 
@@ -226,7 +284,18 @@ class CodeExecutionLoop:
                 )
                 continue
 
+            logging.info(colorstring(f"Generated code:\n{generated_code}", "green"))
+
             return generated_code
+
+        # If we reach here, the maximum number of iterations was exceeded
+        logging.warning(
+            colorstring(
+                f"Maximum iterations ({self.max_iterations}) reached without generating valid and executable code.",
+                "red",
+            )
+        )
+        return None
 
     def _generate_and_save_plan(self, design_goal: DesignGoal) -> dict:
         if self.code_master:
@@ -301,6 +370,7 @@ if __name__ == "__main__":
         load_prompts(args.prompts, "code-llm"),
         **code_llm_config.get("model_kwargs", {}),
     )
+
     master_code_llm_config = config.get("master-code-llm", None)
     code_master = (
         CodeGenerator(
@@ -316,28 +386,40 @@ if __name__ == "__main__":
     )
 
     # ===== visual feedback =====
-    config = config.get("visual_feedback")
+    visual_feedback_config = config.get("visual_feedback")
 
     visual_feedback = VisualFeedback(
-        config["api_key"],
-        config.get("api_base_url"),
-        config.get("model_name", "gpt-4"),
-        config.get("org_id"),
+        visual_feedback_config["api_key"],
+        visual_feedback_config.get("api_base_url"),
+        visual_feedback_config.get("model_name"),
+        visual_feedback_config.get("org_id"),
         load_prompts(args.prompts, "visual_feedback"),
-        **config.get("model_kwargs", {}),
+        **visual_feedback_config.get("model_kwargs", {}),
     )
 
+    feedback_judge_config = config.get("feedback_judge")
+    feedback_judge = FeedbackJudge(
+        feedback_judge_config["api_key"],
+        feedback_judge_config.get("api_base_url"),
+        feedback_judge_config.get("model_name"),
+        feedback_judge_config.get("org_id"),
+        load_prompts(args.prompts, "feedback_judge"),
+        **feedback_judge_config.get("model_kwargs", {}),
+    )
+
+    # ===== code execution loop =====
     code_execution_loop = CodeExecutionLoop(
         code_generator=code_generator,
         code_executor=CodeExecutor(),
         code_cache=CodeCache(db_file="code-generator.db"),
         code_master=code_master,
         visual_feedback=visual_feedback,
+        feedback_judge=feedback_judge,
     )
 
     description = "Create a simple table design, flat circular top, with 4 straight legs. Each leg is about 45 unit long with circular cross section. and the circular top has a radius of 60 units. This is a big table."
 
     design_goal = DesignGoal(description)
-    output_dir = "./results"
+    output_dir = "./design_task_0"
 
     code_execution_loop.run(design_goal, output_dir)

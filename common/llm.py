@@ -120,7 +120,7 @@ class LanguageModel(ABC):
         messages = pb.messages
         # logging.info(colorstring(json.dumps(messages, indent=4), "white"))
 
-        if self.model_name == "gpto1preview":
+        if self.model_name in ["argo:gpt-o1-preview", "gpto1preview"]:
             raise NotImplementedError("gpto1preview does not support PromptBuilder")
         else:
             response = self.client.chat.completions.create(

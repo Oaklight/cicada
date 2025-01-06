@@ -125,7 +125,7 @@ def capture_snapshots(
     out_path: str,
     names: Optional[List[str]] = None,
     resolution: List[int] = [512, 512],
-) -> None:
+) -> List[str]:
     """Captures snapshots of the mesh from different camera orientations and distances.
 
     Args:
@@ -135,6 +135,9 @@ def capture_snapshots(
         out_path (str): The output directory to save the snapshots.
         names (Optional[List[str]], optional): List of names for the snapshots. Defaults to None.
         resolution (List[int], optional): The resolution of the snapshots. Defaults to [512, 512].
+
+    Returns:
+        List[str]: A list of paths to the saved snapshot images.
     """
     if not os.path.exists(out_path):
         os.makedirs(out_path)
@@ -146,6 +149,9 @@ def capture_snapshots(
     # Use autolighting
     light = trimesh.scene.lighting.autolight(scene)
     scene.add_geometry(light)
+
+    # List to store the paths of the saved images
+    snapshot_paths = []
 
     pbar = tqdm(total=len(camera_orientations))
     for i, cocd in enumerate(zip(camera_orientations, camera_distances)):
@@ -168,12 +174,19 @@ def capture_snapshots(
         # Enhance color contrast
         img_enhanced = enhance_color_contrast(img_rgb)
 
+        # Determine the output file path
         if names is not None:
-            img_enhanced.save(os.path.join(out_path, f"{names[i]}.png"))
+            file_path = os.path.join(out_path, f"{names[i]}.png")
         else:
-            img_enhanced.save(os.path.join(out_path, f"snapshot_{i}.png"))
+            file_path = os.path.join(out_path, f"snapshot_{i}.png")
+
+        # Save the image and store the path
+        img_enhanced.save(file_path)
+        snapshot_paths.append(file_path)
 
         pbar.update(1)
+
+    return snapshot_paths
 
 
 def generate_snapshots(
@@ -182,7 +195,7 @@ def generate_snapshots(
     resolution: List[int] = [512, 512],
     direction: str | Literal["common", "box", "omni"] = "common",
     preview: bool = False,
-) -> None:
+) -> List[str]:
     """Generates snapshots or previews of a 3D mesh from different camera orientations and distances.
 
     Args:
@@ -191,7 +204,9 @@ def generate_snapshots(
         resolution (List[int], optional): The resolution of the snapshots. Defaults to [512, 512].
         direction (str | Literal["common", "box", "omni"], optional): Direction or preset collection of directions: 'box', 'common', 'omni', or a comma-separated list of directions. Defaults to "common".
         preview (bool, optional): Whether to preview the scene interactively. Defaults to False.
-        snapshots (bool, optional): Whether to capture snapshots. Defaults to False.
+
+    Returns:
+        List[str]: A list of paths to the saved snapshot images.
     """
     if not file_path:
         raise ValueError("A file path must be provided.")
@@ -243,13 +258,15 @@ def generate_snapshots(
         camera_pose = get_camera_pose(direction)
         camera_distance = get_adaptive_camera_distance(mesh, 1.5)
         preview_scene_interactive(mesh, camera_pose, camera_distance)
+        return []  # Return an empty list if previewing
 
     else:
         camera_poses = [get_camera_pose(direction) for direction in directions]
         camera_distances = [get_adaptive_camera_distance(mesh, 1.5)] * len(camera_poses)
         names = [f"snapshot_{direction}" for direction in directions]
 
-        capture_snapshots(
+        # Capture snapshots and return the list of image paths
+        return capture_snapshots(
             mesh, camera_poses, camera_distances, pic_path, names, resolution
         )
 

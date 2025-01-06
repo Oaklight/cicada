@@ -84,7 +84,6 @@ def preview_scene_interactive(
         fov=(45, 45),  # Field of view in degrees (horizontal, vertical)
     )
 
-    logger.debug(f"Camera pose: \n{camera_pose}")
     logger.debug(f"Camera position: \n{scene.camera_transform}")
     logger.debug(f"Camera K: \n{scene.camera.K}")
     logger.debug(f"centroid: \n{mesh.centroid}")
@@ -104,7 +103,7 @@ def rgba_to_rgb(rgba_image: Image.Image) -> Image.Image:
     return rgba_image.convert("RGB")
 
 
-def enhance_color_contrast(image: Image.Image) -> Image.Image:
+def enhance_color_contrast(image: Image.Image, factor: float = 1.2) -> Image.Image:
     """Enhances the color contrast of the image.
 
     Args:
@@ -114,7 +113,7 @@ def enhance_color_contrast(image: Image.Image) -> Image.Image:
         Image.Image: The enhanced image.
     """
     enhancer = ImageEnhance.Contrast(image)
-    enhanced_image = enhancer.enhance(1.3)
+    enhanced_image = enhancer.enhance(factor)
     return enhanced_image
 
 
@@ -122,9 +121,10 @@ def capture_snapshots(
     mesh: trimesh.Trimesh,
     camera_orientations: np.ndarray,
     camera_distances: List[float],
-    out_path: str,
+    output_dir: str,
     names: Optional[List[str]] = None,
     resolution: List[int] = [512, 512],
+    contrast_factor: float = 1.2,
 ) -> List[str]:
     """Captures snapshots of the mesh from different camera orientations and distances.
 
@@ -132,15 +132,15 @@ def capture_snapshots(
         mesh (trimesh.Trimesh): The mesh to capture snapshots of.
         camera_orientations (np.ndarray): List of camera orientations (Euler angles).
         camera_distances (List[float]): List of camera distances.
-        out_path (str): The output directory to save the snapshots.
+        output_dir (str): The output directory to save the snapshots.
         names (Optional[List[str]], optional): List of names for the snapshots. Defaults to None.
         resolution (List[int], optional): The resolution of the snapshots. Defaults to [512, 512].
 
     Returns:
         List[str]: A list of paths to the saved snapshot images.
     """
-    if not os.path.exists(out_path):
-        os.makedirs(out_path)
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     # Create a trimesh Scene for interactive viewing
     scene = trimesh.Scene()
@@ -172,13 +172,13 @@ def capture_snapshots(
         img_rgb = rgba_to_rgb(img)
 
         # Enhance color contrast
-        img_enhanced = enhance_color_contrast(img_rgb)
+        img_enhanced = enhance_color_contrast(img_rgb, contrast_factor)
 
         # Determine the output file path
         if names is not None:
-            file_path = os.path.join(out_path, f"{names[i]}.png")
+            file_path = os.path.join(output_dir, f"{names[i]}.png")
         else:
-            file_path = os.path.join(out_path, f"snapshot_{i}.png")
+            file_path = os.path.join(output_dir, f"snapshot_{i}.png")
 
         # Save the image and store the path
         img_enhanced.save(file_path)
@@ -191,16 +191,17 @@ def capture_snapshots(
 
 def generate_snapshots(
     file_path: str,
-    out_path: str = "../data/snapshots",
+    output_dir: str = "../data/snapshots",
     resolution: List[int] = [512, 512],
     direction: str | Literal["common", "box", "omni"] = "common",
     preview: bool = False,
+    **kwargs,
 ) -> List[str]:
     """Generates snapshots or previews of a 3D mesh from different camera orientations and distances.
 
     Args:
         file_path (str): Path to the 3D file (OBJ, STEP, or STL).
-        out_path (str, optional): The output directory to save the snapshots. Defaults to "../data/snapshots".
+        output_dir (str, optional): The output directory to save the snapshots. Defaults to "../data/snapshots".
         resolution (List[int], optional): The resolution of the snapshots. Defaults to [512, 512].
         direction (str | Literal["common", "box", "omni"], optional): Direction or preset collection of directions: 'box', 'common', 'omni', or a comma-separated list of directions. Defaults to "common".
         preview (bool, optional): Whether to preview the scene interactively. Defaults to False.
@@ -231,7 +232,7 @@ def generate_snapshots(
 
     # Use base name without extension for output folder
     obj_name = os.path.splitext(os.path.basename(obj_file))[0]
-    pic_path = os.path.join(out_path, obj_name)
+    pic_path = os.path.join(output_dir, obj_name)
 
     mesh = trimesh.load_mesh(obj_file)
     logger.info(f"Loaded mesh from {obj_file}")
@@ -265,9 +266,17 @@ def generate_snapshots(
         camera_distances = [get_adaptive_camera_distance(mesh, 1.5)] * len(camera_poses)
         names = [f"snapshot_{direction}" for direction in directions]
 
+        if contrast_factor := kwargs.get("contrast_factor", 1.2):
+            logger.info(f"Using contrast factor: {contrast_factor}")
         # Capture snapshots and return the list of image paths
         return capture_snapshots(
-            mesh, camera_poses, camera_distances, pic_path, names, resolution
+            mesh,
+            camera_poses,
+            camera_distances,
+            pic_path,
+            names,
+            resolution,
+            contrast_factor=contrast_factor,
         )
 
 
@@ -279,7 +288,7 @@ if __name__ == "__main__":
     group.add_argument("--step_file", type=str)
     group.add_argument("--stl_file", type=str)
 
-    parser.add_argument("-o", "--out_path", type=str, default="../data/snapshots")
+    parser.add_argument("-o", "--output_dir", type=str, default="../data/snapshots")
     parser.add_argument("-r", "--resolution", type=int, nargs=2, default=[512, 512])
     parser.add_argument(
         "-d",
@@ -296,7 +305,7 @@ if __name__ == "__main__":
         obj_file=args.obj_file,
         step_file=args.step_file,
         stl_file=args.stl_file,
-        out_path=args.out_path,
+        output_dir=args.output_dir,
         resolution=args.resolution,
         direction=args.direction,
         preview=args.preview,

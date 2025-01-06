@@ -22,6 +22,7 @@ from common.utils import (
     load_prompts,
 )
 from geometry_pipeline.snapshots import generate_snapshots
+from feedbacks.visual_feedback import VisualFeedback
 
 logging.basicConfig(level=logging.INFO)
 
@@ -42,46 +43,73 @@ class CodeExecutionLoop:
         code_generator: CodeGenerator,
         code_executor: CodeExecutor,
         code_cache: CodeCache,
+        visual_feedback: VisualFeedback,
         max_iterations=5,
         max_correction_iterations=3,
         code_master: CodeGenerator = None,
     ):
         self.code_generator = code_generator
         self.code_executor = code_executor
+        self.visual_feedback = visual_feedback
         self.code_cache = code_cache
         self.max_iterations = max_iterations
         self.max_correction_iterations = max_correction_iterations
         self.code_master = code_master
 
-    def run(self, design_goal: DesignGoal, output_path: str):
+    def run(self, design_goal: DesignGoal, output_dir: str):
         # generate_executable_code
         generated_code = self._generate_executable_code(design_goal)
         logging.info(colorstring(f"Generated code:\n{generated_code}", "green"))
 
         # render_from_code
-        is_success, messages, render_path = self._render_from_code(
-            generated_code, output_path
+        is_success, messages, render_dir = self._render_from_code(
+            generated_code, output_dir, format="stl"
         )
 
         # get_visual_feedback
-        self._get_visual_feedback(design_goal, render_path)
+        self._get_visual_feedback(design_goal, render_dir, snapshot_directions="omni")
 
         pass
 
     def _get_visual_feedback(
-        self, design_goal: DesignGoal, render_path: str, snapshot_directions
-    ) -> str:
+        self,
+        design_goal: DesignGoal,
+        render_dir: str,
+        snapshot_directions: str | Literal["common", "box", "omni"] = "common",
+    ) -> tuple[bool, str]:
         """
-        find out rendered object inside render_path, then take snapshots according to snapshot_directions, then compare with design_goal and generate feedbacks
+        find out rendered object inside render_dir, then take snapshots according to snapshot_directions, then compare with design_goal and generate feedbacks
         """
-        # Literal["stl", "step"] = "stl", find rendered object inside render_path
+        # prefer stl if available, otherwise obj, otherwise step. return only one
+        rendered_obj_path = find_files_with_extensions(
+            render_dir, ["stl", "step", "obj"], return_all=False
+        )
 
-        pass
+        if rendered_obj_path is None:
+            logging.error("No rendered object found in the render path.")
+            return False, "No rendered object found in the render path."
+
+        # take snapshots
+        snapshots_dir = os.path.join(render_dir, "snapshots")
+        os.makedirs(snapshots_dir, exist_ok=True)  # Ensure the directory exists
+        snapshot_paths = generate_snapshots(
+            file_path=rendered_obj_path,
+            output_dir=snapshots_dir,
+            direction=snapshot_directions,
+        )
+        logging.info(colorstring(f"Snapshot paths: {snapshot_paths}", "magenta"))
+
+        # compare with design_goal and generate feedbacks
+        visual_feedback = self.visual_feedback.generate_feedback_paragraph(
+            design_goal.text, design_goal.images, snapshot_paths
+        )
+
+        logging.info(colorstring(f"Visual feedback: {visual_feedback}", "cyan"))
 
     def _render_from_code(
         self,
         code: str,
-        output_path: str = "./results",
+        output_dir: str = "./results",
         format: Literal["stl", "step"] = "stl",
     ) -> tuple[bool, str, str]:
         """
@@ -95,7 +123,7 @@ class CodeExecutionLoop:
 
         Args:
             code (str): The code to be executed.
-            output_path (str): The path to save the output files. Defaults to "./results".
+            output_dir (str): The path to save the output files. Defaults to "./results".
             format (Literal["stl", "step"]): The format of the output files. Defaults to "stl".
 
         Returns:
@@ -105,26 +133,24 @@ class CodeExecutionLoop:
                 - The path to the directory where the output files are saved.
         """
         random_name = f"render_{str(uuid.uuid4())[:8]}"
-        absolute_output_path = os.path.abspath(output_path)
-        render_path = os.path.join(absolute_output_path, random_name)
-        os.makedirs(render_path, exist_ok=True)
+        absolute_output_dir = os.path.abspath(output_dir)
+        render_dir = os.path.join(absolute_output_dir, random_name)
+        os.makedirs(render_dir, exist_ok=True)
 
         # patch the code with export function
         code_with_export, _ = self.code_generator.patch_code_to_export(
-            code=code, format=format, target_output_dir=render_path
+            code=code, format=format, target_output_dir=render_dir
         )
 
         # save both code versions
+        self.code_generator.save_code_to_file(code, os.path.join(render_dir, "code.py"))
         self.code_generator.save_code_to_file(
-            code, os.path.join(render_path, "code.py")
-        )
-        self.code_generator.save_code_to_file(
-            code_with_export, os.path.join(render_path, "code_with_export.py")
+            code_with_export, os.path.join(render_dir, "code_with_export.py")
         )
 
         # execute the code
         is_valid, messages = self.code_executor.execute_and_save(
-            code_with_export, render_path
+            code_with_export, render_dir
         )
 
         if not is_valid:
@@ -136,7 +162,7 @@ class CodeExecutionLoop:
                 colorstring(f"Code is valid during export: {messages}", "bright_blue")
             )
 
-        return is_valid, messages, render_path
+        return is_valid, messages, render_dir
 
     def _generate_executable_code(self, design_goal: DesignGoal) -> str | None:
         """
@@ -244,10 +270,6 @@ class CodeExecutionLoop:
             colorstring(f"Marked iteration {iteration_id} as runnable.", "bright_blue")
         )
 
-    def _render_and_visual_feedback(self, generated_code):
-        # TODO: implement file saving and visual validation
-        pass
-
 
 # Usage example
 if __name__ == "__main__":
@@ -262,6 +284,7 @@ if __name__ == "__main__":
 
     config = load_config(args.config)
 
+    # ===== coding agents =====
     code_llm_config = config["code-llm"]
     code_generator = CodeGenerator(
         code_llm_config["api_key"],
@@ -285,16 +308,29 @@ if __name__ == "__main__":
         else None
     )
 
+    # ===== visual feedback =====
+    config = config.get("visual_feedback")
+
+    visual_feedback = VisualFeedback(
+        config["api_key"],
+        config.get("api_base_url"),
+        config.get("model_name", "gpt-4"),
+        config.get("org_id"),
+        load_prompts(args.prompts, "visual_feedback"),
+        **config.get("model_kwargs", {}),
+    )
+
     code_execution_loop = CodeExecutionLoop(
-        code_generator,
-        CodeExecutor(),
-        CodeCache(db_file="code-generator.db"),
+        code_generator=code_generator,
+        code_executor=CodeExecutor(),
+        code_cache=CodeCache(db_file="code-generator.db"),
         code_master=code_master,
+        visual_feedback=visual_feedback,
     )
 
     description = "Create a simple table design, flat circular top, with 4 straight legs. Each leg is about 45 unit long with circular cross section. and the circular top has a radius of 60 units. This is a big table."
 
     design_goal = DesignGoal(description)
-    output_path = "./results"
+    output_dir = "./results"
 
-    code_execution_loop.run(design_goal, output_path)
+    code_execution_loop.run(design_goal, output_dir)

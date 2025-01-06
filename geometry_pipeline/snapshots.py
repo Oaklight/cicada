@@ -226,6 +226,22 @@ def capture_snapshots(
     return snapshot_paths
 
 
+# Add this new function
+def recenter_and_reaxis_mesh_in_scene(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
+    """
+    Reaxis and recenter the mesh using the `recenter_and_reaxis_mesh` function.
+
+    Args:
+        mesh (trimesh.Trimesh): The input mesh.
+
+    Returns:
+        trimesh.Trimesh: The transformed mesh.
+    """
+    transformed_mesh, _ = convert.recenter_and_reaxis_mesh(mesh)
+    return transformed_mesh
+
+
+# Modify the generate_snapshots function to include the reaxis_gravity parameter
 def generate_snapshots(
     file_path: str,
     output_dir: str = "../data/snapshots",
@@ -233,6 +249,7 @@ def generate_snapshots(
     direction: str | Literal["common", "box", "omni"] = "common",
     preview: bool = False,
     mesh_color: Optional[List[int]] = None,  # Add a color parameter
+    reaxis_gravity: bool = False,  # New parameter to control reaxis and recenter
     **kwargs,
 ) -> List[str]:
     """Generates snapshots or previews of a 3D mesh from different camera orientations and distances.
@@ -244,6 +261,7 @@ def generate_snapshots(
         direction (str | Literal["common", "box", "omni"], optional): Direction or preset collection of directions: 'box', 'common', 'omni', or a comma-separated list of directions. Defaults to "common".
         preview (bool, optional): Whether to preview the scene interactively. Defaults to False.
         mesh_color (Optional[List[int]], optional): The color to apply to the mesh in RGB format (e.g., [255, 0, 0] for red). Defaults to None.
+        reaxis_gravity (bool, optional): Whether to reaxis and recenter the mesh before capturing snapshots. Defaults to False.
 
     Returns:
         List[str]: A list of paths to the saved snapshot images.
@@ -277,6 +295,11 @@ def generate_snapshots(
 
     mesh = trimesh.load_mesh(obj_file)
     logger.info(f"Loaded mesh from {obj_file}")
+
+    # Reaxis and recenter the mesh if requested
+    if reaxis_gravity:
+        mesh = recenter_and_reaxis_mesh_in_scene(mesh)
+        logger.info("Mesh reoriented and recentered with gravity.")
 
     # Set the mesh color if provided
     if mesh_color is not None:
@@ -331,6 +354,7 @@ def generate_snapshots(
         )
 
 
+# Update the main function to include the reaxis_gravity argument
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="Generate snapshots or previews of a 3D mesh from different camera orientations and distances."
@@ -372,6 +396,12 @@ if __name__ == "__main__":
         default=False,
         help="Preview the scene interactively.",
     )
+    parser.add_argument(
+        "--reaxis_gravity",
+        action="store_true",
+        default=False,
+        help="Reaxis and recenter the mesh with gravity before capturing snapshots.",
+    )
 
     args = parser.parse_args()
 
@@ -394,6 +424,7 @@ if __name__ == "__main__":
             direction=args.direction,
             preview=args.preview,
             mesh_color=(0, 102, 204),
+            reaxis_gravity=args.reaxis_gravity,  # Pass the reaxis_gravity argument
         )
 
         if not args.preview:

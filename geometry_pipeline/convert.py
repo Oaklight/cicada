@@ -22,7 +22,9 @@ def recenter_and_reaxis_mesh(
     mesh: trimesh.Trimesh,
 ) -> Tuple[trimesh.Trimesh, np.ndarray]:
     """
-    Recenter and reaxis the mesh using its principal inertia transform.
+    Recenter and reaxis the mesh using its principal inertia transform,
+    ensuring that the mesh is oriented such that the gravity vector (negative Z-axis)
+    aligns with the principal axis corresponding to the object's "up" direction.
 
     Args:
         mesh (trimesh.Trimesh): The input mesh.
@@ -30,13 +32,49 @@ def recenter_and_reaxis_mesh(
     Returns:
         Tuple[trimesh.Trimesh, np.ndarray]: The transformed mesh and the transformation matrix.
     """
+    # Get the principal inertia transform
     transformation_matrix = mesh.principal_inertia_transform
     logger.debug(f"[Transform] principal inertia transform: \n{transformation_matrix}")
 
+    # Apply the transformation to the mesh
     transformed_mesh = mesh.copy()
     transformed_mesh.apply_transform(transformation_matrix)
-    logger.debug(f"[Transform] mesh transformed with principal inertia transform")
 
+    # Ensure that the mesh is oriented such that the gravity vector (negative Z-axis)
+    # aligns with the principal axis corresponding to the object's "up" direction.
+    # We assume that the principal axis corresponding to the smallest moment of inertia
+    # is the "up" direction.
+    moments_of_inertia = transformed_mesh.moment_inertia
+    principal_axes = np.diag(moments_of_inertia)
+
+    # Find the index of the smallest moment of inertia (assumed to be the "up" direction)
+    up_axis_index = np.argmin(principal_axes)
+
+    # Create a rotation matrix to align the up axis with the Z-axis
+    if up_axis_index == 0:
+        # If the smallest moment is along the X-axis, rotate 90 degrees around Y-axis
+        rotation_matrix = np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]])
+    elif up_axis_index == 1:
+        # If the smallest moment is along the Y-axis, rotate 90 degrees around X-axis
+        rotation_matrix = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])
+    else:
+        # If the smallest moment is along the Z-axis, no rotation is needed
+        rotation_matrix = np.eye(3)
+
+    # Convert the 3x3 rotation matrix to a 4x4 transformation matrix
+    rotation_matrix_4x4 = np.eye(4)
+    rotation_matrix_4x4[:3, :3] = rotation_matrix
+
+    # Apply the rotation to the transformed mesh
+    transformed_mesh.apply_transform(rotation_matrix_4x4)
+
+    # Combine the original transformation matrix with the rotation matrix
+    combined_transform = np.dot(rotation_matrix_4x4, transformation_matrix)
+    transformation_matrix = combined_transform
+
+    logger.debug(
+        f"[Transform] mesh transformed with principal inertia transform and aligned with gravity"
+    )
     return transformed_mesh, transformation_matrix
 
 
@@ -257,6 +295,11 @@ if __name__ == "__main__":
     group_action.add_argument("--convert_obj2stl", action="store_true")
     group_action.add_argument("--convert_stl2obj", action="store_true")
     group_action.add_argument("--convert_stl2pc", action="store_true")
+    group_action.add_argument(
+        "--reaxis_gravity",
+        action="store_true",
+        help="Recenter and reaxis the mesh to align with gravity.",
+    )
 
     args = parser.parse_args()
 
@@ -267,6 +310,11 @@ if __name__ == "__main__":
             obj2pc(obj_file, out_path)
         elif args.convert_obj2stl:
             obj2stl(obj_file, out_path)
+        elif args.reaxis_gravity:
+            mesh = trimesh.load_mesh(obj_file)
+            transformed_mesh, _ = recenter_and_reaxis_mesh(mesh)
+            transformed_mesh.export(obj_file, file_type="obj")
+            logger.info(f"Mesh reoriented with gravity and saved to {obj_file}")
         else:
             logger.error("No valid action selected for OBJ file.")
     elif args.step_file:
@@ -285,5 +333,10 @@ if __name__ == "__main__":
             stl2obj(stl_file, out_path)
         elif args.convert_stl2pc:
             stl2pc(stl_file, out_path)
+        elif args.reaxis_gravity:
+            mesh = trimesh.load_mesh(stl_file)
+            transformed_mesh, _ = recenter_and_reaxis_mesh(mesh)
+            transformed_mesh.export(stl_file, file_type="stl")
+            logger.info(f"Mesh reoriented with gravity and saved to {stl_file}")
         else:
             logger.error("No valid action selected for STL file.")

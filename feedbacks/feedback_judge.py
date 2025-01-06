@@ -115,16 +115,21 @@ class FeedbackJudge(vlm.VisionLanguageModel):
     def _parse_markdown_response(self, response: str, key: str) -> str:
         """
         Parse a Markdown-formatted response to extract the value for a specific key.
+        Strips all Markdown formatting (e.g., **, *, _) from the extracted value.
 
         :param response: The Markdown-formatted response.
         :param key: The key to extract (e.g., "Decision", "Score").
-        :return: The value associated with the key.
+        :return: The value associated with the key, stripped of Markdown formatting.
         """
         import re
 
+        # Find the line containing the key
         match = re.search(rf"{key}:\s*([^\n]+)", response, re.IGNORECASE)
         if match:
-            return match.group(1).strip()
+            # Extract the value and strip all Markdown formatting (e.g., **, *, _)
+            value = match.group(1).strip()
+            value = re.sub(r"[*_]", "", value)  # Remove all * and _ characters
+            return value
         raise ValueError(f"Key '{key}' not found in response.")
 
 

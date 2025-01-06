@@ -50,14 +50,28 @@ class CodeExecutionLoop:
         self.max_correction_iterations = max_correction_iterations
         self.code_master = code_master
 
-    def run(self, design_goal: DesignGoal, output_dir: str, max_iterations: int = 10):
+    def run(
+        self,
+        design_goal: DesignGoal,
+        output_dir: str,
+        max_iterations: int = 10,
+        stop_threshold: float = 0.8,
+    ):
         iteration = 0
         best_code = None
-        best_feedback = None
+        best_feedbacks = None
+        best_coding_plan = None
+        is_completed = False
         while iteration < max_iterations:
-
             # generate_executable_code
-            generated_code = self._generate_executable_code(design_goal)
+            logging.info("START [generate_executable_code]")
+            generated_code, coding_plan = self._generate_executable_code(
+                design_goal,
+                feedbacks=best_feedbacks,
+                generated_code=best_code,
+                coding_plan=best_coding_plan,
+            )
+            logging.info("DONE [generate_executable_code]")
             if generated_code is None:
                 logging.error(
                     colorstring(
@@ -69,9 +83,11 @@ class CodeExecutionLoop:
                 continue
 
             # render_from_code
+            logging.info("START [render_from_code]")
             is_success, messages, render_dir = self._render_from_code(
                 generated_code, output_dir, format="stl"
             )
+            logging.info("DONE [render_from_code]")
             if not is_success:
                 logging.error(
                     colorstring(
@@ -83,9 +99,11 @@ class CodeExecutionLoop:
                 continue
 
             # get_visual_feedback
+            logging.info("START [get_visual_feedback]")
             is_success, visual_feedback = self._get_visual_feedback(
                 design_goal, render_dir, snapshot_directions="omni"
             )
+            logging.info("DONE [get_visual_feedback]")
             if not is_success:
                 logging.error(
                     colorstring(
@@ -95,42 +113,68 @@ class CodeExecutionLoop:
                 iteration += 1
                 continue
 
-            # # Check if the current feedback is better than the best feedback so far
-            # if best_feedback is None:
-            #     best_code = generated_code
-            #     best_feedback = visual_feedback
-            #     logging.info(
-            #         colorstring(
-            #             f"Iteration {iteration + 1} - Initial feedback received",
-            #             "cyan",
-            #         )
-            #     )
-            # elif self.feedback_judge.is_feedback_better(
-            #     visual_feedback, best_feedback, design_goal.text
-            # ):
-            #     best_code = generated_code
-            #     best_feedback = visual_feedback
-            #     logging.info(
-            #         colorstring(
-            #             f"Iteration {iteration + 1} - Improved feedback received",
-            #             "cyan",
-            #         )
-            #     )
+            # Check if the current feedback is better than the best feedback so far
+            logging.info("START [check_feedback]")
+            if best_feedbacks is None:
+                best_code = generated_code
+                best_feedbacks = visual_feedback
+                logging.info(
+                    colorstring(
+                        f"Iteration {iteration + 1} - Initial feedback received",
+                        "cyan",
+                    )
+                )
+            elif self.feedback_judge.is_feedback_better(
+                visual_feedback, best_feedbacks, design_goal.text
+            ):
+                best_code = generated_code
+                best_feedbacks = visual_feedback
+                best_coding_plan = coding_plan
+
+                logging.info(
+                    colorstring(
+                        f"Iteration {iteration + 1} - Improved feedback received",
+                        "cyan",
+                    )
+                )
+            logging.info("DONE [check_feedback]")
 
             # Check if the design goal has been achieved
+            logging.info("START [check_design_goal]")
             is_achieved, score = self.feedback_judge.is_design_goal_achieved(
                 visual_feedback, design_goal.text
             )
-            if is_achieved:
+            logging.info("DONE [check_design_goal]")
+            if is_achieved or score >= stop_threshold:
+                best_code = generated_code
+                best_feedbacks = visual_feedback
+                best_coding_plan = coding_plan
                 logging.info(
                     colorstring(
                         f"Iteration {iteration + 1} - Design goal achieved! (Score: {score})",
-                        "green",
+                        "white",
                     )
                 )
+                is_completed = True
                 break
 
             iteration += 1
+
+        if is_completed:
+            finish_message = (
+                f"SUCCESS!",
+                f"Design task completed after {iteration} iterations.",
+                f"Best code: {best_code}",
+                f"Best feedbacks: {best_feedbacks}",
+                f"Best coding plan: {best_coding_plan}",
+            )
+            msg_color = "bright_green"
+        else:
+            finish_message = f"Design task not completed after {iteration} iterations."
+            msg_color = "bright_red"
+
+        logging.info(colorstring(finish_message, msg_color))
+        return best_code, best_feedbacks, best_coding_plan
 
     def _get_visual_feedback(
         self,
@@ -229,7 +273,13 @@ class CodeExecutionLoop:
 
         return is_valid, messages, render_dir
 
-    def _generate_executable_code(self, design_goal: DesignGoal) -> str | None:
+    def _generate_executable_code(
+        self,
+        design_goal: DesignGoal,
+        feedbacks: str = None,
+        generated_code: str = None,
+        coding_plan: dict = None,
+    ) -> tuple[str, dict] | None:
         """
         Generates executable code based on the provided design goal.
 
@@ -240,19 +290,32 @@ class CodeExecutionLoop:
         iterations is reached.
         Args:
             design_goal (DesignGoal): The design goal containing the text description and optional images.
+            feedbacks (str, optional): Feedback from the previous iteration. Defaults to None.
+            generated_code (str, optional): The code generated in the previous iteration. Defaults to None.
+            coding_plan (dict, optional): The coding plan generated in the previous iteration. Defaults to None.
 
         Returns:
-            str | None: The generated executable code as a string if successful, otherwise None.
+            tuple[str, dict] | None: A tuple containing the generated code and a dictionary of coding_plan,
         """
         # generate plan (using text only)
-        coding_plan = self._generate_and_save_plan(design_goal)
+        # if self.code_master:
+        #     coding_plan = self.code_master.plan_code(
+        #         design_goal.text,
+        #         feedbacks=feedbacks,
+        #         previous_plan=coding_plan,
+        #     )
+        # else:
+        coding_plan = self.code_generator.plan_code(
+            design_goal.text,
+            feedbacks=feedbacks,
+            previous_plan=coding_plan,
+        )
+        logging.info(colorstring(f"Coding plan:\n{coding_plan}", "white"))
 
-        generated_code = None
-        feedbacks = None
         use_master = False
         # iterate to generate executable code
         for i in range(self.max_iterations):
-            logging.info(f"Iteration {i + 1}/{self.max_iterations}")
+            logging.info(f"[code generation] Iteration {i + 1}/{self.max_iterations}")
             if i >= 2 / 3 * self.max_iterations:
                 use_master = True
 
@@ -284,26 +347,22 @@ class CodeExecutionLoop:
                 )
                 continue
 
-            logging.info(colorstring(f"Generated code:\n{generated_code}", "green"))
+            logging.info(
+                colorstring(
+                    f"Executeable code generated:\n{generated_code}", "bright_blue"
+                )
+            )
 
-            return generated_code
+            return generated_code, coding_plan
 
         # If we reach here, the maximum number of iterations was exceeded
         logging.warning(
             colorstring(
-                f"Maximum iterations ({self.max_iterations}) reached without generating valid and executable code.",
+                f"[code generation] Maximum iterations ({self.max_iterations}) reached without generating valid and executable code.",
                 "red",
             )
         )
         return None
-
-    def _generate_and_save_plan(self, design_goal: DesignGoal) -> dict:
-        if self.code_master:
-            coding_plan = self.code_master.plan_code(design_goal.text)
-        else:
-            coding_plan = self.code_generator.plan_code(design_goal.text)
-        logging.info(colorstring(f"Coding plan:\n{coding_plan}", "white"))
-        return coding_plan
 
     def _generate_or_fix_code(
         self,
@@ -417,9 +476,10 @@ if __name__ == "__main__":
         feedback_judge=feedback_judge,
     )
 
-    description = "Create a simple table design, flat circular top, with 4 straight legs. Each leg is about 45 unit long with circular cross section. and the circular top has a radius of 60 units. This is a big table."
+    # description = "Create a simple table design, flat circular top, with 4 straight legs. Each leg is about 45 unit long with circular cross section. and the circular top has a radius of 60 units. This is a big table."
+    description = "create a simple skateboard"
 
     design_goal = DesignGoal(description)
-    output_dir = "./design_task_0"
+    output_dir = "./design_task_1"
 
     code_execution_loop.run(design_goal, output_dir)

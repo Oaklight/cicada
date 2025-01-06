@@ -175,4 +175,4 @@ retrieval/docs/
 coding/code_doc_cache.pkl
 workflow/results/
 workflow/code-generator.db
-workflow/design_task_0/
+workflow/design_task_*

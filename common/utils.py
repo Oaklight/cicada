@@ -97,37 +97,48 @@ def colorstring(message: str, color: str) -> str:
     return f"{color_code}{message}\033[0m"
 
 
-def get_image_paths(path: str) -> List[str]:
+def get_image_paths(path: str | List[str]) -> List[str]:
     """
-    Get image file paths from a specified folder or a single image file.
+    Get image file paths from a specified folder, a single image file, or a list of image paths.
 
     Parameters:
-    path (str): The path to the folder or the single image file.
+    path (Union[str, List[str]]): The path to the folder, the single image file, or a list of image paths.
 
     Returns:
     List[str]: A list of image file paths.
 
     Raises:
-    ValueError: If the path does not exist or is not a valid image file or folder of images.
+    ValueError: If any path does not exist or is not a valid image file or folder of images.
     """
-    if not os.path.exists(path):
-        raise ValueError(f"The path '{path}' does not exist.")
-
     valid_extensions = {".jpg", ".jpeg", ".png", ".bmp", ".gif"}
 
-    if os.path.isfile(path):
-        if os.path.splitext(path)[1].lower() in valid_extensions:
-            return [path]
-        raise ValueError(f"The file '{path}' is not a recognized image file.")
+    def _get_single_image_path(p: str) -> List[str]:
+        if not os.path.exists(p):
+            raise ValueError(f"The path '{p}' does not exist.")
 
-    if os.path.isdir(path):
-        return [
-            os.path.join(path, f)
-            for f in os.listdir(path)
-            if os.path.splitext(f)[1].lower() in valid_extensions
-        ]
+        if os.path.isfile(p):
+            if os.path.splitext(p)[1].lower() in valid_extensions:
+                return [p]
+            raise ValueError(f"The file '{p}' is not a recognized image file.")
 
-    raise ValueError(f"The path '{path}' is neither a file nor a directory of image.")
+        if os.path.isdir(p):
+            return [
+                os.path.join(p, f)
+                for f in os.listdir(p)
+                if os.path.splitext(f)[1].lower() in valid_extensions
+            ]
+
+        raise ValueError(f"The path '{p}' is neither a file nor a directory of image.")
+
+    if isinstance(path, str):
+        return _get_single_image_path(path)
+    elif isinstance(path, list):
+        image_paths = []
+        for p in path:
+            image_paths.extend(_get_single_image_path(p))
+        return image_paths
+    else:
+        raise ValueError("The input must be a string or a list of strings.")
 
 
 def image_to_base64(image: Image.Image | str) -> str:

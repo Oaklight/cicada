@@ -7,7 +7,7 @@ from typing import List, Literal, Optional
 
 import numpy as np
 import trimesh
-from PIL import Image, ImageEnhance
+from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 from tqdm import tqdm
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -125,6 +125,8 @@ def capture_snapshots(
     names: Optional[List[str]] = None,
     resolution: List[int] = [512, 512],
     contrast_factor: float = 1.2,
+    font_path: Optional[str] = None,  # Path to a .ttf font file
+    font_size: int = 20,  # Font size for the caption
 ) -> List[str]:
     """Captures snapshots of the mesh from different camera orientations and distances.
 
@@ -135,6 +137,9 @@ def capture_snapshots(
         output_dir (str): The output directory to save the snapshots.
         names (Optional[List[str]], optional): List of names for the snapshots. Defaults to None.
         resolution (List[int], optional): The resolution of the snapshots. Defaults to [512, 512].
+        contrast_factor (float, optional): Contrast factor for image enhancement. Defaults to 1.2.
+        font_path (Optional[str], optional): Path to a .ttf font file. Defaults to None.
+        font_size (int, optional): Font size for the caption. Defaults to 20.
 
     Returns:
         List[str]: A list of paths to the saved snapshot images.
@@ -152,6 +157,12 @@ def capture_snapshots(
 
     # List to store the paths of the saved images
     snapshot_paths = []
+
+    # Load font if provided
+    if font_path:
+        font = ImageFont.truetype(font_path, font_size)
+    else:
+        font = ImageFont.load_default()
 
     pbar = tqdm(total=len(camera_orientations))
     for i, cocd in enumerate(zip(camera_orientations, camera_distances)):
@@ -173,6 +184,20 @@ def capture_snapshots(
 
         # Enhance color contrast
         img_enhanced = enhance_color_contrast(img_rgb, contrast_factor)
+
+        # Add caption text
+        draw = ImageDraw.Draw(img_enhanced)
+        if names is not None:
+            caption = f"{names[i]}"
+        else:
+            caption = f"Snapshot {i}"
+        # Use textbbox to get the bounding box of the text
+        bbox = draw.textbbox((0, 0), caption, font=font)
+        text_width = bbox[2] - bbox[0]
+        text_height = bbox[3] - bbox[1]
+        margin = 10  # Margin from the top-right corner
+        position = (img_enhanced.width - text_width - margin, margin)
+        draw.text(position, caption, font=font, fill="black")
 
         # Determine the output file path
         if names is not None:
@@ -211,6 +236,8 @@ def generate_snapshots(
     """
     if not file_path:
         raise ValueError("A file path must be provided.")
+    # create output path if it doesn't exist
+    os.makedirs(output_dir, exist_ok=True)
 
     # Infer file type from the extension
     file_extension = os.path.splitext(file_path)[1].lower()
@@ -268,6 +295,8 @@ def generate_snapshots(
 
         if contrast_factor := kwargs.get("contrast_factor", 1.2):
             logger.info(f"Using contrast factor: {contrast_factor}")
+        if font_size := kwargs.get("font_size", 0.05 * resolution[0]):
+            logger.info(f"Using font size: {font_size}")
         # Capture snapshots and return the list of image paths
         return capture_snapshots(
             mesh,
@@ -277,36 +306,79 @@ def generate_snapshots(
             names,
             resolution,
             contrast_factor=contrast_factor,
+            font_size=font_size,
         )
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        description="Generate snapshots or previews of a 3D mesh from different camera orientations and distances."
+    )
 
-    parser = argparse.ArgumentParser()
+    # Mutually exclusive group for file input
     group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument("--obj_file", type=str)
-    group.add_argument("--step_file", type=str)
-    group.add_argument("--stl_file", type=str)
+    group.add_argument("--obj_file", type=str, help="Path to the OBJ file.")
+    group.add_argument("--step_file", type=str, help="Path to the STEP file.")
+    group.add_argument("--stl_file", type=str, help="Path to the STL file.")
 
-    parser.add_argument("-o", "--output_dir", type=str, default="../data/snapshots")
-    parser.add_argument("-r", "--resolution", type=int, nargs=2, default=[512, 512])
+    # Optional arguments
+    parser.add_argument(
+        "-o",
+        "--output_dir",
+        type=str,
+        default="../data/snapshots",
+        help="Output directory to save the snapshots.",
+    )
+    parser.add_argument(
+        "-r",
+        "--resolution",
+        type=int,
+        nargs=2,
+        default=[512, 512],
+        help="Resolution of the snapshots (width, height).",
+    )
     parser.add_argument(
         "-d",
         "--direction",
         type=str,
-        default="front",
+        default="common",
         help="Direction or preset collection of directions: 'box', 'common', 'omni', or a comma-separated list of directions.",
     )
-    parser.add_argument("-p", "--preview", action="store_true", default=False)
+    parser.add_argument(
+        "-p",
+        "--preview",
+        action="store_true",
+        default=False,
+        help="Preview the scene interactively.",
+    )
 
     args = parser.parse_args()
 
-    generate_snapshots(
-        obj_file=args.obj_file,
-        step_file=args.step_file,
-        stl_file=args.stl_file,
-        output_dir=args.output_dir,
-        resolution=args.resolution,
-        direction=args.direction,
-        preview=args.preview,
-    )
+    # Determine which file path to use
+    if args.obj_file:
+        file_path = args.obj_file
+    elif args.step_file:
+        file_path = args.step_file
+    elif args.stl_file:
+        file_path = args.stl_file
+    else:
+        raise ValueError("No file path provided.")
+
+    try:
+        # Generate snapshots or preview
+        snapshot_paths = generate_snapshots(
+            file_path=file_path,
+            output_dir=args.output_dir,
+            resolution=args.resolution,
+            direction=args.direction,
+            preview=args.preview,
+        )
+
+        if not args.preview:
+            print(f"Snapshots saved to: {args.output_dir}")
+            for path in snapshot_paths:
+                print(f" - {path}")
+
+    except Exception as e:
+        logger.error(f"An error occurred: {e}")
+        sys.exit(1)

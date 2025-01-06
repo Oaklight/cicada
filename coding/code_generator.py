@@ -99,11 +99,24 @@ class CodeGenerator(llm.LanguageModel):
             logging.error(f"API call failed: {e}")
             return None
 
-    def plan_code(self, description):
+    def plan_code(
+        self,
+        description,
+        feedbacks: str = None,
+        previous_plan: dict = None,
+    ) -> dict | None:
         """
         Plans out the building blocks using build123d API.
         """
-        prompt = f"Based on the following description, create a detailed plan in markdown format:\n{description}\n\n"
+        if not feedbacks:
+            prompt = f"Based on the following description, create a detailed plan in markdown format:\n{description}\n\n"
+        else:  # a prompt to refine/revise/redo previous plan
+            prompt = (
+                f"Based on the following description and previous plan, create a revised plan in markdown format:\n"
+                f"Description:\n{description}\n\n"
+                f"Previous Plan:\n{previous_plan}\n\n"
+                f"Feedbacks:\n{feedbacks}\n\n"
+            )
 
         try:
             plan_response = self.query(prompt, self.system_prompt_code_planning)

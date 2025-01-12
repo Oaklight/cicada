@@ -1,0 +1,7 @@
+db_config:
+  host: "jpn2.oaklight.cn"
+  port: 59377
+  user: "ppp"
+  password: "codecad_is_good"
+  database: "codecad_db"
+  schema: "codecad"

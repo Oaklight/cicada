@@ -1701,13 +1701,6 @@ Returns:
 
 ================================================================================
 
-Function: to_align_offset
-Signature: to_align_offset(min_point: 'VectorLike', max_point: 'VectorLike', align: 'Union[Align2DType, Align3DType]', center: 'Optional[VectorLike]' = None) -> 'Vector'
-Docstring:
-Amount to move object to achieve the desired alignment
-
-================================================================================
-
 Function: topo_explore_common_vertex
 Signature: topo_explore_common_vertex(edge1: 'Union[Edge, TopoDS_Edge]', edge2: 'Union[Edge, TopoDS_Edge]') -> 'Union[Vertex, None]'
 Docstring:
@@ -1754,21 +1747,6 @@ Function: unit_conversion_scale
 Signature: unit_conversion_scale(from_unit: build123d.build_enums.Unit, to_unit: build123d.build_enums.Unit) -> float
 Docstring:
 Return the multiplicative conversion factor to go from from_unit to to_unit.
-
-================================================================================
-
-Function: unwrap_topods_compound
-Signature: unwrap_topods_compound(compound: 'TopoDS_Compound', fully: 'bool' = True) -> 'Union[TopoDS_Compound, TopoDS_Shape]'
-Docstring:
-Strip unnecessary Compound wrappers
-
-Args:
-    compound (TopoDS_Compound): The TopoDS_Compound to unwrap.
-    fully (bool, optional): return base shape without any TopoDS_Compound
-        wrappers (otherwise one TopoDS_Compound is left). Defaults to True.
-
-Returns:
-    Union[TopoDS_Compound, TopoDS_Shape]: base shape
 
 ================================================================================
 

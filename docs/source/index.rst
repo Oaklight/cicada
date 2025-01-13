@@ -6,9 +6,8 @@
 codecad-agent documentation
 ===========================
 
-Add your content using ``reStructuredText`` syntax. See the
-`reStructuredText <https://www.sphinx-doc.org/en/master/usage/restructuredtext/index.html>`_
-documentation for details.
+This page hosts the documentation for the codecad-agent project. Currently only include the api, will add more on design and useage soon.
+
 
 .. toctree::
    :maxdepth: 2

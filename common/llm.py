@@ -29,35 +29,26 @@ class LanguageModel(ABC):
         org_id,
         **model_kwargs,
     ):
-        """
-        Initialize the LanguageModel instance.
-
-        Args:
-            api_key (str): The API key for the language model.
-            api_base_url (str): The base URL for the API.
-            model_name (str): The name of the model to use.
-            org_id (str): The organization ID for the API.
-            **model_kwargs: Additional keyword arguments for the model.
-        """
+        # ... (rest of the __init__ method remains the same)
         self.api_key = api_key
         self.api_base_url = api_base_url
         self.model_name = model_name
         self.org_id = org_id
         self.model_kwargs = model_kwargs
 
+        # Check if 'stream' is provided in model_kwargs, otherwise default to False
+        self.stream = self.model_kwargs.get("stream", False)
+        self.model_kwargs.pop("stream", None)
+
         self.client = openai.OpenAI(
             api_key=self.api_key, base_url=self.api_base_url, organization=self.org_id
         )
 
     @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),  # Stop after 5 attempts
-        wait=tenacity.wait_random_exponential(
-            multiplier=1, min=2, max=10
-        ),  # Exponential backoff with randomness
-        retry=tenacity.retry_if_exception_type(
-            openai.APIError
-        ),  # Retry only on specific exceptions related to OpenAI API
-        reraise=True,  # Reraise the last exception if all retries fail
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_random_exponential(multiplier=1, min=2, max=10),
+        retry=tenacity.retry_if_exception_type(openai.APIError),
+        reraise=True,
     )
     def query(self, prompt, system_prompt=None):
         """
@@ -70,20 +61,29 @@ class LanguageModel(ABC):
         Returns:
             str: The model's response.
         """
+        stream = self.stream  # Use stream from configuration
+
         if self.model_name == "gpto1preview":
-            # Use the prompt interface for gpto1preview, incorporating the system_prompt if provided
             full_prompt = prompt
             if system_prompt:
-                full_prompt = f"{system_prompt}\n\n{prompt}"  # Combine system_prompt and user prompt
+                full_prompt = f"{system_prompt}\n\n{prompt}"
             response = self.client.completions.create(
                 model=self.model_name,
-                prompt=full_prompt,  # Use the combined prompt
+                prompt=full_prompt,
+                stream=stream,
                 **self.model_kwargs,
             )
-            # Adjust the return format for legacy completion endpoint
-            return response.choices[0].text.strip()
+            if stream:
+                complete_response = ""
+                for chunk in response:
+                    chunk_text = chunk.choices[0].text
+                    print(colorstring(chunk_text, "white"), end="", flush=True)
+                    complete_response += chunk_text
+                print()  # Add a newline after the response
+                return complete_response.strip()
+            else:
+                return response.choices[0].text.strip()
         else:
-            # Use the messages interface for other models
             messages = [
                 {"role": "user", "content": prompt},
             ]
@@ -96,40 +96,65 @@ class LanguageModel(ABC):
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
+                stream=stream,
                 **self.model_kwargs,
             )
 
-        return response.choices[0].message.content.strip()
+            if stream:
+                complete_response = ""
+                for chunk in response:
+                    chunk_content = chunk.choices[0].delta.content
+                    if chunk_content:
+                        print(colorstring(chunk_content, "white"), end="", flush=True)
+                        complete_response += chunk_content
+                print()  # Add a newline after the response
+                return complete_response.strip()
+            else:
+                return response.choices[0].message.content.strip()
+
+    # (The rest of the original code remains unchanged)
 
     @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),  # Stop after 5 attempts
-        wait=tenacity.wait_random_exponential(
-            multiplier=1, min=2, max=10
-        ),  # Exponential backoff with randomness
-        retry=tenacity.retry_if_exception_type(
-            openai.APIError
-        ),  # Retry only on specific exceptions related to OpenAI API
-        reraise=True,  # Reraise the last exception if all retries fail
+        stop=tenacity.stop_after_attempt(3),
+        wait=tenacity.wait_random_exponential(multiplier=1, min=2, max=10),
+        retry=tenacity.retry_if_exception_type(openai.APIError),
+        reraise=True,
     )
     def query_with_promptbuilder(self, pb: PromptBuilder) -> str:
         """
         Query the LanguageModel using a PromptBuilder object.
-        :param pb: The PromptBuilder object containing the prompt.
-        :return: Generated response from the model.
+
+        Args:
+            pb: The PromptBuilder object containing the prompt.
+
+        Returns:
+            str: Generated response from the model.
         """
         messages = pb.messages
-        # logging.info(colorstring(json.dumps(messages, indent=4), "white"))
 
         if self.model_name in ["argo:gpt-o1-preview", "gpto1preview"]:
             raise NotImplementedError("gpto1preview does not support PromptBuilder")
-        else:
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                **self.model_kwargs,
-            )
 
-        return response.choices[0].message.content.strip()
+        # Use stream from configuration
+        stream = self.stream
+
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            stream=stream,
+            **self.model_kwargs,
+        )
+
+        if stream:
+            complete_response = ""
+            for chunk in response:
+                chunk_content = chunk.choices[0].delta.content
+                if chunk_content:
+                    print(colorstring(chunk_content, "white"), end="", flush=True)
+                    complete_response += chunk_content
+            return complete_response.strip()
+        else:
+            return response.choices[0].message.content.strip()
 
 
 if __name__ == "__main__":
@@ -146,15 +171,16 @@ if __name__ == "__main__":
 
     config = load_config(args.config)
 
-    assist_llm_config = config["assist-llm"]
+    llm_config = config["llm"]
 
     llm = LanguageModel(
-        assist_llm_config["api_key"],
-        assist_llm_config.get("api_base_url"),
-        assist_llm_config.get("model_name", "gpt-4o-mini"),
-        assist_llm_config.get("org_id"),
-        **assist_llm_config.get("model_kwargs", {}),
+        llm_config["api_key"],
+        llm_config.get("api_base_url"),
+        llm_config.get("model_name", "gpt-4o-mini"),
+        llm_config.get("org_id"),
+        **llm_config.get("model_kwargs", {}),
     )
 
     response = llm.query("How are you doing today?")
-    logging.info(colorstring(response, "white"))
+    if not llm.stream:
+        logging.info(colorstring(response, "white"))

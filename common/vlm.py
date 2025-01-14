@@ -148,15 +148,27 @@ class VisionLanguageModel(llm.LanguageModel, ABC):
                 {"role": "system", "content": system_prompt},
             ] + full_prompt
 
+        # Use stream from configuration
+        stream = self.stream
+
         response = self.client.chat.completions.create(
             model=self.model_name,
             messages=full_prompt,
+            stream=stream,
             **self.model_kwargs,
         )
-        logging.debug(
-            colorstring(f"Response: {response.choices[0].message.content}", "yellow")
-        )
-        return response.choices[0].message.content.strip()
+
+        if stream:
+            complete_response = ""
+            for chunk in response:
+                chunk_content = chunk.choices[0].delta.content
+                if chunk_content:
+                    print(colorstring(chunk_content, "white"), end="", flush=True)
+                    complete_response += chunk_content
+            print()  # Add a newline after the response
+            return complete_response.strip()
+        else:
+            return response.choices[0].message.content.strip()
 
 
 # Example usage
@@ -169,22 +181,24 @@ if __name__ == "__main__":
 
     config = load_config(args.config)
 
-    describe_vlm_config = config["describe-vlm"]
+    vlm_config = config["vlm"]
     image_path = "../data/cute-cat-with-glass.jpg"
     image_data = image_to_base64(image_path)
 
     vlm = VisionLanguageModel(
-        describe_vlm_config["api_key"],
-        describe_vlm_config.get("api_base_url"),
-        describe_vlm_config.get("model_name", "gpt-4o"),
-        describe_vlm_config.get("org_id"),
-        **describe_vlm_config.get("model_kwargs", {}),
+        vlm_config["api_key"],
+        vlm_config.get("api_base_url"),
+        vlm_config.get("model_name", "gpt-4o"),
+        vlm_config.get("org_id"),
+        **vlm_config.get("model_kwargs", {}),
     )
     response = vlm.query_with_image(
         "Describe this image.",
         image_data,
         system_prompt="you are great visual describer.",
     )
-    logging.info(colorstring(response, "white"))
+    if not vlm.stream:
+        logging.info(colorstring(response, "white"))
     response = vlm.query("who made you?")
-    logging.info(colorstring(response, "white"))
+    if not vlm.stream:
+        logging.info(colorstring(response, "white"))

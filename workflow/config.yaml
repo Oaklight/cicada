@@ -30,14 +30,18 @@ code-llm:
   # model_name: "argo:gpt-o1-preview"
 
   model_kwargs:
+    stream: true
     temperature: 0.4
     top_p: 0.2
 
 master-code-llm:
-  ## Argo gpt-o1-preview
-  # api_key: "sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc"
-  # api_base_url: "https://oneapi.service.oaklight.cn/v1" # Optional custom API base URL
-  # model_name: "argo:gpt-o1-preview"
+  # Argo gpt-o1-preview
+  api_key: "sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc"
+  api_base_url: "https://oneapi.service.oaklight.cn/v1" # Optional custom API base URL
+  model_name: "argo:gpt-o1-preview"
+
+  model_kwargs:
+    stream: true
 
 visual_feedback:
   ## OpenAI
@@ -45,8 +49,14 @@ visual_feedback:
   api_base_url: "https://oneapi.service.oaklight.cn/v1"
   model_name: "gpt-4o-mini" # gpt-4o
 
+  model_kwargs:
+    stream: true
+
 feedback_judge:
   ## OpenAI
   api_key: "sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc"
   api_base_url: "https://oneapi.service.oaklight.cn/v1"
   model_name: "gpt-4o-mini"
+
+  model_kwargs:
+    stream: true

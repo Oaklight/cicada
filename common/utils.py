@@ -12,9 +12,12 @@ class DesignGoal:
     def __init__(self, text: str, images: Optional[list[str]] = None):
         self.text = text
         self.images = images
+        self.extra = {}  # extra information, such as original user input
 
     def __str__(self):
-        return f"DesignGoal(text='{self.text}', images={self.images})"
+        return (
+            f"DesignGoal(text='{self.text}', images={self.images}, extra={self.extra})"
+        )
 
 
 class PromptBuilder:

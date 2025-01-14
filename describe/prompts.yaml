@@ -30,7 +30,42 @@ describe-vlm:
       <Provide a refined design specification with geometric details, or ask for clarification on at most two specific points. If asking for clarification, include example answer to guide user.>
       ~~~
 
-      **Example**:
+      **Examples**:
+
+      **Example 1:**
+
+      ~~~
+      ### Thoughts
+      - **Feasibility**: The design is geometrically feasible.
+      - **Physical Stability**: The lamp may be top-heavy; base design is important.
+      - **Structural Strength**: The slender neck must support the weight of the lamp head.
+
+      ### Action [refined]
+      I propose the following refined design:
+      - A floor lamp with a base diameter of **30 units** for stability.
+      - A slender cylindrical neck rising **150 units** tall.
+      - A lamp head shaped like a dome with a radius of **15 units**.
+      - The neck connects to the center of the base for optimal balance.
+
+      Please confirm if this design meets your expectations or if you have any other requirements.
+      ~~~
+
+      **Example 2:**
+
+      ~~~
+      ### Thoughts
+      - **Logical Correctness**: The dimensions for the bookshelf are unspecified.
+      - **Physical Stability**: Stability depends on the height-to-depth ratio.
+
+      ### Action [clarification]
+      Could you please specify the desired dimensions of the bookshelf? For example:
+      - **Option 1**: Width **80 units**, height **180 units**, depth **30 units** with five evenly spaced shelves.
+      - **Option 2**: Width **60 units**, height **200 units**, depth **25 units**, with adjustable shelf heights.
+
+      Please let me know your preference or if you have any other requirements.
+      ~~~
+
+      **Example 3:**
 
       ~~~
       ### Thoughts
@@ -43,22 +78,7 @@ describe-vlm:
       - A table with a circular top of radius **40 units**.
       - Four cylindrical legs, each with a radius of **1.5 units** and a length of **75 units**, evenly distributed around the edge.
 
-      Please confirm if this design meets your expectations.
-      ~~~
-
-      **Or**, if clarification is needed:
-
-      ~~~
-      ### Thoughts
-      - **Feasibility**: Geometric dimensions are unspecified.
-      - **Logical Correctness**: Need clarification on dimensions.
-
-      ### Action [clarification]
-      Could you please specify the desired dimensions of the table? Here are some examples to describe the dimensions:
-        - Rectangular top **160 units x 80 units**. 4 legs, pyramid-like shape, square cross-sections, 4 units thick closer to the top, 1 unit thick at the bottom. 70 units long.
-        - Round top, 80 units in diameter. 4 legs of 1.5 units radius, 75 units long.
-
-      Please let me know what do you think.
+      Please confirm if this design meets your expectations or if you have any other requirements.
       ~~~
 
     system_prompt_template: |

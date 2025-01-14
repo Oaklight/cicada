@@ -15,8 +15,6 @@ from common import vlm
 from common.utils import (
     DesignGoal,
     PromptBuilder,
-    colorstring,
-    image_to_base64,
     load_config,
     load_prompts,
 )
@@ -100,6 +98,19 @@ def _main():
         action="store_true",
         help="Save generated descriptions to metadata.yaml",
     )
+    parser.add_argument(
+        "text_goal",
+        type=str,
+        help="The text goal for the design",
+    )
+    parser.add_argument(
+        "-ref",
+        "--ref_images",
+        type=str,
+        default=None,
+        nargs="*",
+        help="Paths to reference images for the design",
+    )
     args = parser.parse_args()
 
     config = load_config(args.config)
@@ -115,9 +126,7 @@ def _main():
         **describe_vlm_config.get("model_kwargs", {}),
     )
 
-    text_goal = "I need a table"
-    ref_images = None
-    design_goal = DesignGoal(text_goal, ref_images)
+    design_goal = DesignGoal(args.text_goal, args.ref_images)
 
     response = vlm.featurize_design_goal(design_goal)
 

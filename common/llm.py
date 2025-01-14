@@ -152,6 +152,7 @@ class LanguageModel(ABC):
                 if chunk_content:
                     print(colorstring(chunk_content, "white"), end="", flush=True)
                     complete_response += chunk_content
+            print()  # Add a newline after the response
             return complete_response.strip()
         else:
             return response.choices[0].message.content.strip()

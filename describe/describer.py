@@ -12,7 +12,13 @@ _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
 from common import vlm
-from common.utils import colorstring, image_to_base64, load_config, load_prompts
+from common.utils import (
+    DesignGoal,
+    colorstring,
+    image_to_base64,
+    load_config,
+    load_prompts,
+)
 from describe.utils import load_object_metadata, save_descriptions
 
 # Configure logging
@@ -20,7 +26,7 @@ logging.basicConfig(
     level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
-MAX_IMAGES_PER_QUERY = 9  # to prevent input exceed max input token
+MAX_IMAGES_PER_QUERY = 4  # to prevent input exceed max input token
 
 
 class DescriberVLM(vlm.VisionLanguageModel):
@@ -40,8 +46,8 @@ class DescriberVLM(vlm.VisionLanguageModel):
             org_id,
             **model_kwargs,
         )
-        self.user_prompt_template = prompt_templates.get("user_prompt_template", "")
-        self.system_prompt_template = prompt_templates.get("system_prompt_template", "")
+        self.reverse_engineer_prompt = prompt_templates.get("reverse_engineer", {})
+        self.featurize_design_prompt = prompt_templates.get("featurize_design", {})
 
     def generate_descriptions_metadata(self, objects: List[dict], save=True):
         """
@@ -90,9 +96,11 @@ class DescriberVLM(vlm.VisionLanguageModel):
                     item for pair in images_with_pre_descriptions for item in pair
                 ]  # Flatten the sampled pairs into a list
                 description = self.query_with_image(
-                    prompt=self.user_prompt_template,
+                    prompt=self.reverse_engineer_prompt["user_prompt_template"],
                     images_with_text=images_with_pre_descriptions,
-                    system_prompt=self.system_prompt_template,
+                    system_prompt=self.reverse_engineer_prompt[
+                        "system_prompt_template"
+                    ],
                 )
 
                 metadata_dict.update({"generated_description": description})

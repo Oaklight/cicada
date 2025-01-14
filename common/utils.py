@@ -154,11 +154,17 @@ def get_image_paths(path: str | List[str]) -> List[str]:
         raise ValueError("The input must be a string or a list of strings.")
 
 
-def image_to_base64(image: Image.Image | str) -> str:
+def image_to_base64(
+    image: Image.Image | str,
+    quality: int = 85,
+    max_resolution: tuple = (448, 448),
+) -> str:
     """
     Convert the image to a base64 encoded string.
 
     :param image: PIL Image object or the path to the image file.
+    :param quality: Compression quality (0-100) for WebP format. Higher values mean better quality but larger size.
+    :param max_resolution: Optional maximum resolution (width, height) to fit the image within while preserving aspect ratio.
     :return: Base64 encoded string of the image.
     """
     if isinstance(image, str):
@@ -169,8 +175,28 @@ def image_to_base64(image: Image.Image | str) -> str:
     if image.mode == "RGBA":
         image = image.convert("RGB")
 
+    # Resize the image while preserving aspect ratio
+    if max_resolution:
+        original_width, original_height = image.size
+        max_width, max_height = max_resolution
+
+        # Calculate the new dimensions while preserving aspect ratio
+        ratio = min(max_width / original_width, max_height / original_height)
+        new_width = int(original_width * ratio)
+        new_height = int(original_height * ratio)
+
+        # Resize the image
+        image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+
+    # Save the image to a BytesIO buffer as WebP with specified quality
     buffered = io.BytesIO()
-    image.save(buffered, format="PNG")
+    image.save(buffered, format="WEBP", quality=quality)
+
+    new_file = buffered.getvalue()
+    # save to local
+    with open("test.webp", "wb") as f:
+        f.write(new_file)
+    # Return the Base64 encoded string
     return base64.b64encode(buffered.getvalue()).decode("utf-8")
 
 

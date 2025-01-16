@@ -4,18 +4,26 @@ describe package
 Submodules
 ----------
 
-describe.assist\_llm module
----------------------------
+describe.assistant module
+-------------------------
 
-.. automodule:: describe.assist_llm
+.. automodule:: describe.assistant
    :members:
    :undoc-members:
    :show-inheritance:
 
-describe.describer\_vlm module
-------------------------------
+describe.describer module
+-------------------------
 
-.. automodule:: describe.describer_vlm
+.. automodule:: describe.describer
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+describe.describer\_v2 module
+-----------------------------
+
+.. automodule:: describe.describer_v2
    :members:
    :undoc-members:
    :show-inheritance:

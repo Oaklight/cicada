@@ -3,26 +3,26 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-codecad-agent documentation
+CICADA documentation
 ===========================
 
-This page hosts the documentation for the codecad-agent project. Currently only include the api, will add more on design and useage soon.
+CICADA: Collaborative Intelligent CAD Automation Design Agent
 
+This page hosts the documentation for the project CICADA. Currently only include the api documentation. I will add more on design and usage soon.
+
+
+
+
+Indices and tables
+==================
 
 .. toctree::
    :maxdepth: 2
    :caption: Contents:
+   
+   usage
+   api/index
+   paper
 
-   common
-   geometry_pipeline
-   retrieval
-   coding
-   describe
-   feedbacks
-   workflow
-
-Indices and tables
-==================
 * :ref:`genindex`
 * :ref:`modindex`
-* :ref:`search`

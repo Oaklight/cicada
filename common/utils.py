@@ -158,6 +158,7 @@ def image_to_base64(
     image: Image.Image | str,
     quality: int = 85,
     max_resolution: tuple = (448, 448),
+    img_format: str = "WEBP",
 ) -> str:
     """
     Convert the image to a base64 encoded string.
@@ -165,6 +166,7 @@ def image_to_base64(
     :param image: PIL Image object or the path to the image file.
     :param quality: Compression quality (0-100) for WebP format. Higher values mean better quality but larger size.
     :param max_resolution: Optional maximum resolution (width, height) to fit the image within while preserving aspect ratio.
+    :param img_format: Image format to use for encoding. Default is "WEBP".
     :return: Base64 encoded string of the image.
     """
     if isinstance(image, str):
@@ -188,14 +190,14 @@ def image_to_base64(
         # Resize the image
         image = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
 
+    # Remove metadata (EXIF, etc.)
+    if "exif" in image.info:
+        del image.info["exif"]
+
     # Save the image to a BytesIO buffer as WebP with specified quality
     buffered = io.BytesIO()
-    image.save(buffered, format="WEBP", quality=quality)
+    image.save(buffered, format=img_format, quality=quality)
 
-    new_file = buffered.getvalue()
-    # save to local
-    with open("test.webp", "wb") as f:
-        f.write(new_file)
     # Return the Base64 encoded string
     return base64.b64encode(buffered.getvalue()).decode("utf-8")
 

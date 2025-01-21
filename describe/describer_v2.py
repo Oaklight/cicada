@@ -2,9 +2,7 @@ import argparse
 import logging
 import os
 import sys
-from typing import Tuple, Dict, Any
-
-from tqdm import tqdm
+from typing import Any, Dict, Tuple
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
@@ -18,12 +16,10 @@ from common.utils import (
     load_config,
     load_prompts,
 )
-from describe.utils import load_object_metadata, save_descriptions
-
 
 # Configure logging
 logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 
 MAX_IMAGES_PER_QUERY = 4  # to prevent input exceed max input token
@@ -99,9 +95,9 @@ class Describer(vlm.VisionLanguageModel):
         response = self.query_with_promptbuilder(pb)
 
         # Parse the JSON response
-        result = self._parse_json_response(response)
+        json_result = self._parse_json_response(response)
 
-        return result, response
+        return json_result, response
 
     def handle_user_feedback(
         self, user_response: str, current_design: DesignGoal
@@ -129,10 +125,59 @@ class Describer(vlm.VisionLanguageModel):
         else:
             return ("confirmed", "Design updated and validated", updated_design)
 
+    def decompose_design(self, design_goal: DesignGoal) -> Tuple[Dict[str, Any], str]:
+        """
+        Decompose the design into its constituent parts, specifying building methods and geometric details.
+        Returns a tuple of (parsed JSON result, raw response).
+        """
+        text_goal = design_goal.text
+        ref_images = design_goal.images
+        logging.debug(
+            f"Decomposing design goal: {text_goal}, with images: {ref_images}"
+        )
+
+        # Dynamically construct the text_goal_section based on whether text_goal is provided
+        if text_goal:
+            text_goal_section = (
+                f"The user has provided the following design goal: '{text_goal}'. "
+                "Use this as the primary input for reverse engineering the design. "
+                "The provided images are for reference only.\n\n"
+            )
+        else:
+            text_goal_section = (
+                "The user has provided the following images. "
+                "Use these as the primary input for reverse engineering the design.\n\n"
+            )
+
+        # Replace the {text_goal_section} placeholder in the user prompt template
+        user_prompt = self.reverse_engineer_prompt["user_prompt_template"].format(
+            text_goal_section=text_goal_section
+        )
+
+        # Prepare the prompt for decomposing the design
+        pb = PromptBuilder()
+        pb.add_system_prompt(self.reverse_engineer_prompt["system_prompt_template"])
+        pb.add_user_prompt(user_prompt)
+
+        if ref_images:
+            pb.add_text("The following is a set of reference images:")
+            pb.add_images(ref_images)
+
+        # Query the VLM with images and prompt
+        response = self.query_with_promptbuilder(pb)
+
+        # Parse the JSON response
+        json_result = self._parse_json_response(response)
+
+        return json_result, response
+
     def design_feedback_loop(
         self, initial_design: DesignGoal, max_iterations: int = 5
     ) -> DesignGoal:
-        """Execute the complete design feedback cycle"""
+        """
+        Execute the complete design feedback cycle.
+        Decompose the design only after the user confirms the final design.
+        """
         current_design = initial_design
         iteration = 1
 
@@ -140,6 +185,7 @@ class Describer(vlm.VisionLanguageModel):
             logging.info(f"Starting iteration {iteration}/{max_iterations}")
             try:
                 logging.debug(f"Current Design: {current_design.text}")
+
                 # Generate VLM response and parse the JSON result
                 result, response = self.featurize_design_goal_with_confidence(
                     current_design
@@ -176,6 +222,17 @@ class Describer(vlm.VisionLanguageModel):
                 print(f"\nSystem: {message}")
 
                 if status == "confirmed":
+                    # ======= Decompose the confirmed design ======================
+                    logging.info("Design confirmed. Decomposing the final design...")
+                    decomposition_result, _ = self.decompose_design(updated_design)
+                    logging.info(f"Decomposition Result:\n{decomposition_result}")
+                    print(f"\n{'='*40}\nDecomposition Result:\n{decomposition_result}")
+
+                    # Store the decomposition result in design_goal.extra
+                    if not hasattr(updated_design, "extra"):
+                        updated_design.extra = {}
+                    updated_design.extra["decomposition"] = decomposition_result
+
                     return updated_design
 
                 # Ensure current_design is updated for the next iteration
@@ -207,11 +264,10 @@ def _main():
         help="The text goal for the design",
     )
     parser.add_argument(
-        "-ref",
+        "-img",
         "--ref_images",
         type=str,
         default=None,
-        nargs="*",
         help="Paths to reference images for the design",
     )
     args = parser.parse_args()
@@ -244,10 +300,7 @@ def _main():
     except Exception as e:
         logging.error(f"Design process failed: {e}")
         sys.exit(1)
-    # response = vlm.featurize_design_goal_with_confidence(design_goal)
-    # logging.info(f"Response: {response}")
 
 
-# Example usage
 if __name__ == "__main__":
     _main()

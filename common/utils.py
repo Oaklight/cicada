@@ -1,7 +1,7 @@
 import base64
 import io
 import os
-from typing import Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 import yaml
 from PIL import Image
@@ -19,6 +19,8 @@ class DesignGoal:
         text (Optional[str]): A textual description of the design goal. Defaults to None.
         images (Optional[list[str]]): A list of image file paths or a single folder path
             containing images. Defaults to None.
+        extra (Optional[Dict[str, Any]]): Additional information related to the design goal,
+            such as original user input or decomposed part list, etc. Defaults to an empty dictionary.
 
     Raises:
         ValueError: If neither `text` nor `images` is provided.
@@ -26,18 +28,24 @@ class DesignGoal:
     Attributes:
         text (Optional[str]): The textual description of the design goal.
         images (Optional[list[str]]): A list of image file paths or a single folder path.
-        extra (dict): Additional information related to the design goal, such as original
-            user input or metadata.
+        extra (Dict[str, Any]): Additional information related to the design goal, such as
+            original user input or decomposed part list, etc.
     """
 
-    def __init__(self, text: Optional[str] = None, images: Optional[list[str]] = None):
+    def __init__(
+        self,
+        text: Optional[str] = None,
+        images: Optional[list[str]] = None,
+        extra: Optional[Dict[str, Any]] = None,
+    ):
         # Validate that at least one of text or images is provided
         if text is None and images is None:
             raise ValueError("Either 'text' or 'images' must be provided.")
 
         self.text = text
         self.images = images
-        self.extra = {}  # extra information, such as original user input
+        # extra information, such as original user input, decomposed part list etc.
+        self.extra = extra if extra else {}
 
     def __str__(self):
         return (

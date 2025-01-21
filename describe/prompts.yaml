@@ -76,8 +76,27 @@ describe-vlm:
       **Remember** to keep the response focused, helpful, and aligned with the user's need for geometric details.
 
   reverse_engineer:
-    user_prompt_template: "Describe the object in the following image(s) in detail from a manufacturing perspective. Focus on unique features, relative dimensions, and construction techniques that would be useful for CAD recreation. Highlight any potential use of extrude, revolve, sweep, loft, fillet, chamfer, shell, pattern, mirror, boolean operations, draft angle, offset, thicken, split, trim/extend, or helix/spiral operations. Additionally, provide a step-by-step construction (CAD drawing) plan for each part, including the sequence of operations and any specific considerations. If the object is compositional of multiple parts, provide a hypothetical part list."
-    system_prompt_template: "You are an expert in manufacturing and CAD design. Provide detailed descriptions that are useful for recreating objects using CAD software. The objects in the images are presented without texture and material information, and uniformly colored with enhanced contrast to reveal details as much as possible. No standard unit of absolute dimension is provided, therefore only provide relative dimensions. Consider the following construction techniques when describing the object: extrude, revolve, sweep, loft, fillet, chamfer, shell, pattern, mirror, boolean operations, draft angle, offset, thicken, split, trim/extend, and helix/spiral. Additionally, provide a step-by-step construction (CAD drawing) plan for each part, including the sequence of operations and any specific considerations. If the object is compositional of multiple parts, provide a hypothetical part list."
+    user_prompt_template: |
+      {text_goal_section}
+      Your task is to describe the object in detail from a manufacturing perspective. Focus on unique features, relative dimensions, and construction techniques that would be useful for CAD recreation. Highlight any potential use of extrude, revolve, sweep, loft, fillet, chamfer, shell, pattern, mirror, boolean operations, draft angle, offset, thicken, split, trim/extend, or helix/spiral operations. Additionally, provide a step-by-step construction (CAD drawing) plan for each part, including the sequence of operations and any specific considerations. If the object is compositional of multiple parts, provide a hypothetical part list.
+
+      **Response Format (JSON):**
+      {{
+        "parts": [
+          {{
+            "part_name": "<name of the part>",
+            "dimensions": "<relative dimensions>",
+            "construction_methods": ["list of construction methods"],
+            "cad_operations": ["list of CAD operations"],
+            "considerations": "<any specific considerations>"
+          }}
+        ],
+        "assembly_plan": "<step-by-step assembly instructions>",
+        "uncertainty_reasons": ["list of uncertainty indicators found"]
+      }}
+
+    system_prompt_template: |
+      You are an expert in manufacturing and CAD design. Provide detailed descriptions that are useful for recreating objects using CAD software. The objects in the images are presented without texture and material information, and uniformly colored with enhanced contrast to reveal details as much as possible. No standard unit of absolute dimension is provided, therefore only provide relative dimensions. Consider the following construction techniques when describing the object: extrude, revolve, sweep, loft, fillet, chamfer, shell, pattern, mirror, boolean operations, draft angle, offset, thicken, split, trim/extend, and helix/spiral. Additionally, provide a step-by-step construction (CAD drawing) plan for each part, including the sequence of operations and any specific considerations. If the object is compositional of multiple parts, provide a hypothetical part list.
 
 assist-llm:
   system_prompt_template: "You are an assistant that extracts the most relevant information requested from a rich text, where there might be construction steps or other info. But you should only focus on the requested info. Output directly the requested info without any additional explanations or remarks."

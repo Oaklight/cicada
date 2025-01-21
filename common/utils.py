@@ -9,7 +9,32 @@ from PIL import Image
 
 # a class called DesignGoal, with text and images field
 class DesignGoal:
-    def __init__(self, text: str, images: Optional[list[str]] = None):
+    """Represents a design goal, which can be defined by either text, images, or both.
+
+    A design goal encapsulates the user's input, which can be in the form of a textual
+    description, one or more images, or a combination of both. Images can be provided
+    as paths to individual image files or as a path to a folder containing multiple images.
+
+    Args:
+        text (Optional[str]): A textual description of the design goal. Defaults to None.
+        images (Optional[list[str]]): A list of image file paths or a single folder path
+            containing images. Defaults to None.
+
+    Raises:
+        ValueError: If neither `text` nor `images` is provided.
+
+    Attributes:
+        text (Optional[str]): The textual description of the design goal.
+        images (Optional[list[str]]): A list of image file paths or a single folder path.
+        extra (dict): Additional information related to the design goal, such as original
+            user input or metadata.
+    """
+
+    def __init__(self, text: Optional[str] = None, images: Optional[list[str]] = None):
+        # Validate that at least one of text or images is provided
+        if text is None and images is None:
+            raise ValueError("Either 'text' or 'images' must be provided.")
+
         self.text = text
         self.images = images
         self.extra = {}  # extra information, such as original user input
@@ -21,20 +46,45 @@ class DesignGoal:
 
 
 class PromptBuilder:
+    """A utility class for constructing prompts with text and images.
+
+    This class is designed to build a list of messages that can be used as input for
+    models that accept multi-modal prompts (e.g., text and images). Messages can include
+    system prompts, user prompts with text, and user prompts with images.
+
+    Attributes:
+        messages (list): A list of messages, where each message is a dictionary
+            containing a role ("system" or "user") and content (text or image data).
+    """
+
     def __init__(self):
+        """Initialize the PromptBuilder with an empty list of messages."""
         self.messages = []
 
     def add_system_prompt(self, content):
+        """Add a system prompt to the messages.
+
+        Args:
+            content (str): The content of the system prompt.
+        """
         self.messages.append({"role": "system", "content": content})
 
     def add_user_prompt(self, content):
+        """Add a user prompt with text content to the messages.
+
+        Args:
+            content (str): The text content of the user prompt.
+        """
         self.add_text(content)
 
     def add_images(self, image_data: list[str] | str):
-        """
-        Add images to the messages. Accepts a list of image paths or a single image path.
+        """Add images to the messages.
 
-        :param image_data: List of image paths or a single image path.
+        Accepts a list of image paths or a single image path. Each image is converted
+        to a base64-encoded string and added as a user message with image content.
+
+        Args:
+            image_data (list[str] | str): A list of image paths or a single image path.
         """
         image_files = get_image_paths(image_data)
         for image_file in image_files:
@@ -42,6 +92,11 @@ class PromptBuilder:
             self._add_image_message(b64_image)
 
     def _add_image_message(self, b64_image):
+        """Add a user message with an image to the messages.
+
+        Args:
+            b64_image (str): A base64-encoded string representing the image.
+        """
         self.messages.append(
             {
                 "role": "user",
@@ -55,27 +110,43 @@ class PromptBuilder:
         )
 
     def add_text(self, content):
+        """Add a user message with text content to the messages.
+
+        Args:
+            content (str): The text content of the user message.
+        """
         self.messages.append({"role": "user", "content": content})
 
 
 def load_config(config_path: str) -> dict:
-    """
-    Load a YAML configuration file and return its contents as a dictionary.
+    """Load a YAML configuration file and return its contents as a dictionary.
 
-    :param config_path: Path to the YAML configuration file.
-    :return: Dictionary containing the configuration data.
+    Args:
+        config_path (str): Path to the YAML configuration file.
+
+    Returns:
+        dict: Dictionary containing the configuration data.
+
+    Raises:
+        FileNotFoundError: If the specified `config_path` does not exist.
+        yaml.YAMLError: If the YAML file is malformed or cannot be parsed.
     """
     with open(config_path, "r") as file:
         return yaml.safe_load(file)
 
 
-def load_prompts(prompts_path: str, which_model: str = "vlm") -> dict:
-    """
-    Load prompts from a YAML file and return prompts for a specific model.
+def load_prompts(prompts_path: str, which_model: str) -> dict:
+    """Load prompts from a YAML file and return prompts for a specific model.
 
-    :param prompts_path: Path to the YAML file containing prompts.
-    :param which_model: Key specifying which model's prompts to load. Default is "vlm".
-    :return: Dictionary containing prompts for the specified model.
+    Args:
+        prompts_path (str): Path to the YAML file containing prompts.
+        which_model (str): Key specifying which model's prompts to load.
+
+    Returns:
+        dict: Dictionary containing prompts for the specified model.
+
+    Raises:
+        KeyError: If the specified `which_model` key is not found in the YAML file.
     """
     prompts_all = load_config(prompts_path)
     return prompts_all[which_model]

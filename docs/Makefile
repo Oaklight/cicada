@@ -31,7 +31,7 @@ publish: html host
 	@echo "Documentation has been generated and hosted."
 
 # Regenerate API templates before building HTML
-html:
+html: clean
 	@echo "Regenerating API templates..."
 	@./regenerate_api_template.sh
 	@echo "Building HTML documentation..."

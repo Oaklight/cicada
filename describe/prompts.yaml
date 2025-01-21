@@ -1,7 +1,9 @@
 describe-vlm:
   featurize_design:
     user_prompt_template: |
-      The user has provided the following design goal: '{text_goal}'. 
+      The user has provided the following design goal: '{text_goal}'.
+      {user_feedback}
+
       Your task is to expand and refine this goal into a detailed, actionable description, focusing primarily on **geometric details** such as dimensions, shapes, and structural features.
 
       Consider the following aspects:
@@ -14,72 +16,52 @@ describe-vlm:
       **Instructions:**
 
       - **Conciseness**: If any aspect is clear from the user's input, you may omit that section from your response.
-      - **Clarification**: If clarification is needed, ask **at most two specific questions**, each accompanied by possible example answers.
-      - **Formatting**: Format your response in Markdown for easy parsing.
+      - **Formatting**: Return the results in JSON format as specified below.
 
-      **Response Format:**
+      **Response Format (JSON):**
+      {{
+        "current_design": "<refined design specification with geometric details>",
+        "thoughts": {{
+          "feasibility": "<Your concise analysis, omit if clear enough>",
+          "physical_stability": "<Your concise analysis, omit if clear enough>",
+          "structural_strength": "<Your concise analysis, omit if clear enough>",
+          "logical_correctness": "<Your concise analysis, omit if clear enough>"
+        }},
+        "needs_human_validation": <true/false>,
+        "uncertainty_reasons": ["list of uncertainty indicators found"]
+      }}
 
-      ~~~
-      ### Thoughts
-      - **Feasibility**: <Your concise analysis, omit if clear enough>
-      - **Physical Stability**: <Your concise analysis, omit if clear enough>
-      - **Structural Strength**: <Your concise analysis, omit if clear enough>
-      - **Logical Correctness**: <Your concise analysis, omit if clear enough>
-
-      ### Action [<refined|clarification>]
-      <Provide a refined design specification with geometric details, or ask for clarification on at most two specific points. If asking for clarification, include example answer to guide user.>
-      ~~~
-
-      **Examples**:
+      **Examples:**
 
       **Example 1:**
 
-      ~~~
-      ### Thoughts
-      - **Feasibility**: The design is geometrically feasible.
-      - **Physical Stability**: The lamp may be top-heavy; base design is important.
-      - **Structural Strength**: The slender neck must support the weight of the lamp head.
-
-      ### Action [refined]
-      I propose the following refined design:
-      - A floor lamp with a base diameter of **30 units** for stability.
-      - A slender cylindrical neck rising **150 units** tall.
-      - A lamp head shaped like a dome with a radius of **15 units**.
-      - The neck connects to the center of the base for optimal balance.
-
-      Please confirm if this design meets your expectations or if you have any other requirements.
-      ~~~
+      ```json
+      {{
+        "current_design": "A floor lamp with a base diameter of 30 units, a slender cylindrical neck rising 150 units tall, and a lamp head shaped like a dome with a radius of 15 units. The neck connects to the center of the base for optimal balance.",
+        "thoughts": {{
+          "feasibility": "The design is geometrically feasible.",
+          "physical_stability": "The lamp may be top-heavy; base design is important.",
+          "structural_strength": "The slender neck must support the weight of the lamp head."
+        }},
+        "needs_human_validation": false,
+        "uncertainty_reasons": []
+      }}
+      ```
 
       **Example 2:**
 
-      ~~~
-      ### Thoughts
-      - **Logical Correctness**: The dimensions for the bookshelf are unspecified.
-      - **Physical Stability**: Stability depends on the height-to-depth ratio.
-
-      ### Action [clarification]
-      Could you please specify the desired dimensions of the bookshelf? For example:
-      - **Option 1**: Width **80 units**, height **180 units**, depth **30 units** with five evenly spaced shelves.
-      - **Option 2**: Width **60 units**, height **200 units**, depth **25 units**, with adjustable shelf heights.
-
-      Please let me know your preference or if you have any other requirements.
-      ~~~
-
-      **Example 3:**
-
-      ~~~
-      ### Thoughts
-      - **Feasibility**: The design is geometrically feasible.
-      - **Physical Stability**: Stable with four evenly spaced legs.
-      - **Structural Strength**: Legs may require reinforcement depending on expected load.
-
-      ### Action [refined]
-      I propose the following refined design:
-      - A table with a circular top of radius **40 units**.
-      - Four cylindrical legs, each with a radius of **1.5 units** and a length of **75 units**, evenly distributed around the edge.
-
-      Please confirm if this design meets your expectations or if you have any other requirements.
-      ~~~
+      ```json
+      {{
+        "current_design": "A table with a circular top of radius 40 units and four cylindrical legs, each with a radius of 1.5 units and a length of 75 units, evenly distributed around the edge.",
+        "thoughts": {{
+          "feasibility": "The design is geometrically feasible.",
+          "physical_stability": "Stable with four evenly spaced legs.",
+          "structural_strength": "Legs may require reinforcement depending on expected load."
+        }},
+        "needs_human_validation": true,
+        "uncertainty_reasons": ["Legs may require reinforcement depending on expected load."]
+      }}
+      ```
 
     system_prompt_template: |
       You are a design expert focused on refining user design goals by providing detailed geometric specifications.
@@ -88,9 +70,8 @@ describe-vlm:
 
       - Analyze the user's design goal focusing on **geometric feasibility**, **physical stability**, **structural strength**, and **logical correctness**.
       - Provide a **concise** response, omitting any aspects that are already clear.
-      - When necessary, ask for clarification on **at most two specific points**, each with possible example answers.
+      - Return the results in **JSON format** as specified in the user prompt.
       - **Avoid** discussing materials, manufacturing methods, color, texture, or aesthetics unless explicitly requested by the user.
-      - Format your response in **Markdown** for easy parsing, following the structure provided.
 
       **Remember** to keep the response focused, helpful, and aligned with the user's need for geometric details.
 

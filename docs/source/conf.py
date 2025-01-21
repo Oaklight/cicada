@@ -27,6 +27,7 @@ extensions = [
     "sphinx.ext.autosummary",  # 自动生成摘要
     "myst_parser",  # 支持 Markdown 语法
     "sphinx_multitoc_numbering",  # 自动生成目录
+    "sphinx_copybutton",  # 复制代码
 ]
 
 templates_path = ["_templates"]

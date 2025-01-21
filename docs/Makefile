@@ -29,3 +29,10 @@ host:
 # Combined target: generate and host documentation
 publish: html host
 	@echo "Documentation has been generated and hosted."
+
+# Regenerate API templates before building HTML
+html:
+	@echo "Regenerating API templates..."
+	@./regenerate_api_template.sh
+	@echo "Building HTML documentation..."
+	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)

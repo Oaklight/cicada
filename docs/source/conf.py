@@ -26,6 +26,7 @@ extensions = [
     "sphinx.ext.napoleon",  # 支持 Google 和 NumPy 风格的文档字符串
     "sphinx.ext.autosummary",  # 自动生成摘要
     "myst_parser",  # 支持 Markdown 语法
+    "sphinx_multitoc_numbering",  # 自动生成目录
 ]
 
 templates_path = ["_templates"]
@@ -35,7 +36,7 @@ exclude_patterns = []
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "piccolo_theme"
+html_theme = "furo"
 
 html_static_path = ["_static"]
 autosummary_generate = True
@@ -44,3 +45,26 @@ html_search_options = {"type": "default"}
 
 html_logo = "_static/cicada4.png"
 html_short_title = "CICADA"
+
+html_css_files = [
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/fontawesome.min.css",
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/solid.min.css",
+    "https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/brands.min.css",
+]
+
+html_theme_options = {
+    "announcement": (
+        "Welcome to project CICADA, a growing collaborative agent framework for CAD automation."
+    ),
+    "source_repository": "https://github.com/Oaklight/cicada",
+    "source_branch": "master",
+    "source_directory": "docs/source/",
+    "footer_icons": [
+        {
+            "name": "GitHub",
+            "url": "https://github.com/Oaklight/cicada",
+            "html": "",
+            "class": "fa-brands fa-solid fa-github fa-2x",
+        },
+    ],
+}

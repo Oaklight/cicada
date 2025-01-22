@@ -1,7 +1,8 @@
 ## OpenAI
 api_key: "sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc"
 api_base_url: "https://oneapi.service.oaklight.cn/v1"
-model_name: "gpt-4o-mini" # gpt-4o
+# model_name: "gpt-4o-mini" # gpt-4o
+model_name: "yi-vision-v2" # gpt-4o
 
 model_kwargs:
   stream: true

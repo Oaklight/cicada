@@ -1,8 +1,12 @@
 import argparse
 import logging
 import os
+import signal
 import sys
 from typing import Any, Dict, Tuple
+
+import questionary
+from questionary import Style
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
@@ -24,6 +28,14 @@ logging.basicConfig(
 )
 
 MAX_IMAGES_PER_QUERY = 4  # to prevent input exceed max input token
+
+# Define a custom style for questionary prompts
+custom_style = Style(
+    [
+        ("question", "fg:#ff0000 bold"),  # Red and bold for questions
+        ("answer", "fg:#00ff00 underline"),  # Green and underlined for answers
+    ]
+)
 
 
 class Describer(vlm.VisionLanguageModel):
@@ -82,13 +94,15 @@ class Describer(vlm.VisionLanguageModel):
         return json_result, response
 
     def handle_user_feedback(
-        self, user_response: str, current_design: DesignGoal
+        self, current_design: DesignGoal, user_response: str = None
     ) -> Tuple[str, str, DesignGoal]:
         """
         Handle user feedback by generating a new design or confirming the current one.
         Returns a tuple of (status, message, updated_design).
         """
-        if user_response.lower() == "confirm":
+        if not user_response:
+            pass
+        elif user_response.lower() == "confirm":
             return ("confirmed", "Design confirmed", current_design)
 
         # Generate a new design based on the user's feedback
@@ -154,88 +168,129 @@ class Describer(vlm.VisionLanguageModel):
         return json_result, response
 
     def design_feedback_loop(
-        self, initial_design: DesignGoal, max_iterations: int = 5
+        self, design: DesignGoal, iteration: int = 1, max_iterations: int = 5
     ) -> DesignGoal:
         """
-        Execute the complete design feedback cycle.
-        Decompose the design only after the user confirms the final design.
+        Execute the complete design feedback cycle using recursion.
         """
-        current_design = initial_design
-        iteration = 1
 
-        while iteration <= max_iterations:
-            logging.info(f"Starting iteration {iteration}/{max_iterations}")
-            try:
-                logging.debug(f"Current Design: {current_design.text}")
+        # Handle Ctrl+C gracefully
+        def signal_handler(sig, frame):
+            print("\nProcess interrupted by user. Exiting...")
+            sys.exit(0)
 
-                # Generate VLM response and parse the JSON result
-                updated_design_result, response = (
-                    self.featurize_design_goal_with_confidence(current_design)
-                )
-                current_design_text = updated_design_result.get(
-                    "current_design", current_design.text
-                )
-                current_design = DesignGoal(current_design_text, current_design.images)
+        signal.signal(signal.SIGINT, signal_handler)
 
-                # Display the proposed design to the user
-                print(f"\n{'='*40}\nIteration {iteration}/{max_iterations}")
-                print(f"Proposed Design:\n{current_design_text}")
+        # Base case: Maximum iterations reached
+        if iteration > max_iterations:
+            logging.warning(f"Maximum iterations ({max_iterations}) reached")
+            return design
 
-                if updated_design_result.get("needs_human_validation", True):
-                    print(
-                        colorstring(
-                            "\nThe system requires your feedback or confirmation.",
-                            "bright_yellow",
-                        )
+        logging.info(f"Starting iteration {iteration}/{max_iterations}")
+        try:
+            logging.debug(f"Current Design: {design.text}")
+
+            # Generate VLM response and parse the JSON result
+            updated_design_result, response = (
+                self.featurize_design_goal_with_confidence(design)
+            )
+            updated_design_text = updated_design_result.get(
+                "current_design", design.text
+            )
+            updated_design = DesignGoal(updated_design_text, design.images)
+
+            # Display the proposed design to the user
+            print(f"\n{'='*40}\nIteration {iteration}/{max_iterations}")
+            print(f"Proposed Design:\n{updated_design_text}")
+
+            # Always require confirmation after the first iteration
+            if iteration == 1:
+                print(
+                    colorstring(
+                        "\nThe system requires your feedback or confirmation after the first iteration.",
+                        "bright_yellow",
                     )
-                else:
-                    print(
-                        colorstring(
-                            "\nThe system is confident in this solution.", "bright_blue"
-                        )
+                )
+            elif updated_design_result.get("needs_human_validation", True):
+                print(
+                    colorstring(
+                        "\nThe system requires your feedback or confirmation.",
+                        "bright_yellow",
                     )
-
-                user_input = input(
-                    "Type 'confirm' to accept or provide feedback (or 'exit' to quit): "
-                ).strip()
-
-                if user_input.lower() == "exit":
-                    logging.info("Exiting feedback loop by user request")
-                    return current_design
-
-                # Process feedback
-                status, message, updated_design = self.handle_user_feedback(
-                    user_input, current_design
                 )
-                print(f"\nSystem: {message}")
-
-                if status == "confirmed":
-                    # ======= Decompose the confirmed design ======================
-                    logging.info("Design confirmed. Decomposing the final design...")
-                    decomposition_result, _ = self.decompose_design(updated_design)
-                    logging.info(f"Decomposition Result:\n{decomposition_result}")
-                    print(f"\n{'='*40}\nDecomposition Result:\n{decomposition_result}")
-
-                    # Store the decomposition result in design_goal.extra
-                    if not hasattr(updated_design, "extra"):
-                        updated_design.extra = {}
-                    updated_design.extra["decomposition"] = decomposition_result
-
-                    return updated_design
-
-                # Ensure current_design is updated for the next iteration
-                current_design = updated_design
-                logging.debug(
-                    f"Updated Design for Next Iteration:\n{current_design.text}"
+            else:
+                print(
+                    colorstring(
+                        "\nThe system is confident in this solution.", "bright_blue"
+                    )
                 )
-                iteration += 1
 
-            except Exception as e:
-                logging.error(f"Iteration {iteration} failed: {e}")
-                raise e
+            # Dynamic choices based on the current state
+            choices = []
 
-        logging.warning(f"Maximum iterations ({max_iterations}) reached")
-        return current_design
+            # Always allow the user to provide feedback
+            choices.append({"name": "Provide Feedback", "value": "feedback"})
+
+            # Allow confirmation after the first iteration or if the system is confident
+            if iteration == 1 or not updated_design_result.get(
+                "needs_human_validation", True
+            ):
+                choices.append({"name": "Confirm", "value": "confirm"})
+
+            # Allow exiting at any time
+            choices.append({"name": "Exit", "value": "exit"})
+
+            # Multi-choice prompt with dynamic choices
+            action = questionary.select(
+                "What would you like to do?",
+                choices=choices,
+                style=custom_style,
+            ).ask()
+
+            if action == "exit":
+                logging.info("Exiting feedback loop by user request")
+                return updated_design
+
+            elif action == "confirm":
+                # Confirm the design
+                logging.info("Design confirmed. Decomposing the final design...")
+                decomposition_result, _ = self.decompose_design(updated_design)
+                logging.info(f"Decomposition Result:\n{decomposition_result}")
+                print(f"\n{'='*40}\nDecomposition Result:\n{decomposition_result}")
+
+                # Store the decomposition result in design_goal.extra
+                if not hasattr(updated_design, "extra"):
+                    updated_design.extra = {}
+                updated_design.extra["decomposition"] = decomposition_result
+
+                return updated_design
+
+            elif action == "feedback":
+                # Allow the user to provide custom feedback
+                feedback = questionary.text(
+                    "Please provide your feedback:",
+                    validate=lambda text: len(text.strip()) > 0
+                    or "Feedback cannot be empty.",
+                    style=custom_style,
+                ).ask()
+
+                # Process feedback and generate a new design
+                updated_design_result, _ = self.featurize_design_goal_with_confidence(
+                    updated_design, feedback
+                )
+                updated_design_text = updated_design_result.get(
+                    "current_design", updated_design.text
+                )
+                updated_design = DesignGoal(updated_design_text, updated_design.images)
+
+                # Recursively call the function with the updated design and incremented iteration
+                return self.design_feedback_loop(
+                    updated_design, iteration + 1, max_iterations
+                )
+
+        except Exception as e:
+            logging.error(f"Iteration {iteration} failed: {e}")
+            raise e
 
 
 def _main():

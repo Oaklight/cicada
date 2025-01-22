@@ -18,3 +18,4 @@ dependencies:
       - sqlalchemy==2.0.36
       - pgvector==0.3.6
       - sqlite-vec==0.1.6
+      - questionary==2.1.0

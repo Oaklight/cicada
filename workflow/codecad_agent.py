@@ -25,6 +25,7 @@ from common.utils import (
 from feedbacks.feedback_judge import FeedbackJudge
 from feedbacks.visual_feedback import VisualFeedback
 from geometry_pipeline.snapshots import generate_snapshots
+from describe.describer_v2 import Describer
 
 logging.basicConfig(level=logging.INFO)
 
@@ -32,6 +33,7 @@ logging.basicConfig(level=logging.INFO)
 class CodeExecutionLoop:
     def __init__(
         self,
+        describer: Describer,
         code_generator: CodeGenerator,
         code_executor: CodeExecutor,
         code_cache: CodeCache,
@@ -46,6 +48,7 @@ class CodeExecutionLoop:
         self.visual_feedback = visual_feedback
         self.feedback_judge = feedback_judge
         self.code_cache = code_cache
+        self.describer = describer
         self.max_iterations = max_iterations
         self.max_correction_iterations = max_correction_iterations
         self.code_master = code_master
@@ -57,16 +60,23 @@ class CodeExecutionLoop:
         max_iterations: int = 10,
         stop_threshold: float = 0.8,
     ):
+        # Step 1: Refine the design goal using the Describer
+        logging.info("START [refine_design_goal]")
+        refined_design_goal = self._refine_design_goal(design_goal)
+        logging.info("DONE [refine_design_goal]")
+
         iteration = 0
         best_code = None
         best_feedbacks = None
         best_coding_plan = None
         is_completed = False
+
+        # Step 2: Proceed with the code generation and execution loop using the refined design goal
         while iteration < max_iterations:
             # generate_executable_code
             logging.info("START [generate_executable_code]")
             generated_code, coding_plan = self._generate_executable_code(
-                design_goal,
+                refined_design_goal,
                 feedbacks=best_feedbacks,
                 generated_code=best_code,
                 coding_plan=best_coding_plan,
@@ -101,7 +111,7 @@ class CodeExecutionLoop:
             # get_visual_feedback
             logging.info("START [get_visual_feedback]")
             is_success, visual_feedback = self._get_visual_feedback(
-                design_goal, render_dir, snapshot_directions="omni"
+                refined_design_goal, render_dir, snapshot_directions="omni"
             )
             logging.info("DONE [get_visual_feedback]")
             if not is_success:
@@ -125,7 +135,7 @@ class CodeExecutionLoop:
                     )
                 )
             elif self.feedback_judge.is_feedback_better(
-                visual_feedback, best_feedbacks, design_goal.text
+                visual_feedback, best_feedbacks, refined_design_goal.text
             ):
                 best_code = generated_code
                 best_feedbacks = visual_feedback
@@ -142,7 +152,7 @@ class CodeExecutionLoop:
             # Check if the design goal has been achieved
             logging.info("START [check_design_goal]")
             is_achieved, score = self.feedback_judge.is_design_goal_achieved(
-                visual_feedback, design_goal.text
+                visual_feedback, refined_design_goal.text
             )
             logging.info("DONE [check_design_goal]")
             if is_achieved or score >= stop_threshold:
@@ -175,6 +185,23 @@ class CodeExecutionLoop:
 
         logging.info(colorstring(finish_message, msg_color))
         return best_code, best_feedbacks, best_coding_plan
+
+    def _refine_design_goal(self, design_goal: DesignGoal) -> DesignGoal:
+        """
+        Refines the design goal using the Describer.
+
+        Args:
+            design_goal (DesignGoal): The original design goal to be refined.
+
+        Returns:
+            DesignGoal: The refined design goal.
+        """
+        # Use the Describer to refine the design goal
+        refined_design_goal = self.describer.design_feedback_loop(design_goal)
+
+        return refined_design_goal
+
+    # The rest of the methods remain unchanged...
 
     def _get_visual_feedback(
         self,
@@ -418,6 +445,16 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     config = load_config(args.config)
+    # ===== describer agent =====
+    describer_config = config["describe-vlm"]
+    describer = Describer(
+        describer_config["api_key"],
+        describer_config.get("api_base_url"),
+        describer_config.get("model_name"),
+        describer_config.get("org_id"),
+        load_prompts(args.prompts, "describe-vlm"),
+        **describer_config.get("model_kwargs", {}),
+    )
 
     # ===== coding agents =====
     code_llm_config = config["code-llm"]
@@ -468,6 +505,7 @@ if __name__ == "__main__":
 
     # ===== code execution loop =====
     code_execution_loop = CodeExecutionLoop(
+        describer=describer,
         code_generator=code_generator,
         code_executor=CodeExecutor(),
         code_cache=CodeCache(db_file="code-generator.db"),

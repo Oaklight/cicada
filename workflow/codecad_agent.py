@@ -204,11 +204,11 @@ class CodeExecutionLoop:
 
         if is_completed:
             finish_message = (
-                f"SUCCESS!",
-                f"Design task completed after {iteration} iterations.",
-                f"Best code: {best_code}",
-                f"Best feedbacks: {best_feedbacks}",
-                f"Best coding plan: {best_coding_plan}",
+                f"SUCCESS!"
+                f"Design task completed after {iteration} iterations."
+                f"Best code: {best_code}"
+                f"Best feedbacks: {best_feedbacks}"
+                f"Best coding plan: {best_coding_plan}"
             )
             msg_color = "bright_green"
         else:
@@ -475,7 +475,7 @@ class CodeExecutionLoop:
                 "red",
             )
         )
-        return None
+        return (None, None)
 
     def _generate_or_fix_code(
         self,
@@ -518,7 +518,7 @@ class CodeExecutionLoop:
             colorstring(f"Marked iteration {iteration_id} as runnable.", "bright_blue")
         )
 
-    def _save_design_goal(self, design_goal: DesignGoal, file_path: str) -> None:
+    def _save_design_goal(self, design_goal: DesignGoal, file_path: str):
         """
         Save the design goal (text and reference images) as a JSON file.
 

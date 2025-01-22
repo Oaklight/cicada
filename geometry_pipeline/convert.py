@@ -14,8 +14,6 @@ LOG_LEVEL = "DEBUG"
 
 
 logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
-logger.addHandler(logging.StreamHandler())
 
 
 def recenter_and_reaxis_mesh(

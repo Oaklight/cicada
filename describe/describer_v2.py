@@ -14,12 +14,16 @@ sys.path.extend([_current_dir, _parent_dir])
 
 from common import vlm
 from common.basics import DesignGoal, PromptBuilder
-from common.utils import colorstring, load_config, load_prompts, parse_json_response
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+from common.utils import (
+    colorstring,
+    cprint,
+    load_config,
+    load_prompts,
+    parse_json_response,
+    setup_logging,
 )
+
+logger = logging.getLogger(__name__)
 
 MAX_IMAGES_PER_QUERY = 4  # to prevent input exceed max input token
 
@@ -153,13 +157,13 @@ class Describer(vlm.VisionLanguageModel):
 
         # Base case: Maximum iterations reached
         if iteration > max_iterations:
-            logging.warning(f"Maximum iterations ({max_iterations}) reached")
+            logger.warning(f"Maximum iterations ({max_iterations}) reached")
             # decompose the design and return the result
             updated_design = self._update_design_with_decomposition(design)
 
             return updated_design
 
-        logging.info(f"Starting iteration {iteration}/{max_iterations}")
+        logger.info(f"Starting iteration {iteration}/{max_iterations}")
         try:
             logging.debug(f"Current Design: {design.text}")
 
@@ -221,12 +225,12 @@ class Describer(vlm.VisionLanguageModel):
             ).ask()
 
             if action == "exit":
-                logging.info("Exiting feedback loop by user request")
+                logger.info("Exiting feedback loop by user request")
                 return updated_design
 
             elif action == "confirm":
                 # Confirm the design
-                logging.info("Design confirmed. Decomposing the final design...")
+                logger.info("Design confirmed. Decomposing the final design...")
                 updated_design = self._update_design_with_decomposition(updated_design)
 
                 return updated_design
@@ -246,12 +250,12 @@ class Describer(vlm.VisionLanguageModel):
                 )
 
         except Exception as e:
-            logging.error(f"Iteration {iteration} failed: {e}")
+            logger.error(f"Iteration {iteration} failed: {e}")
             raise e
 
     def _update_design_with_decomposition(self, updated_design) -> DesignGoal:
         decomposition_result, _ = self.decompose_design(updated_design)
-        logging.info(f"Decomposition Result:\n{decomposition_result}")
+        logger.info(f"Decomposition Result:\n{decomposition_result}")
         print(f"\n{'='*40}\nDecomposition Result:\n{decomposition_result}")
 
         # Store the decomposition result in design_goal.extra
@@ -300,16 +304,18 @@ def _main():
     # Run the feedback loop process
     try:
         final_design = vlm.design_feedback_loop(design_goal)
-        logging.info("Design process completed successfully")
-        logging.info(colorstring(f"Final Design:\n{final_design}", "white"))
+        logger.info("Design process completed successfully")
+        logger.info(colorstring(f"Final Design:\n{final_design}", "white"))
 
     except KeyboardInterrupt:
-        logging.warning("Process interrupted by user")
+        logger.warning("Process interrupted by user")
         sys.exit(1)
     except Exception as e:
-        logging.error(f"Design process failed: {e}")
+        logger.error(f"Design process failed: {e}")
         sys.exit(1)
 
 
 if __name__ == "__main__":
+    setup_logging()
+
     _main()

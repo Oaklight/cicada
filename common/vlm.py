@@ -14,12 +14,15 @@ _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
 from common import llm
-from common.utils import colorstring, image_to_base64, load_config
-
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+from common.utils import (
+    colorstring,
+    cprint,
+    image_to_base64,
+    load_config,
+    setup_logging,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class VisionLanguageModel(llm.LanguageModel, ABC):
@@ -122,7 +125,7 @@ class VisionLanguageModel(llm.LanguageModel, ABC):
             (openai.APIError, httpx.ReadTimeout, httpx.ConnectTimeout)
         ),  # Retry on API errors or network timeouts
         before_sleep=tenacity.before_sleep_log(
-            logging.getLogger(), logging.WARNING
+            logger, logging.WARNING
         ),  # Log before retrying
         reraise=True,
     )
@@ -145,7 +148,7 @@ class VisionLanguageModel(llm.LanguageModel, ABC):
         full_prompt = self._prepare_prompt(
             images_with_text=images_with_text, prompt=prompt, images=images
         )
-        logging.info(colorstring(len(full_prompt), "white"))
+        logger.info(colorstring(len(full_prompt), "white"))
         if system_prompt:
             full_prompt = [
                 {"role": "system", "content": system_prompt},
@@ -166,7 +169,7 @@ class VisionLanguageModel(llm.LanguageModel, ABC):
             for chunk in response:
                 chunk_content = chunk.choices[0].delta.content
                 if chunk_content:
-                    print(colorstring(chunk_content, "white"), end="", flush=True)
+                    cprint(chunk_content, "white", end="", flush=True)
                     complete_response += chunk_content
             print()  # Add a newline after the response
             return complete_response.strip()
@@ -181,6 +184,7 @@ if __name__ == "__main__":
         "--config", default="config.yaml", help="Path to the configuration YAML file"
     )
     args = parser.parse_args()
+    setup_logging()
 
     vlm_config = load_config(args.config, "vlm")
 
@@ -200,7 +204,7 @@ if __name__ == "__main__":
         system_prompt="you are great visual describer.",
     )
     if not vlm.stream:
-        logging.info(colorstring(response, "white"))
+        logger.info(colorstring(response, "white"))
     response = vlm.query("who made you?")
     if not vlm.stream:
-        logging.info(colorstring(response, "white"))
+        logger.info(colorstring(response, "white"))

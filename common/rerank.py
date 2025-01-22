@@ -3,7 +3,8 @@ import logging
 import os
 import sys
 from abc import ABC
-from typing import List, Dict
+from typing import Dict, List
+
 import httpx
 import requests
 import tenacity
@@ -12,11 +13,9 @@ _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
-from common.utils import colorstring, load_config
+from common.utils import colorstring, cprint, load_config, setup_logging
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logger = logging.getLogger(__name__)
 
 
 class Rerank(ABC):
@@ -49,7 +48,7 @@ class Rerank(ABC):
             (httpx.ReadTimeout, httpx.ConnectTimeout)
         ),  # Retry on API errors or network timeouts
         before_sleep=tenacity.before_sleep_log(
-            logging.getLogger(), logging.WARNING
+            logger, logging.WARNING
         ),  # Log before retrying
         reraise=True,
     )
@@ -90,7 +89,7 @@ class Rerank(ABC):
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            logging.error(colorstring(f"Failed to rerank documents: {e}", "red"))
+            logger.error(colorstring(f"Failed to rerank documents: {e}", "red"))
             raise
 
 
@@ -100,6 +99,8 @@ if __name__ == "__main__":
         "--config", default="config.yaml", help="Path to the configuration YAML file"
     )
     args = parser.parse_args()
+
+    setup_logging()
 
     rerank_config = load_config(args.config, "rerank")
 
@@ -115,4 +116,4 @@ if __name__ == "__main__":
     query = "Apple"
     documents = ["苹果", "香蕉", "水果", "蔬菜"]
     reranked_results = rerank.rerank(query, documents, top_n=4, return_documents=False)
-    logging.info(colorstring(f"Reranked results: {reranked_results}", "white"))
+    logger.info(colorstring(f"Reranked results: {reranked_results}", "white"))

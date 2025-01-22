@@ -20,8 +20,6 @@ from geometry_pipeline import angles, convert
 LOG_LEVEL = "DEBUG"
 
 logger = logging.getLogger(__name__)
-logger.setLevel(LOG_LEVEL)
-logger.addHandler(logging.StreamHandler())
 
 
 def get_adaptive_camera_distance(

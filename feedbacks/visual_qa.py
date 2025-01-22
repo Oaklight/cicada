@@ -13,17 +13,16 @@ from common import vlm
 from common.basics import PromptBuilder
 from common.utils import (
     colorstring,
+    cprint,
     get_image_paths,
     image_to_base64,
     load_config,
     load_prompts,
     parse_design_goal,
+    setup_logging,
 )
 
-# Configure logging
-logging.basicConfig(
-    level=logging.info, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logger = logging.getLogger(__name__)
 
 
 def load_images(path: str) -> List[str]:
@@ -240,7 +239,7 @@ def _main():
             reference_images=args["reference_images"],
             num_questions=args["num_questions"],
         )
-        print(colorstring(json.dumps(questions, indent=4), "cyan"))
+        cprint(json.dumps(questions, indent=4), "cyan")
 
     elif args["mode"] == "answer_generation":
         if not args["questions"]:
@@ -255,7 +254,7 @@ def _main():
             reference_images=args["reference_images"],
             rendered_images=args["rendered_images"],
         )
-        print(colorstring(json.dumps(answers, indent=4), "cyan"))
+        cprint(json.dumps(answers, indent=4), "cyan")
 
     elif args["mode"] == "automated_qa":
         if not args["design_goal"]:
@@ -267,11 +266,12 @@ def _main():
             rendered_images=args["rendered_images"],
             num_questions=args["num_questions"],
         )
-        print(colorstring(json.dumps(qa_result, indent=4), "cyan"))
+        cprint(json.dumps(qa_result, indent=4), "cyan")
 
     else:
         raise ValueError("Invalid mode selected.")
 
 
 if __name__ == "__main__":
+    setup_logging()
     _main()

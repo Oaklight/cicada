@@ -23,7 +23,7 @@ _parent_dir = os.path.dirname(_current_dir)
 _grandparent_dir = os.path.dirname(_parent_dir)
 sys.path.extend([_parent_dir, _grandparent_dir])
 
-from common.utils import colorstring
+from common.utils import colorstring, cprint
 from retrieval.core.basics import Document, Embeddings, VectorStore
 
 logger = logging.getLogger(__name__)
@@ -269,7 +269,7 @@ def _main():
     ]
     metadatas = [{"source": f"test{i+1}"} for i in range(len(texts))]
     ids = pg_vector.add_texts(texts, metadatas)
-    print(colorstring(f"Added texts with IDs: {ids}", "blue"))
+    cprint(f"Added texts with IDs: {ids}", "blue")
 
     # Perform similarity search
     queries = [
@@ -284,9 +284,9 @@ def _main():
     ]
 
     for query in queries:
-        print(colorstring(f"\nQuery: {query}", "blue"))
+        cprint(f"\nQuery: {query}", "blue")
         results = pg_vector.similarity_search(query, k=10)
-        print(colorstring(f"Similarity search results: {results}", "yellow"))
+        cprint(f"Similarity search results: {results}", "yellow")
 
         # Initialize SiliconFlowRerank
         rerank_model = SiliconFlowRerank(
@@ -302,7 +302,7 @@ def _main():
             top_n=5,
             return_documents=True,
         )
-        print(colorstring(f"Reranked results: {reranked_results}", "cyan"))
+        cprint(f"Reranked results: {reranked_results}", "cyan")
 
     # Clean up (optional)
     with pg_vector._Session() as session:
@@ -312,7 +312,7 @@ def _main():
         if collection:
             session.delete(collection)
             session.commit()
-            print(colorstring(f"Removed test collection: {collection_name}", "yellow"))
+            cprint(f"Removed test collection: {collection_name}", "yellow")
 
 
 if __name__ == "__main__":

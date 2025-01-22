@@ -13,7 +13,15 @@ _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
 from common import llm
-from common.utils import extract_section_markdown, load_config, load_prompts
+from common.utils import (
+    cprint,
+    extract_section_markdown,
+    load_config,
+    load_prompts,
+    setup_logging,
+)
+
+logger = logging.getLogger(__name__)
 
 
 class CodeGenerator(llm.LanguageModel):
@@ -70,13 +78,13 @@ class CodeGenerator(llm.LanguageModel):
             generated_code = self.query(prompt, self.system_prompt_code_generation)
             return self._extract_code_from_response(generated_code)
         except Exception as e:
-            logging.error(f"API call failed: {e}")
+            logger.error(f"API call failed: {e}")
             return None
 
     def save_code_to_file(self, code, filename="generated_code.py"):
         with open(filename, "w") as f:
             f.write(code)
-        logging.info(f"Code saved to {filename}")
+        logger.info(f"Code saved to {filename}")
 
     def fix_code(self, code: str, description: str, feedbacks: List[str] | None) -> str:
         if isinstance(feedbacks, list):
@@ -94,7 +102,7 @@ class CodeGenerator(llm.LanguageModel):
             fixed_code = self.query(prompt, self.system_prompt_code_generation)
             return self._extract_code_from_response(fixed_code)
         except Exception as e:
-            logging.error(f"API call failed: {e}")
+            logger.error(f"API call failed: {e}")
             return None
 
     def plan_code(
@@ -123,7 +131,7 @@ class CodeGenerator(llm.LanguageModel):
             elements = [elem.strip() for elem in elements if elem.strip()]
             return {"plan": plan, "elements": elements}
         except Exception as e:
-            logging.error(f"API call failed: {e}")
+            logger.error(f"API call failed: {e}")
         return None
 
     def patch_code_to_export(
@@ -187,6 +195,8 @@ if __name__ == "__main__":
         help="Directory to save the generated code",
     )
     args = parser.parse_args()
+
+    setup_logging()
 
     os.makedirs(args.output_dir, exist_ok=True)
 

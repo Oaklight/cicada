@@ -1,9 +1,10 @@
-import requests
 import logging
 from typing import Literal
 
+import requests
+
 # Set up logging
-logging.basicConfig(level=logging.INFO, format="%(message)s")
+logger = logging.getLogger(__name__)
 
 
 def fetch_content(
@@ -64,17 +65,28 @@ def fetch_content(
         response = requests.get(api_url, headers=headers, timeout=10)
         response.raise_for_status()
         content = response.text
-        logging.info(
+        logger.info(
             f"Successfully fetched content from: {url} in {return_format} format"
         )
     except requests.exceptions.RequestException as e:
         content = f"error: {str(e)}"
-        logging.error(f"Failed to fetch content from {url}. Error: {str(e)}")
+        logger.error(f"Failed to fetch content from {url}. Error: {str(e)}")
     return content
 
 
 # Example usage:
 if __name__ == "__main__":
+    import os
+    import sys
+
+    _current_dir = os.path.dirname(os.path.abspath(__file__))
+    _parent_dir = os.path.dirname(_current_dir)
+    sys.path.extend([_current_dir, _parent_dir])
+
+    from common.utils import setup_logging
+
+    setup_logging()
+
     url = "https://thgilkao.github.io/picx-images-hosting/IMG_20230913_211233.jpg"  # @param {type:"string"}
     content_format = "markdown"  # @param ["text", "markdown", "html", "screenshot"]
     json_response = False  # @param {type:"boolean"}
@@ -98,5 +110,5 @@ if __name__ == "__main__":
         with_links_summary=with_links_summary,
         with_images_summary=with_images_summary,
     )
-    logging.info("Fetched Content:")
-    logging.info(fetched_content)
+    logger.info("Fetched Content:")
+    logger.info(fetched_content)

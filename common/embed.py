@@ -13,12 +13,9 @@ _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
-from common.utils import colorstring, load_config
+from common.utils import colorstring, cprint, load_config, setup_logging
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logger = logging.getLogger(__name__)
 
 
 class Embed(ABC):
@@ -58,7 +55,7 @@ class Embed(ABC):
             (openai.APIError, httpx.ReadTimeout, httpx.ConnectTimeout)
         ),  # Retry on API errors or network timeouts
         before_sleep=tenacity.before_sleep_log(
-            logging.getLogger(), logging.WARNING
+            logger, logging.WARNING
         ),  # Log before retrying
         reraise=True,
     )
@@ -87,6 +84,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
+    setup_logging()
+
     embed_config = load_config(args.config, "embed")
 
     embed = Embed(
@@ -99,4 +98,4 @@ if __name__ == "__main__":
 
     texts = ["This is a test document.", "Another test document."]
     embeddings = embed.embed(texts)
-    logging.info(colorstring(f"Generated embeddings: {embeddings}", "white"))
+    logger.info(colorstring(f"Generated embeddings: {embeddings}", "white"))

@@ -4,6 +4,14 @@ common package
 Submodules
 ----------
 
+common.basics module
+--------------------
+
+.. automodule:: common.basics
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 common.embed module
 -------------------
 

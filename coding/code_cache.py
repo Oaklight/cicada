@@ -3,10 +3,7 @@ import logging
 import sqlite3
 from sqlite3 import Connection
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logger = logging.getLogger(__name__)
 
 
 class CodeCache:
@@ -71,7 +68,7 @@ class CodeCache:
 
         conn.commit()
         self._return_connection(conn)
-        logging.info("Database tables initialized.")
+        logger.info("Database tables initialized.")
 
     # Session API
 
@@ -95,7 +92,7 @@ class CodeCache:
                 zip([description[0] for description in cursor.description], result)
             )
         else:
-            logging.warning(f"No session found with ID: {session_id}")
+            logger.warning(f"No session found with ID: {session_id}")
             return None
 
     def insert_session(
@@ -113,7 +110,7 @@ class CodeCache:
         conn.commit()
         session_id = cursor.lastrowid
         self._return_connection(conn)
-        logging.info(f"Session inserted with ID: {session_id}")
+        logger.info(f"Session inserted with ID: {session_id}")
         return session_id
 
     def update_session(
@@ -123,7 +120,7 @@ class CodeCache:
         coding_plan: dict | None = None,
     ):  # Make design_goal optional and denote coding_plan as dict|None
         if design_goal is None and coding_plan is None:
-            logging.warning("Either design_goal or coding_plan must be provided.")
+            logger.warning("Either design_goal or coding_plan must be provided.")
             return
         conn = self._get_connection()
         cursor = conn.cursor()
@@ -150,7 +147,7 @@ class CodeCache:
             )
         conn.commit()
         self._return_connection(conn)
-        logging.info(f"Session with ID {session_id} updated.")
+        logger.info(f"Session with ID {session_id} updated.")
 
     def get_iteration(self, iteration_id, fields=None):
         conn = self._get_connection()
@@ -172,7 +169,7 @@ class CodeCache:
                 zip([description[0] for description in cursor.description], result)
             )
         else:
-            logging.warning(f"No iteration found with ID: {iteration_id}")
+            logger.warning(f"No iteration found with ID: {iteration_id}")
             return None
 
     def get_iterations(self, session_id, fields=None):
@@ -198,7 +195,7 @@ class CodeCache:
                 for result in results
             ]
         else:
-            logging.warning(f"No iterations found for session ID: {session_id}")
+            logger.warning(f"No iterations found for session ID: {session_id}")
             return None
 
     def insert_iteration(self, session_id, code, feedback=None):
@@ -214,7 +211,7 @@ class CodeCache:
         conn.commit()
         iteration_id = cursor.lastrowid
         self._return_connection(conn)
-        logging.info(f"Iteration inserted with ID: {iteration_id}")
+        logger.info(f"Iteration inserted with ID: {iteration_id}")
         return iteration_id
 
     def update_iteration(
@@ -242,7 +239,7 @@ class CodeCache:
             cursor.execute(query, tuple(params))
             conn.commit()
         self._return_connection(conn)
-        logging.info(f"Iteration with ID {iteration_id} updated.")
+        logger.info(f"Iteration with ID {iteration_id} updated.")
 
     # Error API
 
@@ -269,7 +266,7 @@ class CodeCache:
                 for result in results
             ]
         else:
-            logging.warning(f"No errors found for iteration ID: {iteration_id}")
+            logger.warning(f"No errors found for iteration ID: {iteration_id}")
             return None
 
     def insert_error(self, iteration_id, error_type, error_message, error_line=None):
@@ -292,7 +289,7 @@ class CodeCache:
         conn.commit()
         error_id = cursor.lastrowid
         self._return_connection(conn)
-        logging.info(f"Error inserted with ID: {error_id}")
+        logger.info(f"Error inserted with ID: {error_id}")
         return error_id
 
     def update_error(self, error_id, error_message, error_line=None):
@@ -306,7 +303,7 @@ class CodeCache:
         )
         conn.commit()
         self._return_connection(conn)
-        logging.info(f"Error with ID {error_id} updated.")
+        logger.info(f"Error with ID {error_id} updated.")
 
     # Additional Method
 
@@ -369,7 +366,7 @@ class CodeCache:
             )
         else:
             self._return_connection(conn)
-            logging.error(f"Invalid type: {type_}")
+            logger.error(f"Invalid type: {type_}")
             return None
 
         result = cursor.fetchone()
@@ -378,7 +375,7 @@ class CodeCache:
         if result:
             return result[0]
         else:
-            logging.warning(f"No session found for {type_} ID: {identifier}")
+            logger.warning(f"No session found for {type_} ID: {identifier}")
             return None
 
     def close(self):
@@ -386,17 +383,28 @@ class CodeCache:
             if conn:
                 conn.close()
         self.connection_pool.clear()
-        logging.info("All database connections closed and cleaned up.")
+        logger.info("All database connections closed and cleaned up.")
 
 
 # Usage example
 if __name__ == "__main__":
+    import os
+    import sys
+
+    _current_dir = os.path.dirname(os.path.abspath(__file__))
+    _parent_dir = os.path.dirname(_current_dir)
+    sys.path.extend([_current_dir, _parent_dir])
+
+    from common.utils import setup_logging
+
+    setup_logging()
+
     # Create an instance of CodeCache
     code_cache = CodeCache()
 
     # Insert a new session
     session_id_1 = code_cache.insert_session("First Test Session")
-    logging.info(f"Created session with ID: {session_id_1}")
+    logger.info(f"Created session with ID: {session_id_1}")
 
     # Insert code snippets for the first session
     code_id_1 = code_cache.insert_iteration(
@@ -422,7 +430,7 @@ if __name__ == "__main__":
         session_id_1, fields=["id", "code", "is_correct", "is_runnable"]
     )
     for iteration in iterations:
-        logging.info(
+        logger.info(
             f"Iteration ID: {iteration['id']}, Code: {iteration['code']}, Correct: {bool(iteration['is_correct'])}, Runnable: {bool(iteration['is_runnable'])}"
         )
 

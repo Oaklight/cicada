@@ -1,11 +1,19 @@
 import base64
 import io
 import json
+import logging
+import logging.config
 import os
 from typing import Any, Dict, Iterable, List, Optional
 
 import yaml
+from blessed import Terminal
 from PIL import Image
+
+logger = logging.getLogger(__name__)
+
+# Initialize the terminal object
+_term = Terminal()
 
 
 def load_config(config_path: str, config_name: Optional[str] = None) -> dict:
@@ -81,31 +89,42 @@ def load_prompts(prompts_path: str, which_model: str) -> dict:
 
 def colorstring(message: str, color: Optional[str] = "green") -> str:
     """
-    Returns a colored string using ANSI escape codes.
+    Returns a colored string using blessed terminal capabilities.
 
     :param message: The message to be colored.
     :param color: The color to apply. Supported colors: 'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'.
     :return: A string with the specified color.
     """
-    colors = {
-        "black": "\033[30m",
-        "red": "\033[31m",
-        "bright_red": "\033[91m",
-        "green": "\033[92m",
-        "bright_green": "\033[32m",
-        "yellow": "\033[33m",
-        "bright_yellow": "\033[93m",
-        "blue": "\033[34m",
-        "bright_blue": "\033[94m",
-        "magenta": "\033[35m",
-        "cyan": "\033[36m",
-        "white": "\033[37m",
+    color_mapping = {
+        "black": _term.black,
+        "red": _term.red,
+        "bright_red": _term.bright_red,
+        "green": _term.green,
+        "bright_green": _term.bright_green,
+        "yellow": _term.yellow,
+        "bright_yellow": _term.bright_yellow,
+        "blue": _term.blue,
+        "bright_blue": _term.bright_blue,
+        "magenta": _term.magenta,
+        "cyan": _term.cyan,
+        "white": _term.white,
     }
 
     # Default to white if the color is not found
-    color_code = colors.get(color.lower(), "\033[37m")
+    color_func = color_mapping.get(color.lower(), _term.white)
 
-    return f"{color_code}{message}\033[0m"
+    return color_func(message)
+
+
+def cprint(message: str, color: Optional[str] = "green", **kwargs) -> None:
+    """
+    Prints a colored string using blessed terminal capabilities.
+
+    :param message: The message to be colored.
+    :param color: The color to apply. Supported colors: 'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'.
+    :param kwargs: Additional keyword arguments to pass to the `print` function (e.g., `end`, `sep`, `file`, `flush`).
+    """
+    print(colorstring(message, color), **kwargs)
 
 
 def get_image_paths(path: str | List[str]) -> List[str]:
@@ -288,11 +307,11 @@ def parse_json_response(response: str) -> Dict[str, Any]:
 
         return json.loads(json_str)
     except json.JSONDecodeError as e:
-        logging.error(f"Failed to parse JSON response: {str(e)}")
-        logging.debug(f"Original response: {response}")
+        logger.error(f"Failed to parse JSON response: {str(e)}")
+        logger.debug(f"Original response: {response}")
         return {}
     except Exception as e:
-        logging.error(f"Unexpected error parsing response: {str(e)}")
+        logger.error(f"Unexpected error parsing response: {str(e)}")
         return {}
 
 
@@ -313,34 +332,88 @@ def parse_design_goal(design_goal_input: str) -> str:
                 data = json.load(f)
                 return data.get("text", "")
             except json.JSONDecodeError:
-                logging.error("The provided file is not a valid JSON.")
+                logger.error("The provided file is not a valid JSON.")
                 raise json.JSONDecodeError("The provided file is not a valid JSON.")
     return design_goal_input
 
 
-if __name__ == "__main__":
-    print(colorstring("This is a red message", "red"))
-    print(colorstring("This is a green message", "green"))
-    print(colorstring("This is a blue message", "blue"))
-    print(colorstring("This is a yellow message", "yellow"))
-    print(colorstring("This is a magenta message", "magenta"))
-    print(colorstring("This is a cyan message", "cyan"))
-    print(colorstring("This is a black message", "black"))
-    print(colorstring("This is a white message", "white"))
+def setup_logging(
+    log_level: str = "INFO",
+    log_file: Optional[str] = None,
+    console_log: bool = True,
+    log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+) -> None:
+    """
+    Configure logging for the entire application.
 
-    import logging
+    Args:
+        log_level (str): The logging level (e.g., "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL").
+        log_file (Optional[str]): Path to the log file. If None, logging to file is disabled.
+        console_log (bool): Whether to enable logging to the console.
+        log_format (str): Format string for the log messages.
+    """
+    # Define the logging configuration dictionary
+    logging_config: Dict[str, Any] = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "standard": {
+                "format": log_format,
+            },
+        },
+        "handlers": {},
+        "loggers": {
+            "": {  # Root logger
+                "level": log_level.upper(),
+                "handlers": [],
+                "propagate": True,
+            },
+        },
+    }
+
+    # Add console handler if enabled
+    if console_log:
+        logging_config["handlers"]["console"] = {
+            "level": log_level.upper(),
+            "class": "logging.StreamHandler",
+            "formatter": "standard",
+        }
+        logging_config["loggers"][""]["handlers"].append("console")
+
+    # Add file handler if log_file is provided
+    if log_file:
+        logging_config["handlers"]["file"] = {
+            "level": log_level.upper(),
+            "class": "logging.FileHandler",
+            "filename": log_file,
+            "formatter": "standard",
+        }
+        logging_config["loggers"][""]["handlers"].append("file")
+
+    # Apply the logging configuration
+    logging.config.dictConfig(logging_config)
+    logging.info("Logging configuration is set up.")
+
+
+if __name__ == "__main__":
+    cprint("This is a red message", "red")
+    cprint("This is a green message", "green")
+    cprint("This is a blue message", "blue")
+    cprint("This is a yellow message", "yellow")
+    cprint("This is a magenta message", "magenta")
+    cprint("This is a cyan message", "cyan")
+    cprint("This is a black message", "black")
+    cprint("This is a white message", "white")
 
     # Configure logging
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-    )
+    setup_logging()
 
     # Example usage:
-    logging.info(colorstring("This is a red message", "red"))
-    logging.info(colorstring("This is a green message", "green"))
-    logging.info(colorstring("This is a blue message", "blue"))
-    logging.info(colorstring("This is a yellow message", "yellow"))
-    logging.info(colorstring("This is a magenta message", "magenta"))
-    logging.info(colorstring("This is a cyan message", "cyan"))
-    logging.info(colorstring("This is a black message", "black"))
-    logging.info(colorstring("This is a white message", "white"))
+    logger.info(colorstring("This is a red message", "red"))
+    logger.info(colorstring("This is a green message", "green"))
+    logger.info(colorstring("This is a blue message", "blue"))
+    logger.info(colorstring("This is a yellow message", "yellow"))
+    logger.info(colorstring("This is a magenta message", "magenta"))
+    logger.info(colorstring("This is a cyan message", "cyan"))
+    logger.info(colorstring("This is a black message", "black"))
+    logger.info(colorstring("This is a white message", "white"))

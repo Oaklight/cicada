@@ -12,9 +12,9 @@ _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 sys.path.append(_parent_dir)
 
-from common.utils import colorstring
+from common.utils import colorstring, cprint, setup_logging
 
-logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 
 class CodeExecutor:
@@ -52,7 +52,7 @@ class CodeExecutor:
                 return False, {"error": error_message}
             else:
                 if test_run:
-                    logging.info("Test run successful.")
+                    logger.info("Test run successful.")
                     return True, {"output": completed_process.stdout}
                 else:
                     # Collect all files generated during execution.
@@ -64,7 +64,7 @@ class CodeExecutor:
                             with open(file_path, "rb") as f:
                                 content = f.read()
                                 output_files[rel_path] = content
-                    logging.info("Execution successful. Collecting output files.")
+                    logger.info("Execution successful. Collecting output files.")
                     return True, {
                         "output": completed_process.stdout,
                         "files": output_files,
@@ -193,12 +193,12 @@ class CodeExecutor:
 
             # If flake8 returns any output, there are errors
             if result.stdout:
-                logging.error(
+                logger.error(
                     colorstring(f"Flake8 found syntax errors:\n{result.stdout}", "red")
                 )
                 return False, result.stdout
 
-            logging.info(
+            logger.info(
                 colorstring(
                     "Flake8 check passed: no syntax errors found.", "bright_blue"
                 )
@@ -206,7 +206,7 @@ class CodeExecutor:
             return True, None
 
         except Exception as e:
-            logging.error(colorstring(f"Error running flake8: {e}", "yellow"))
+            logger.error(colorstring(f"Error running flake8: {e}", "yellow"))
             return False, str(e)
         finally:
             # Clean up the temporary directory
@@ -214,6 +214,8 @@ class CodeExecutor:
 
 
 if __name__ == "__main__":
+    setup_logging()
+
     code_executor = CodeExecutor()
 
     # code_file = (

@@ -169,6 +169,7 @@ coding/examples/o1-example.py
 coding/examples/reproduce-mech-part.py
 *.db
 coding/fixed_code.py
+coding/code_examples/
 coding/generated_code.py
 retrieval/docs/
 coding/code_doc_cache.pkl

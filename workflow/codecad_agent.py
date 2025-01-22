@@ -19,16 +19,18 @@ from coding.code_generator import CodeGenerator
 from common.basics import DesignGoal
 from common.utils import (
     colorstring,
+    cprint,
     find_files_with_extensions,
     load_config,
     load_prompts,
+    setup_logging,
 )
 from describe.describer_v2 import Describer
 from feedbacks.feedback_judge import FeedbackJudge
 from feedbacks.visual_feedback import VisualFeedback
 from geometry_pipeline.snapshots import generate_snapshots, preview_mesh_interactively
 
-logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class CodeExecutionLoop:
@@ -71,9 +73,9 @@ class CodeExecutionLoop:
         )
 
         # Step 1: Refine the design goal using the Describer
-        logging.info("START [refine_design_goal]")
+        logger.info("START [refine_design_goal]")
         refined_design_goal = self._refine_design_goal(design_goal)
-        logging.info("DONE [refine_design_goal]")
+        logger.info("DONE [refine_design_goal]")
         self._save_design_goal(
             refined_design_goal,
             os.path.join(output_dir, "refined_design_goal.json"),
@@ -92,16 +94,16 @@ class CodeExecutionLoop:
             os.makedirs(iteration_dir, exist_ok=True)
 
             # generate_executable_code
-            logging.info("START [generate_executable_code]")
+            logger.info("START [generate_executable_code]")
             generated_code, coding_plan = self._generate_executable_code(
                 refined_design_goal,
                 feedbacks=best_feedbacks,
                 generated_code=best_code,
                 coding_plan=best_coding_plan,
             )
-            logging.info("DONE [generate_executable_code]")
+            logger.info("DONE [generate_executable_code]")
             if generated_code is None:
-                logging.error(
+                logger.error(
                     colorstring(
                         f"Iteration {iteration + 1} - No executable code generated.",
                         "red",
@@ -116,13 +118,13 @@ class CodeExecutionLoop:
             )
 
             # render_from_code
-            logging.info("START [render_from_code]")
+            logger.info("START [render_from_code]")
             is_success, messages, render_dir = self._render_from_code(
                 generated_code, iteration_dir, format="stl"
             )
-            logging.info("DONE [render_from_code]")
+            logger.info("DONE [render_from_code]")
             if not is_success:
-                logging.error(
+                logger.error(
                     colorstring(
                         f"Iteration {iteration + 1} - Rendering failed: {messages}",
                         "red",
@@ -135,13 +137,13 @@ class CodeExecutionLoop:
                 human_feedback = self._preview_mesh(render_dir)
 
             # get_visual_feedback
-            logging.info("START [get_visual_feedback]")
+            logger.info("START [get_visual_feedback]")
             is_success, visual_feedback = self._get_visual_feedback(
                 refined_design_goal, render_dir, snapshot_directions="omni"
             )
-            logging.info("DONE [get_visual_feedback]")
+            logger.info("DONE [get_visual_feedback]")
             if not is_success:
-                logging.error(
+                logger.error(
                     colorstring(
                         f"Iteration {iteration + 1} - Visual feedback failed", "red"
                     )
@@ -154,11 +156,11 @@ class CodeExecutionLoop:
                 f.write(visual_feedback)
 
             # Check if the current feedback is better than the best feedback so far
-            logging.info("START [check_feedback]")
+            logger.info("START [check_feedback]")
             if best_feedbacks is None:
                 best_code = generated_code
                 best_feedbacks = visual_feedback
-                logging.info(
+                logger.info(
                     colorstring(
                         f"Iteration {iteration + 1} - Initial feedback received",
                         "cyan",
@@ -171,25 +173,25 @@ class CodeExecutionLoop:
                 best_feedbacks = visual_feedback
                 best_coding_plan = coding_plan
 
-                logging.info(
+                logger.info(
                     colorstring(
                         f"Iteration {iteration + 1} - Improved feedback received",
                         "cyan",
                     )
                 )
-            logging.info("DONE [check_feedback]")
+            logger.info("DONE [check_feedback]")
 
             # Check if the design goal has been achieved
-            logging.info("START [check_design_goal]")
+            logger.info("START [check_design_goal]")
             is_achieved, score = self.feedback_judge.is_design_goal_achieved(
                 visual_feedback, refined_design_goal.text
             )
-            logging.info("DONE [check_design_goal]")
+            logger.info("DONE [check_design_goal]")
             if is_achieved or score >= stop_threshold:
                 best_code = generated_code
                 best_feedbacks = visual_feedback
                 best_coding_plan = coding_plan
-                logging.info(
+                logger.info(
                     colorstring(
                         f"Iteration {iteration + 1} - Design goal achieved! (Score: {score})",
                         "white",
@@ -213,7 +215,7 @@ class CodeExecutionLoop:
             finish_message = f"Design task not completed after {iteration} iterations."
             msg_color = "bright_red"
 
-        logging.info(colorstring(finish_message, msg_color))
+        logger.info(colorstring(finish_message, msg_color))
         return best_code, best_feedbacks, best_coding_plan
 
     def _refine_design_goal(self, design_goal: DesignGoal) -> DesignGoal:
@@ -248,7 +250,7 @@ class CodeExecutionLoop:
         )
 
         if rendered_obj_path is None:
-            logging.error("No rendered object found in the render path.")
+            logger.error("No rendered object found in the render path.")
             return False, "No rendered object found in the render path."
 
         # take snapshots
@@ -261,14 +263,14 @@ class CodeExecutionLoop:
             mesh_color=[0, 102, 204],
             reaxis_gravity=True,
         )
-        logging.info(colorstring(f"Snapshot paths: {snapshot_paths}", "magenta"))
+        logger.info(colorstring(f"Snapshot paths: {snapshot_paths}", "magenta"))
 
         # compare with design_goal and generate feedbacks
         visual_feedback = self.visual_feedback.generate_feedback_paragraph(
             design_goal.text, design_goal.images, snapshot_paths
         )
 
-        logging.info(colorstring(f"Visual feedback: {visual_feedback}", "white"))
+        logger.info(colorstring(f"Visual feedback: {visual_feedback}", "white"))
 
         return True, visual_feedback
 
@@ -319,11 +321,11 @@ class CodeExecutionLoop:
         )
 
         if not is_valid:
-            logging.error(
+            logger.error(
                 colorstring(f"Code is not valid during export: {messages}", "red")
             )
         else:
-            logging.info(
+            logger.info(
                 colorstring(f"Code is valid during export: {messages}", "bright_blue")
             )
 
@@ -346,7 +348,7 @@ class CodeExecutionLoop:
         )
 
         if rendered_obj_path is None:
-            logging.error("No rendered object found in the render path.")
+            logger.error("No rendered object found in the render path.")
             return None
 
         # Load the mesh
@@ -370,15 +372,15 @@ class CodeExecutionLoop:
         )
 
         if feedback:
-            logging.info(f"Human feedback received: {feedback}")
+            logger.info(f"Human feedback received: {feedback}")
             # Process the feedback as needed
             # For example, you can save it to a file or use it in further processing
             feedback_file_path = os.path.join(render_dir, "human_feedback.txt")
             with open(feedback_file_path, "w") as f:
                 f.write(feedback)
-            logging.info(f"Feedback saved to {feedback_file_path}")
+            logger.info(f"Feedback saved to {feedback_file_path}")
         else:
-            logging.info("No feedback provided.")
+            logger.info("No feedback provided.")
 
         root.destroy()  # Close the GUI
 
@@ -421,12 +423,12 @@ class CodeExecutionLoop:
                 feedbacks=feedbacks,
                 previous_plan=coding_plan,
             )
-        logging.info(colorstring(f"Coding plan:\n{coding_plan}", "white"))
+        logger.info(colorstring(f"Coding plan:\n{coding_plan}", "white"))
 
         use_master = False
         # iterate to generate executable code
         for i in range(self.max_iterations):
-            logging.info(f"[code generation] Iteration {i + 1}/{self.max_iterations}")
+            logger.info(f"[code generation] Iteration {i + 1}/{self.max_iterations}")
             if i >= 2 / 3 * self.max_iterations:
                 use_master = True
 
@@ -443,7 +445,7 @@ class CodeExecutionLoop:
             is_valid, errors = self.code_executor.validate_code(generated_code)
             if not is_valid:
                 feedbacks = errors
-                logging.warning(colorstring(f"Code is not valid:\n{errors}", "yellow"))
+                logger.warning(colorstring(f"Code is not valid:\n{errors}", "yellow"))
                 continue
 
             # execute
@@ -453,12 +455,12 @@ class CodeExecutionLoop:
 
             if not is_runnable:
                 feedbacks = results
-                logging.warning(
+                logger.warning(
                     colorstring(f"Code is not runnable:\n{results}", "yellow")
                 )
                 continue
 
-            logging.info(
+            logger.info(
                 colorstring(
                     f"Executeable code generated:\n{generated_code}", "bright_blue"
                 )
@@ -467,7 +469,7 @@ class CodeExecutionLoop:
             return generated_code, coding_plan
 
         # If we reach here, the maximum number of iterations was exceeded
-        logging.warning(
+        logger.warning(
             colorstring(
                 f"[code generation] Maximum iterations ({self.max_iterations}) reached without generating valid and executable code.",
                 "red",
@@ -504,15 +506,15 @@ class CodeExecutionLoop:
 
         if existing_code:
             generated_code = generator.fix_code(existing_code, description, feedbacks)
-            logging.info(colorstring(f"Fixed code:\n{generated_code}", "white"))
+            logger.info(colorstring(f"Fixed code:\n{generated_code}", "white"))
         else:
             generated_code = generator.generate_code(description, plan["plan"])
-            logging.info(colorstring(f"Generated code:\n{generated_code}", "white"))
+            logger.info(colorstring(f"Generated code:\n{generated_code}", "white"))
         return generated_code
 
     def _mark_iteration_as_runnable(self, iteration_id):
         self.code_cache.update_iteration(iteration_id, is_runnable=True)
-        logging.info(
+        logger.info(
             colorstring(f"Marked iteration {iteration_id} as runnable.", "bright_blue")
         )
 
@@ -528,10 +530,10 @@ class CodeExecutionLoop:
         try:
             with open(file_path, "w") as f:
                 f.write(design_goal.to_json())
-            logging.info(f"Design goal saved to {file_path}")
+            logger.info(f"Design goal saved to {file_path}")
         except Exception as e:
-            logging.error(f"Failed to save design goal to {file_path}: {e}")
-            print(colorstring(design_goal, "bright_yellow"))
+            logger.error(f"Failed to save design goal to {file_path}: {e}")
+            cprint(design_goal, "bright_yellow")
             raise e
 
 
@@ -684,4 +686,5 @@ def main():
 
 
 if __name__ == "__main__":
+    setup_logging()
     main()

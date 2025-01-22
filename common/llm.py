@@ -13,12 +13,9 @@ _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
 from common.basics import PromptBuilder
-from common.utils import colorstring, load_config
+from common.utils import colorstring, cprint, load_config, setup_logging
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logger = logging.getLogger(__name__)
 
 
 class LanguageModel(ABC):
@@ -53,7 +50,7 @@ class LanguageModel(ABC):
             (openai.APIError, httpx.ReadTimeout, httpx.ConnectTimeout)
         ),  # Retry on API errors or network timeouts
         before_sleep=tenacity.before_sleep_log(
-            logging.getLogger(), logging.WARNING
+            logger, logging.WARNING
         ),  # Log before retrying
         reraise=True,
     )
@@ -84,7 +81,7 @@ class LanguageModel(ABC):
                 complete_response = ""
                 for chunk in response:
                     chunk_text = chunk.choices[0].text
-                    print(colorstring(chunk_text, "white"), end="", flush=True)
+                    cprint(chunk_text, "white", end="", flush=True)
                     complete_response += chunk_text
                 print()  # Add a newline after the response
                 return complete_response.strip()
@@ -112,7 +109,7 @@ class LanguageModel(ABC):
                 for chunk in response:
                     chunk_content = chunk.choices[0].delta.content
                     if chunk_content:
-                        print(colorstring(chunk_content, "white"), end="", flush=True)
+                        cprint(chunk_content, "white", end="", flush=True)
                         complete_response += chunk_content
                 print()  # Add a newline after the response
                 return complete_response.strip()
@@ -129,7 +126,7 @@ class LanguageModel(ABC):
             (openai.APIError, httpx.ReadTimeout, httpx.ConnectTimeout)
         ),  # Retry on API errors or network timeouts
         before_sleep=tenacity.before_sleep_log(
-            logging.getLogger(), logging.WARNING
+            logger, logging.WARNING
         ),  # Log before retrying
         reraise=True,
     )
@@ -163,7 +160,7 @@ class LanguageModel(ABC):
             for chunk in response:
                 chunk_content = chunk.choices[0].delta.content
                 if chunk_content:
-                    print(colorstring(chunk_content, "white"), end="", flush=True)
+                    cprint(chunk_content, "white", end="", flush=True)
                     complete_response += chunk_content
             print()  # Add a newline after the response
             return complete_response.strip()
@@ -182,6 +179,7 @@ if __name__ == "__main__":
         "--config", default="config.yaml", help="Path to the configuration YAML file"
     )
     args = parser.parse_args()
+    setup_logging()
 
     llm_config = load_config(args.config, "llm")
 
@@ -195,4 +193,4 @@ if __name__ == "__main__":
 
     response = llm.query("How are you doing today?")
     if not llm.stream:
-        logging.info(colorstring(response, "white"))
+        logger.info(colorstring(response, "white"))

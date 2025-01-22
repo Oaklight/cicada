@@ -8,12 +8,9 @@ sys.path.extend([_current_dir, _parent_dir])
 
 from common import vlm
 from common.basics import PromptBuilder
-from common.utils import colorstring
+from common.utils import colorstring, cprint, setup_logging
 
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+logger = logging.getLogger(__name__)
 
 
 class FeedbackJudge(vlm.VisionLanguageModel):
@@ -93,9 +90,7 @@ class FeedbackJudge(vlm.VisionLanguageModel):
 
         # Query the LLM
         response = self.query_with_promptbuilder(pb)
-        logging.info(
-            colorstring(f"Feedback Judge determines that:\n{response}", "cyan")
-        )
+        logger.info(colorstring(f"Feedback Judge determines that:\n{response}", "cyan"))
 
         # Parse the Markdown-formatted response
         achieved = (

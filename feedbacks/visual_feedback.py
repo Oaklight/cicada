@@ -10,12 +10,16 @@ sys.path.extend([_current_dir, _parent_dir])
 
 from common import vlm
 from common.basics import PromptBuilder
-from common.utils import colorstring, load_config, load_prompts, parse_design_goal
-
-# Configure logging
-logging.basicConfig(
-    level=logging.DEBUG, format="%(asctime)s - %(levelname)s - %(message)s"
+from common.utils import (
+    colorstring,
+    cprint,
+    load_config,
+    load_prompts,
+    parse_design_goal,
+    setup_logging,
 )
+
+logger = logging.getLogger(__name__)
 
 
 class VisualFeedback(vlm.VisionLanguageModel):
@@ -132,7 +136,7 @@ def _main():
     )
 
     # Print the feedback
-    print(colorstring(feedback, "white"))
+    cprint(feedback, "white")
 
 
 if __name__ == "__main__":

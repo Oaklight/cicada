@@ -1,11 +1,12 @@
 import argparse
+import json
 import logging
 import os
 import sys
 import uuid
-from typing import List, Literal, Optional
+from typing import List, Literal
 
-from pydantic import BaseModel
+from trimesh import load_mesh
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
@@ -22,10 +23,10 @@ from common.utils import (
     load_config,
     load_prompts,
 )
+from describe.describer_v2 import Describer
 from feedbacks.feedback_judge import FeedbackJudge
 from feedbacks.visual_feedback import VisualFeedback
-from geometry_pipeline.snapshots import generate_snapshots
-from describe.describer_v2 import Describer
+from geometry_pipeline.snapshots import generate_snapshots, preview_mesh_interactively
 
 logging.basicConfig(level=logging.INFO)
 
@@ -60,10 +61,22 @@ class CodeExecutionLoop:
         max_iterations: int = 10,
         stop_threshold: float = 0.8,
     ):
+        # step 0: prepare output directory
+        os.makedirs(output_dir, exist_ok=True)
+
         # Step 1: Refine the design goal using the Describer
         logging.info("START [refine_design_goal]")
         refined_design_goal = self._refine_design_goal(design_goal)
         logging.info("DONE [refine_design_goal]")
+
+        # Save initial design goal and refined design goal to output directory
+        self._save_design_goal(
+            design_goal, os.path.join(output_dir, "initial_design_goal.json")
+        )
+        self._save_design_goal(
+            refined_design_goal,
+            os.path.join(output_dir, "refined_design_goal.json"),
+        )
 
         iteration = 0
         best_code = None
@@ -73,6 +86,10 @@ class CodeExecutionLoop:
 
         # Step 2: Proceed with the code generation and execution loop using the refined design goal
         while iteration < max_iterations:
+            # Create iteration-specific directory
+            iteration_dir = os.path.join(output_dir, f"iteration_{iteration + 1}")
+            os.makedirs(iteration_dir, exist_ok=True)
+
             # generate_executable_code
             logging.info("START [generate_executable_code]")
             generated_code, coding_plan = self._generate_executable_code(
@@ -92,10 +109,15 @@ class CodeExecutionLoop:
                 iteration += 1
                 continue
 
+            # Save generated code
+            self.code_generator.save_code_to_file(
+                generated_code, os.path.join(iteration_dir, "code.py")
+            )
+
             # render_from_code
             logging.info("START [render_from_code]")
             is_success, messages, render_dir = self._render_from_code(
-                generated_code, output_dir, format="stl"
+                generated_code, iteration_dir, format="stl"
             )
             logging.info("DONE [render_from_code]")
             if not is_success:
@@ -107,6 +129,9 @@ class CodeExecutionLoop:
                 )
                 iteration += 1
                 continue
+            else:
+                # Preview the mesh interactively after successful render
+                self._preview_mesh(render_dir)
 
             # get_visual_feedback
             logging.info("START [get_visual_feedback]")
@@ -122,6 +147,10 @@ class CodeExecutionLoop:
                 )
                 iteration += 1
                 continue
+
+            # Save visual feedback
+            with open(os.path.join(iteration_dir, "visual_feedback.txt"), "w") as f:
+                f.write(visual_feedback)
 
             # Check if the current feedback is better than the best feedback so far
             logging.info("START [check_feedback]")
@@ -252,10 +281,8 @@ class CodeExecutionLoop:
         Patches the provided code with an export function, executes the code, and saves the output.
 
         This method takes the generated code, patches it to include an export function based on the specified format,
-        and then executes the patched code to generate the output files. The output files are saved in a uniquely named
-        directory within the specified output path. Both the original and patched versions of the code are saved for
-        reference. The method returns the execution status, any messages from the execution process, and the path to
-        the output directory.
+        and then executes the patched code to generate the output files. The output files are saved in the specified
+        output directory. Both the original and patched versions of the code are saved for reference.
 
         Args:
             code (str): The code to be executed.
@@ -268,25 +295,26 @@ class CodeExecutionLoop:
                 - A message or error from the execution process.
                 - The path to the directory where the output files are saved.
         """
-        random_name = f"render_{str(uuid.uuid4())[:8]}"
-        absolute_output_dir = os.path.abspath(output_dir)
-        render_dir = os.path.join(absolute_output_dir, random_name)
-        os.makedirs(render_dir, exist_ok=True)
+        # Ensure the output directory exists
+        os.makedirs(output_dir, exist_ok=True)
 
-        # patch the code with export function
+        # Patch the code with export function
+        # code_with_export, _ = self.code_generator.patch_code_to_export(
+        #     code=code, format=format, target_output_dir= os.path.abspath(output_dir)
+        # )
         code_with_export, _ = self.code_generator.patch_code_to_export(
-            code=code, format=format, target_output_dir=render_dir
+            code=code, format=format
         )
 
-        # save both code versions
-        self.code_generator.save_code_to_file(code, os.path.join(render_dir, "code.py"))
+        # Save both code versions
+        self.code_generator.save_code_to_file(code, os.path.join(output_dir, "code.py"))
         self.code_generator.save_code_to_file(
-            code_with_export, os.path.join(render_dir, "code_with_export.py")
+            code_with_export, os.path.join(output_dir, "code_with_export.py")
         )
 
-        # execute the code
+        # Execute the code
         is_valid, messages = self.code_executor.execute_and_save(
-            code_with_export, render_dir
+            code_with_export, output_dir
         )
 
         if not is_valid:
@@ -298,7 +326,36 @@ class CodeExecutionLoop:
                 colorstring(f"Code is valid during export: {messages}", "bright_blue")
             )
 
-        return is_valid, messages, render_dir
+        return is_valid, messages, output_dir
+
+    def _preview_mesh(self, render_dir: str) -> None:
+        """
+        Preview the rendered mesh interactively.
+
+        Args:
+            render_dir (str): The directory containing the rendered mesh file.
+        """
+        # Find the rendered mesh file
+        rendered_obj_path = find_files_with_extensions(
+            render_dir, ["stl", "step", "obj"], return_all=False
+        )
+
+        if rendered_obj_path is None:
+            logging.error("No rendered object found in the render path.")
+            return
+
+        # Load the mesh
+        mesh = load_mesh(rendered_obj_path)
+
+        # Preview the mesh interactively
+        preview_mesh_interactively(
+            mesh,
+            direction="front",
+            reaxis_gravity=True,
+            mesh_color=[0, 102, 204],  # Example color
+        )
+
+    # ... (existing code)
 
     def _generate_executable_code(
         self,
@@ -432,52 +489,106 @@ class CodeExecutionLoop:
             colorstring(f"Marked iteration {iteration_id} as runnable.", "bright_blue")
         )
 
+    def _save_design_goal(self, design_goal: DesignGoal, file_path: str) -> None:
+        """
+        Save the design goal (text and reference images) as a JSON file.
 
-# Usage example
-if __name__ == "__main__":
+        Args:
+            design_goal (DesignGoal): The design goal to save.
+            file_path (str): The path to save the JSON file.
+        """
+        design_goal_data = {
+            "text": design_goal.text,
+            "images": design_goal.images if hasattr(design_goal, "images") else [],
+        }
+        with open(file_path, "w") as f:
+            json.dump(design_goal_data, f, indent=4)
+        logging.info(f"Design goal saved to {file_path}")
+
+
+def parse_args():
+    """
+    Parse command-line arguments.
+
+    Returns:
+        argparse.Namespace: Parsed arguments.
+    """
     parser = argparse.ArgumentParser(description="Assistive Large Language Model")
     parser.add_argument(
         "--config",
         default="config",
-        help="Path to the configuration YAML file or folder",
+        help="Path to the configuration YAML folder",
     )
     parser.add_argument(
         "--prompts",
         default="prompts",
-        help="Path to the prompts YAML file or folder",
+        help="Path to the prompts YAML folder",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "design_task",
+        help="Description of the design task (e.g., 'create a simple skateboard')",
+    )
+    parser.add_argument(
+        "-img",
+        "--ref_images",
+        type=str,
+        default=None,
+        help="Paths to reference images for the design",
+    )
+    parser.add_argument(
+        "--output-dir",
+        default="./design_task_results",
+        help="Directory to save the results of the design task",
+    )
+    return parser.parse_args()
 
+
+def init_models(config_path: str, prompts_path: str):
+    """
+    Initialize all models and components required for the code execution loop.
+
+    Args:
+        config_path (str): Path to the configuration YAML file or folder.
+        prompts_path (str): Path to the prompts YAML file or folder.
+
+    Returns:
+        tuple: A tuple containing the initialized components:
+            - describer: Describer instance
+            - code_generator: CodeGenerator instance
+            - code_master: CodeGenerator instance (optional)
+            - visual_feedback: VisualFeedback instance
+            - feedback_judge: FeedbackJudge instance
+    """
     # ===== describer agent =====
-    describer_config = load_config(args.config, "describe-vlm")
+    describer_config = load_config(config_path, "describe-vlm")
     describer = Describer(
         describer_config["api_key"],
         describer_config.get("api_base_url"),
         describer_config.get("model_name"),
         describer_config.get("org_id"),
-        load_prompts(args.prompts, "describe-vlm"),
+        load_prompts(prompts_path, "describe-vlm"),
         **describer_config.get("model_kwargs", {}),
     )
 
     # ===== coding agents =====
-    code_llm_config = load_config(args.config, "code-llm")
+    code_llm_config = load_config(config_path, "code-llm")
     code_generator = CodeGenerator(
         code_llm_config["api_key"],
         code_llm_config.get("api_base_url"),
         code_llm_config.get("model_name"),
         code_llm_config.get("org_id"),
-        load_prompts(args.prompts, "code-llm"),
+        load_prompts(prompts_path, "code-llm"),
         **code_llm_config.get("model_kwargs", {}),
     )
 
-    master_code_llm_config = load_config(args.config, "master-code-llm")
+    master_code_llm_config = load_config(config_path, "master-code-llm")
     code_master = (
         CodeGenerator(
             master_code_llm_config["api_key"],
             master_code_llm_config.get("api_base_url"),
             master_code_llm_config.get("model_name"),
             master_code_llm_config.get("org_id"),
-            load_prompts(args.prompts, "code-llm"),
+            load_prompts(prompts_path, "code-llm"),
             **master_code_llm_config.get("model_kwargs", {}),
         )
         if master_code_llm_config
@@ -485,25 +596,40 @@ if __name__ == "__main__":
     )
 
     # ===== visual feedback =====
-    visual_feedback_config = load_config(args.config, "visual_feedback")
-
+    visual_feedback_config = load_config(config_path, "visual_feedback")
     visual_feedback = VisualFeedback(
         visual_feedback_config["api_key"],
         visual_feedback_config.get("api_base_url"),
         visual_feedback_config.get("model_name"),
         visual_feedback_config.get("org_id"),
-        load_prompts(args.prompts, "visual_feedback"),
+        load_prompts(prompts_path, "visual_feedback"),
         **visual_feedback_config.get("model_kwargs", {}),
     )
 
-    feedback_judge_config = load_config(args.config, "feedback_judge")
+    # ===== feedback judge =====
+    feedback_judge_config = load_config(config_path, "feedback_judge")
     feedback_judge = FeedbackJudge(
         feedback_judge_config["api_key"],
         feedback_judge_config.get("api_base_url"),
         feedback_judge_config.get("model_name"),
         feedback_judge_config.get("org_id"),
-        load_prompts(args.prompts, "feedback_judge"),
+        load_prompts(prompts_path, "feedback_judge"),
         **feedback_judge_config.get("model_kwargs", {}),
+    )
+
+    return describer, code_generator, code_master, visual_feedback, feedback_judge
+
+
+def main():
+    """
+    Main function to run the code execution loop.
+    """
+    # Parse command-line arguments
+    args = parse_args()
+
+    # Initialize models
+    describer, code_generator, code_master, visual_feedback, feedback_judge = (
+        init_models(args.config, args.prompts)
     )
 
     # ===== code execution loop =====
@@ -517,10 +643,15 @@ if __name__ == "__main__":
         feedback_judge=feedback_judge,
     )
 
-    # description = "Create a simple table design, flat circular top, with 4 straight legs. Each leg is about 45 unit long with circular cross section. and the circular top has a radius of 60 units. This is a big table."
-    description = "create a simple skateboard"
+    # Create the design goal
+    design_goal = DesignGoal(args.design_task, args.ref_images)
 
-    design_goal = DesignGoal(description)
-    output_dir = "./design_task_1"
+    # Use the output directory specified in the command-line arguments
+    output_dir = args.output_dir
 
+    # Run the code execution loop
     code_execution_loop.run(design_goal, output_dir)
+
+
+if __name__ == "__main__":
+    main()

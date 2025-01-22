@@ -2,7 +2,7 @@ import argparse
 import logging
 import os
 import sys
-from typing import List
+from typing import Any, Dict, List
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
@@ -14,6 +14,7 @@ from common.utils import (
     colorstring,
     load_config,
     load_prompts,
+    parse_design_goal,
 )
 
 # Configure logging
@@ -78,16 +79,24 @@ class VisualFeedback(vlm.VisionLanguageModel):
         return feedback
 
 
-def _main():
+def parse_args() -> Dict[str, Any]:
+    """
+    Parse command line arguments.
+
+    Returns:
+        Dict[str, Any]: Parsed arguments.
+    """
     parser = argparse.ArgumentParser(description="Visual Feedback Model")
     parser.add_argument(
         "--config", default="config.yaml", help="Path to the configuration YAML file"
     )
     parser.add_argument(
-        "--prompts", default="prompts.yaml", help="Path to the prompts YAML file"
+        "--prompts", default="prompts", help="Path to the prompts YAML file or folder"
     )
     parser.add_argument(
-        "--design_goal", required=True, help="Text description of the design goal"
+        "--design_goal",
+        required=True,
+        help="Text description of the design goal or path to a JSON file containing the design goal",
     )
     parser.add_argument(
         "--reference_images", help="Path to the folder containing reference images"
@@ -97,10 +106,17 @@ def _main():
         required=True,
         help="Path to the folder containing rendered object images",
     )
-    args = parser.parse_args()
+    return parser.parse_args()
 
-    config = load_config(args.config, "visual_feedback")
-    prompt_templates = load_prompts(args.prompts, "visual_feedback")
+
+def _main():
+    """
+    Main function to run the Visual Feedback Model based on command line arguments.
+    """
+    args = parse_args()
+
+    config = load_config(args["config"], "visual_feedback")
+    prompt_templates = load_prompts(args["prompts"], "visual_feedback")
 
     # Initialize the VisualFeedback
     visual_feedback = VisualFeedback(
@@ -112,9 +128,12 @@ def _main():
         **config.get("model_kwargs", {}),
     )
 
+    # Parse the design goal
+    design_goal = parse_design_goal(args["design_goal"])
+
     # Generate feedback
     feedback = visual_feedback.generate_feedback_paragraph(
-        args.design_goal, args.reference_images, args.rendered_images
+        design_goal, args["reference_images"], args["rendered_images"]
     )
 
     # Print the feedback

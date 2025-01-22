@@ -3,7 +3,7 @@ import json
 import logging
 import os
 import sys
-from typing import List
+from typing import Any, Dict, List
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
@@ -17,8 +17,8 @@ from common.utils import (
     image_to_base64,
     load_config,
     load_prompts,
+    parse_design_goal,
 )
-
 
 # Configure logging
 logging.basicConfig(
@@ -176,16 +176,19 @@ class VisualQA(vlm.VisionLanguageModel):
         return {"questions": questions, "answers": answers}
 
 
-def _main():
+def parse_args() -> Dict[str, Any]:
     """
-    Main function to run the Visual QA Model based on command line arguments.
+    Parse command line arguments.
+
+    Returns:
+        Dict[str, Any]: Parsed arguments.
     """
     parser = argparse.ArgumentParser(description="Visual QA Model")
     parser.add_argument(
         "--config", default="config.yaml", help="Path to the configuration YAML file"
     )
     parser.add_argument(
-        "--prompts", default="prompts.yaml", help="Path to the prompts YAML file"
+        "--prompts", default="prompts", help="Path to the prompts YAML file or folder"
     )
     parser.add_argument(
         "--mode",
@@ -193,7 +196,10 @@ def _main():
         choices=["question_generation", "answer_generation", "automated_qa"],
         help="Operating mode: question_generation, answer_generation, or automated_qa",
     )
-    parser.add_argument("--design_goal", help="Text description of the design goal")
+    parser.add_argument(
+        "--design_goal",
+        help="Text description of the design goal or path to a JSON file containing the design goal",
+    )
     parser.add_argument("--questions", nargs="+", help="List of questions to answer")
     parser.add_argument(
         "--reference_images", help="Path to the folder containing reference images"
@@ -204,10 +210,17 @@ def _main():
     parser.add_argument(
         "--num_questions", type=int, default=5, help="Number of questions to generate"
     )
-    args = parser.parse_args()
+    return vars(parser.parse_args())
 
-    config = load_config(args.config, "visual_qa")
-    prompt_templates = load_prompts(args.prompts, "visual_qa")
+
+def _main():
+    """
+    Main function to run the Visual QA Model based on command line arguments.
+    """
+    args = parse_args()
+
+    config = load_config(args["config"], "visual_qa")
+    prompt_templates = load_prompts(args["prompts"], "visual_qa")
 
     visual_qa = VisualQA(
         config["api_key"],
@@ -218,36 +231,41 @@ def _main():
         **config.get("model_kwargs", {}),
     )
 
-    if args.mode == "question_generation":
-        if not args.design_goal:
+    if args["mode"] == "question_generation":
+        if not args["design_goal"]:
             raise ValueError("Design goal is required for question generation.")
+        design_goal = parse_design_goal(args["design_goal"])
         questions = visual_qa.generate_questions(
-            design_goal=args.design_goal,
-            reference_images=args.reference_images,
-            num_questions=args.num_questions,
+            design_goal=design_goal,
+            reference_images=args["reference_images"],
+            num_questions=args["num_questions"],
         )
         print(colorstring(json.dumps(questions, indent=4), "cyan"))
 
-    elif args.mode == "answer_generation":
-        if not args.questions:
+    elif args["mode"] == "answer_generation":
+        if not args["questions"]:
             raise ValueError("Questions are required for answer generation.")
-        questions = args.questions
+        questions = args["questions"]
+        design_goal = (
+            parse_design_goal(args["design_goal"]) if args["design_goal"] else ""
+        )
         answers = visual_qa.generate_answers(
-            design_goal=args.design_goal,
+            design_goal=design_goal,
             questions=questions,
-            reference_images=args.reference_images,
-            rendered_images=args.rendered_images,
+            reference_images=args["reference_images"],
+            rendered_images=args["rendered_images"],
         )
         print(colorstring(json.dumps(answers, indent=4), "cyan"))
 
-    elif args.mode == "automated_qa":
-        if not args.design_goal:
+    elif args["mode"] == "automated_qa":
+        if not args["design_goal"]:
             raise ValueError("Design goal is required for automated QA.")
+        design_goal = parse_design_goal(args["design_goal"])
         qa_result = visual_qa.automated_qa(
-            design_goal=args.design_goal,
-            reference_images=args.reference_images,
-            rendered_images=args.rendered_images,
-            num_questions=args.num_questions,
+            design_goal=design_goal,
+            reference_images=args["reference_images"],
+            rendered_images=args["rendered_images"],
+            num_questions=args["num_questions"],
         )
         print(colorstring(json.dumps(qa_result, indent=4), "cyan"))
 

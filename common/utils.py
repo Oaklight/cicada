@@ -1,5 +1,6 @@
 import base64
 import io
+import json
 import os
 from typing import Any, Dict, Iterable, List, Optional
 
@@ -372,6 +373,68 @@ def find_files_with_extensions(
     else:
         # Return None if no matching file is found
         return None
+
+
+def extract_section_markdown(text: str, heading: str) -> str:
+    """
+    Extracts content from a markdown text under the specified heading.
+    """
+    lines = text.split("\n")
+    content = []
+    capture = False
+    for line in lines:
+        line = line.strip()
+        if line.startswith(f"#{heading}"):
+            capture = True
+            continue
+        if line.startswith("#"):
+            capture = False
+            continue
+        if capture:
+            content.append(line)
+    return "\n".join(content).strip()
+
+
+def parse_json_response(response: str) -> Dict[str, Any]:
+    """Parse JSON response from VLM, handling potential errors"""
+    import json
+
+    try:
+        # Extract JSON content from response
+        json_start = response.find("{")
+        json_end = response.rfind("}") + 1
+        json_str = response[json_start:json_end]
+
+        return json.loads(json_str)
+    except json.JSONDecodeError as e:
+        logging.error(f"Failed to parse JSON response: {str(e)}")
+        logging.debug(f"Original response: {response}")
+        return {}
+    except Exception as e:
+        logging.error(f"Unexpected error parsing response: {str(e)}")
+        return {}
+
+
+def parse_design_goal(design_goal_input: str) -> str:
+    """
+    Parse the design goal input, which can be either a JSON file or plain text.
+    If it's a JSON file, extract the 'text' field.
+
+    Args:
+        design_goal_input (str): Path to a JSON file or plain text.
+
+    Returns:
+        str: The design goal text.
+    """
+    if os.path.isfile(design_goal_input):
+        with open(design_goal_input, "r") as f:
+            try:
+                data = json.load(f)
+                return data.get("text", "")
+            except json.JSONDecodeError:
+                logging.error("The provided file is not a valid JSON.")
+                raise json.JSONDecodeError("The provided file is not a valid JSON.")
+    return design_goal_input
 
 
 if __name__ == "__main__":

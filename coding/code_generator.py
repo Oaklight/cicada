@@ -12,10 +12,8 @@ _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
-from coding.utils import extract_section_markdown
-
 from common import llm
-from common.utils import load_config, load_prompts
+from common.utils import extract_section_markdown, load_config, load_prompts
 
 
 class CodeGenerator(llm.LanguageModel):

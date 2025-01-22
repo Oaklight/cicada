@@ -15,6 +15,7 @@ from common.utils import (
     colorstring,
     load_config,
     load_prompts,
+    parse_json_response,
 )
 
 # Configure logging
@@ -44,25 +45,6 @@ class Describer(vlm.VisionLanguageModel):
         )
         self.reverse_engineer_prompt = prompt_templates.get("reverse_engineer", {})
         self.featurize_design_prompt = prompt_templates.get("featurize_design", {})
-
-    def _parse_json_response(self, response: str) -> Dict[str, Any]:
-        """Parse JSON response from VLM, handling potential errors"""
-        import json
-
-        try:
-            # Extract JSON content from response
-            json_start = response.find("{")
-            json_end = response.rfind("}") + 1
-            json_str = response[json_start:json_end]
-
-            return json.loads(json_str)
-        except json.JSONDecodeError as e:
-            logging.error(f"Failed to parse JSON response: {str(e)}")
-            logging.debug(f"Original response: {response}")
-            return {}
-        except Exception as e:
-            logging.error(f"Unexpected error parsing response: {str(e)}")
-            return {}
 
     def featurize_design_goal_with_confidence(
         self, design_goal: DesignGoal, user_feedback: str = None
@@ -95,7 +77,7 @@ class Describer(vlm.VisionLanguageModel):
         response = self.query_with_promptbuilder(pb)
 
         # Parse the JSON response
-        json_result = self._parse_json_response(response)
+        json_result = parse_json_response(response)
 
         return json_result, response
 
@@ -167,7 +149,7 @@ class Describer(vlm.VisionLanguageModel):
         response = self.query_with_promptbuilder(pb)
 
         # Parse the JSON response
-        json_result = self._parse_json_response(response)
+        json_result = parse_json_response(response)
 
         return json_result, response
 

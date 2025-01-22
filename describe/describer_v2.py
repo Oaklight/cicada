@@ -92,17 +92,17 @@ class Describer(vlm.VisionLanguageModel):
             return ("confirmed", "Design confirmed", current_design)
 
         # Generate a new design based on the user's feedback
-        updated_design_result, _ = self.featurize_design_goal_with_confidence(
+        updated_design_text, _ = self.featurize_design_goal_with_confidence(
             current_design, user_response
         )
 
         # Ensure the updated design is properly created
         updated_design = DesignGoal(
-            updated_design_result.get("current_design", ""), current_design.images
+            updated_design_text.get("current_design", ""), current_design.images
         )
 
         # Determine the status based on whether human validation is needed
-        if updated_design_result.get("needs_human_validation", True):
+        if updated_design_text.get("needs_human_validation", True):
             return ("needs_update", "Design updated based on feedback", updated_design)
         else:
             return ("confirmed", "Design updated and validated", updated_design)
@@ -169,33 +169,39 @@ class Describer(vlm.VisionLanguageModel):
                 logging.debug(f"Current Design: {current_design.text}")
 
                 # Generate VLM response and parse the JSON result
-                result, response = self.featurize_design_goal_with_confidence(
-                    current_design
+                updated_design_result, response = (
+                    self.featurize_design_goal_with_confidence(current_design)
                 )
-                logging.debug(f"Iteration {iteration} Response:\n{response}")
+                current_design_text = updated_design_result.get(
+                    "current_design", current_design.text
+                )
+                current_design = DesignGoal(current_design_text, current_design.images)
 
                 # Display the proposed design to the user
                 print(f"\n{'='*40}\nIteration {iteration}/{max_iterations}")
-                print(f"Proposed Design:\n{result.get('current_design', '')}")
+                print(f"Proposed Design:\n{current_design_text}")
 
-                if result.get("needs_human_validation", True):
-                    print("\nThe system requires your feedback or confirmation.")
-                    user_input = input(
-                        "Type 'confirm' to accept or provide feedback (or 'exit' to quit): "
-                    ).strip()
-
-                    if user_input.lower() == "exit":
-                        logging.info("Exiting feedback loop by user request")
-                        return current_design
+                if updated_design_result.get("needs_human_validation", True):
+                    print(
+                        colorstring(
+                            "\nThe system requires your feedback or confirmation.",
+                            "bright_yellow",
+                        )
+                    )
                 else:
-                    print("\nThe system is confident in this solution.")
-                    user_input = input(
-                        "Type 'confirm' to accept or provide feedback (or 'exit' to quit): "
-                    ).strip()
+                    print(
+                        colorstring(
+                            "\nThe system is confident in this solution.", "bright_blue"
+                        )
+                    )
 
-                    if user_input.lower() == "exit":
-                        logging.info("Exiting feedback loop by user request")
-                        return current_design
+                user_input = input(
+                    "Type 'confirm' to accept or provide feedback (or 'exit' to quit): "
+                ).strip()
+
+                if user_input.lower() == "exit":
+                    logging.info("Exiting feedback loop by user request")
+                    return current_design
 
                 # Process feedback
                 status, message, updated_design = self.handle_user_feedback(
@@ -226,7 +232,7 @@ class Describer(vlm.VisionLanguageModel):
 
             except Exception as e:
                 logging.error(f"Iteration {iteration} failed: {e}")
-                raise
+                raise e
 
         logging.warning(f"Maximum iterations ({max_iterations}) reached")
         return current_design

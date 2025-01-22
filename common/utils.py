@@ -8,7 +8,6 @@ import yaml
 from PIL import Image
 
 
-# a class called DesignGoal, with text and images field
 class DesignGoal:
     """Represents a design goal, which can be defined by either text, images, or both.
 
@@ -36,7 +35,7 @@ class DesignGoal:
     def __init__(
         self,
         text: Optional[str] = None,
-        images: Optional[list[str]] = None,
+        images: Optional[List[str]] = None,
         extra: Optional[Dict[str, Any]] = None,
     ):
         # Validate that at least one of text or images is provided
@@ -52,6 +51,55 @@ class DesignGoal:
         return (
             f"DesignGoal(text='{self.text}', images={self.images}, extra={self.extra})"
         )
+
+    def to_dict(self) -> Dict[str, Any]:
+        """Convert the DesignGoal object to a dictionary.
+
+        Returns:
+            Dict[str, Any]: A dictionary representation of the DesignGoal object.
+        """
+        return {
+            "text": self.text,
+            "images": self.images,
+            "extra": self.extra,
+        }
+
+    def to_json(self) -> str:
+        """Convert the DesignGoal object to a JSON string.
+
+        Returns:
+            str: A JSON string representation of the DesignGoal object.
+        """
+        return json.dumps(self.to_dict(), indent=4)
+
+    @classmethod
+    def from_dict(cls, data: Dict[str, Any]) -> "DesignGoal":
+        """Create a DesignGoal object from a dictionary.
+
+        Args:
+            data (Dict[str, Any]): A dictionary containing the design goal data.
+
+        Returns:
+            DesignGoal: A DesignGoal object.
+        """
+        return cls(
+            text=data.get("text"),
+            images=data.get("images"),
+            extra=data.get("extra"),
+        )
+
+    @classmethod
+    def from_json(cls, json_str: str) -> "DesignGoal":
+        """Create a DesignGoal object from a JSON string.
+
+        Args:
+            json_str (str): A JSON string containing the design goal data.
+
+        Returns:
+            DesignGoal: A DesignGoal object.
+        """
+        data = json.loads(json_str)
+        return cls.from_dict(data)
 
 
 class PromptBuilder:

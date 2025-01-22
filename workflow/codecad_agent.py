@@ -65,15 +65,16 @@ class CodeExecutionLoop:
         # step 0: prepare output directory
         os.makedirs(output_dir, exist_ok=True)
 
+        # Save initial design goal and refined design goal to output directory
+        self._save_design_goal(
+            design_goal,
+            os.path.join(output_dir, "initial_design_goal.json"),
+        )
+
         # Step 1: Refine the design goal using the Describer
         logging.info("START [refine_design_goal]")
         refined_design_goal = self._refine_design_goal(design_goal)
         logging.info("DONE [refine_design_goal]")
-
-        # Save initial design goal and refined design goal to output directory
-        self._save_design_goal(
-            design_goal, os.path.join(output_dir, "initial_design_goal.json")
-        )
         self._save_design_goal(
             refined_design_goal,
             os.path.join(output_dir, "refined_design_goal.json"),
@@ -524,13 +525,15 @@ class CodeExecutionLoop:
             design_goal (DesignGoal): The design goal to save.
             file_path (str): The path to save the JSON file.
         """
-        design_goal_data = {
-            "text": design_goal.text,
-            "images": design_goal.images if hasattr(design_goal, "images") else [],
-        }
-        with open(file_path, "w") as f:
-            json.dump(design_goal_data, f, indent=4)
-        logging.info(f"Design goal saved to {file_path}")
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        try:
+            with open(file_path, "w") as f:
+                f.write(design_goal.to_json())
+            logging.info(f"Design goal saved to {file_path}")
+        except Exception as e:
+            logging.error(f"Failed to save design goal to {file_path}: {e}")
+            print(colorstring(design_goal, "bright_yellow"))
+            raise e
 
 
 def parse_args():

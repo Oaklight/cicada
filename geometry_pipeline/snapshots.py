@@ -223,18 +223,6 @@ def capture_snapshots(
     return snapshot_paths
 
 
-def recenter_and_reaxis_mesh_in_scene(mesh: trimesh.Trimesh) -> trimesh.Trimesh:
-    """Reaxis and recenter the mesh using the `recenter_and_reaxis_mesh` function.
-
-    :param mesh: The input mesh.
-    :type mesh: trimesh.Trimesh
-    :return: The transformed mesh.
-    :rtype: trimesh.Trimesh
-    """
-    transformed_mesh, _ = convert.recenter_and_reaxis_mesh(mesh)
-    return transformed_mesh
-
-
 def preview_mesh_interactively(
     mesh: trimesh.Trimesh,
     direction: str = "front",
@@ -255,7 +243,7 @@ def preview_mesh_interactively(
     :rtype: SceneViewer
     """
     if reaxis_gravity:
-        mesh = recenter_and_reaxis_mesh_in_scene(mesh)
+        mesh, _ = convert.recenter_and_reaxis_mesh(mesh)
         logger.info("Mesh reoriented and recentered with gravity.")
 
     if mesh_color is not None:
@@ -273,7 +261,7 @@ def generate_snapshots(
     resolution: List[int] = [512, 512],
     direction: str | Literal["common", "box", "omni"] = "common",
     preview: bool = False,
-    mesh_color: Optional[List[int]] = None,
+    mesh_color: List[int] = [0, 102, 204],
     reaxis_gravity: bool = False,
     **kwargs,
 ) -> List[str]:
@@ -324,7 +312,7 @@ def generate_snapshots(
     logger.info(f"Loaded mesh from {obj_file}")
 
     if reaxis_gravity:
-        mesh = recenter_and_reaxis_mesh_in_scene(mesh)
+        mesh, _ = convert.recenter_and_reaxis_mesh(mesh)
         logger.info("Mesh reoriented and recentered with gravity.")
 
     if mesh_color is not None:
@@ -437,7 +425,7 @@ if __name__ == "__main__":
             resolution=args.resolution,
             direction=args.direction,
             preview=args.preview,
-            mesh_color=(0, 102, 204),
+            mesh_color=(0, 102, 204),  # blue
             reaxis_gravity=args.reaxis_gravity,
         )
 

@@ -93,34 +93,6 @@ class Describer(vlm.VisionLanguageModel):
 
         return json_result, response
 
-    def handle_user_feedback(
-        self, current_design: DesignGoal, user_response: str = None
-    ) -> Tuple[str, str, DesignGoal]:
-        """
-        Handle user feedback by generating a new design or confirming the current one.
-        Returns a tuple of (status, message, updated_design).
-        """
-        if not user_response:
-            pass
-        elif user_response.lower() == "confirm":
-            return ("confirmed", "Design confirmed", current_design)
-
-        # Generate a new design based on the user's feedback
-        updated_design_text, _ = self.featurize_design_goal_with_confidence(
-            current_design, user_response
-        )
-
-        # Ensure the updated design is properly created
-        updated_design = DesignGoal(
-            updated_design_text.get("current_design", ""), current_design.images
-        )
-
-        # Determine the status based on whether human validation is needed
-        if updated_design_text.get("needs_human_validation", True):
-            return ("needs_update", "Design updated based on feedback", updated_design)
-        else:
-            return ("confirmed", "Design updated and validated", updated_design)
-
     def decompose_design(self, design_goal: DesignGoal) -> Tuple[Dict[str, Any], str]:
         """
         Decompose the design into its constituent parts, specifying building methods and geometric details.
@@ -168,7 +140,11 @@ class Describer(vlm.VisionLanguageModel):
         return json_result, response
 
     def design_feedback_loop(
-        self, design: DesignGoal, iteration: int = 1, max_iterations: int = 5
+        self,
+        design: DesignGoal,
+        iteration: int = 1,
+        max_iterations: int = 5,
+        feedback: str = None,
     ) -> DesignGoal:
         """
         Execute the complete design feedback cycle using recursion.
@@ -184,7 +160,10 @@ class Describer(vlm.VisionLanguageModel):
         # Base case: Maximum iterations reached
         if iteration > max_iterations:
             logging.warning(f"Maximum iterations ({max_iterations}) reached")
-            return design
+            # decompose the design and return the result
+            updated_design = self._update_design_with_decomposition(design)
+
+            return updated_design
 
         logging.info(f"Starting iteration {iteration}/{max_iterations}")
         try:
@@ -192,7 +171,7 @@ class Describer(vlm.VisionLanguageModel):
 
             # Generate VLM response and parse the JSON result
             updated_design_result, response = (
-                self.featurize_design_goal_with_confidence(design)
+                self.featurize_design_goal_with_confidence(design, feedback)
             )
             updated_design_text = updated_design_result.get(
                 "current_design", design.text
@@ -254,14 +233,7 @@ class Describer(vlm.VisionLanguageModel):
             elif action == "confirm":
                 # Confirm the design
                 logging.info("Design confirmed. Decomposing the final design...")
-                decomposition_result, _ = self.decompose_design(updated_design)
-                logging.info(f"Decomposition Result:\n{decomposition_result}")
-                print(f"\n{'='*40}\nDecomposition Result:\n{decomposition_result}")
-
-                # Store the decomposition result in design_goal.extra
-                if not hasattr(updated_design, "extra"):
-                    updated_design.extra = {}
-                updated_design.extra["decomposition"] = decomposition_result
+                updated_design = self._update_design_with_decomposition(updated_design)
 
                 return updated_design
 
@@ -274,23 +246,25 @@ class Describer(vlm.VisionLanguageModel):
                     style=custom_style,
                 ).ask()
 
-                # Process feedback and generate a new design
-                updated_design_result, _ = self.featurize_design_goal_with_confidence(
-                    updated_design, feedback
-                )
-                updated_design_text = updated_design_result.get(
-                    "current_design", updated_design.text
-                )
-                updated_design = DesignGoal(updated_design_text, updated_design.images)
-
-                # Recursively call the function with the updated design and incremented iteration
+                # Recursively call the function with the updated design, incremented iteration, and feedback
                 return self.design_feedback_loop(
-                    updated_design, iteration + 1, max_iterations
+                    updated_design, iteration + 1, max_iterations, feedback
                 )
 
         except Exception as e:
             logging.error(f"Iteration {iteration} failed: {e}")
             raise e
+
+    def _update_design_with_decomposition(self, updated_design) -> DesignGoal:
+        decomposition_result, _ = self.decompose_design(updated_design)
+        logging.info(f"Decomposition Result:\n{decomposition_result}")
+        print(f"\n{'='*40}\nDecomposition Result:\n{decomposition_result}")
+
+        # Store the decomposition result in design_goal.extra
+        if not hasattr(updated_design, "extra"):
+            updated_design.extra = {}
+        updated_design.extra["decomposition"] = decomposition_result
+        return updated_design
 
 
 def _main():

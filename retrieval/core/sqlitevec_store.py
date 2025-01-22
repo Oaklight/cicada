@@ -11,7 +11,7 @@ _parent_dir = os.path.dirname(_current_dir)
 _grandparent_dir = os.path.dirname(_parent_dir)
 sys.path.extend([_parent_dir, _grandparent_dir])
 
-from common.utils import colorstring, cprint
+from common.utils import colorstring, cprint, load_config, setup_logging
 from retrieval.core.basics import Document, Embeddings, VectorStore
 
 logger = logging.getLogger(__name__)
@@ -211,7 +211,9 @@ class SQLiteVec(VectorStore):
         finally:
             self._release_connection(connection)
 
-    def similarity_search(self, query: str, k: int = 4) -> List[Document]:
+    def similarity_search(
+        self, query: str, k: int = 4
+    ) -> tuple[List[Document], List[float]]:
         """Perform a similarity search.
 
         Args:
@@ -219,7 +221,7 @@ class SQLiteVec(VectorStore):
             k (int, optional): The number of results to return. Defaults to 4.
 
         Returns:
-            List[Document]: The list of documents that match the query.
+            tuple[List[Document], List[float]]: A tuple containing the list of documents that match the query and their corresponding similarity scores.
 
         Raises:
             Exception: If the similarity search fails.
@@ -238,7 +240,7 @@ class SQLiteVec(VectorStore):
 
     def similarity_search_by_vector(
         self, embedding: List[float], k: int = 4
-    ) -> List[Document]:
+    ) -> tuple[List[Document], List[float]]:
         """Perform a similarity search by vector.
 
         Args:
@@ -246,7 +248,7 @@ class SQLiteVec(VectorStore):
             k (int, optional): The number of results to return. Defaults to 4.
 
         Returns:
-            List[Document]: The list of documents that match the query.
+            tuple[List[Document], List[float]]: A tuple containing the list of documents that match the query and their corresponding similarity scores.
 
         Raises:
             sqlite3.Error: If the similarity search fails.
@@ -265,14 +267,18 @@ class SQLiteVec(VectorStore):
                 """,
                 [self.serialize_f32(embedding), k, k],
             )
-            results = [
-                Document(page_content=row["text"], metadata=json.loads(row["metadata"]))
-                for row in cursor.fetchall()
-            ]
+            results = []
+            scores = []
+            for row in cursor.fetchall():
+                document = Document(
+                    page_content=row["text"], metadata=json.loads(row["metadata"])
+                )
+                results.append(document)
+                scores.append(row["distance"])
             logger.info(
                 colorstring(f"Found {len(results)} results for the query", "cyan")
             )
-            return results
+            return results, scores
         except sqlite3.Error as e:
             logger.error(
                 colorstring(
@@ -305,17 +311,34 @@ class SQLiteVec(VectorStore):
 
 
 def _main():
+    setup_logging()
     """Test the SQLiteVec class with SiliconFlowEmbeddings."""
 
     # Import the SiliconFlowEmbeddings class
     from siliconflow_embeddings import SiliconFlowEmbeddings
     from siliconflow_rerank import SiliconFlowRerank
 
+    embed_config = load_config("config.yaml", "embed")
+
     # Initialize SiliconFlowEmbeddings
     embedding_model = SiliconFlowEmbeddings(
-        api_key="sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc",
-        api_base_url="https://oneapi.service.oaklight.cn/v1",
-        model_name="BAAI/bge-m3",
+        embed_config["api_key"],
+        embed_config.get("api_base_url"),
+        embed_config.get("model_name", "text-embedding-3-small"),
+        embed_config.get("org_id"),
+        **embed_config.get("model_kwargs", {}),
+    )
+
+    rerank_config = load_config("config.yaml", "rerank")
+
+    # Initialize SiliconFlowRerank
+    rerank_model = SiliconFlowRerank(
+        api_key=rerank_config["api_key"],
+        api_base_url=rerank_config.get(
+            "api_base_url", "https://api.siliconflow.cn/v1/"
+        ),
+        model_name=rerank_config.get("model_name", "BAAI/bge-reranker-v2-m3"),
+        **rerank_config.get("model_kwargs", {}),
     )
 
     # Initialize SQLiteVec
@@ -363,15 +386,8 @@ def _main():
 
     for query in queries:
         cprint(f"\nQuery: {query}", "blue")
-        results = sqlite_vec.similarity_search(query, k=10)
-        cprint(f"Similarity search results: {results}", "yellow")
-
-        # Initialize SiliconFlowRerank
-        rerank_model = SiliconFlowRerank(
-            api_key="sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc",
-            api_base_url="https://oneapi.service.oaklight.cn/v1",
-            model_name="BAAI/bge-reranker-v2-m3",
-        )
+        results, scores = sqlite_vec.similarity_search(query, k=10)
+        cprint(f"Similarity search results: {list(zip(results, scores))}", "yellow")
 
         # Rerank the results
         reranked_results = rerank_model.rerank(

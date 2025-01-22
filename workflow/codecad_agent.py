@@ -3,7 +3,8 @@ import json
 import logging
 import os
 import sys
-import uuid
+import tkinter as tk
+from tkinter import simpledialog
 from typing import List, Literal
 
 from trimesh import load_mesh
@@ -131,7 +132,7 @@ class CodeExecutionLoop:
                 continue
             else:
                 # Preview the mesh interactively after successful render
-                self._preview_mesh(render_dir)
+                human_feedback = self._preview_mesh(render_dir)
 
             # get_visual_feedback
             logging.info("START [get_visual_feedback]")
@@ -328,12 +329,16 @@ class CodeExecutionLoop:
 
         return is_valid, messages, output_dir
 
-    def _preview_mesh(self, render_dir: str) -> None:
+    def _preview_mesh(self, render_dir: str) -> str | None:
         """
-        Preview the rendered mesh interactively.
+        Preview the rendered mesh interactively and collect human feedback.
 
         Args:
             render_dir (str): The directory containing the rendered mesh file.
+
+        Returns:
+            str | None: The human feedback provided by the user as a string.
+                    Returns `None` if no feedback is provided or if no rendered object is found.
         """
         # Find the rendered mesh file
         rendered_obj_path = find_files_with_extensions(
@@ -342,7 +347,7 @@ class CodeExecutionLoop:
 
         if rendered_obj_path is None:
             logging.error("No rendered object found in the render path.")
-            return
+            return None
 
         # Load the mesh
         mesh = load_mesh(rendered_obj_path)
@@ -355,7 +360,29 @@ class CodeExecutionLoop:
             mesh_color=[0, 102, 204],  # Example color
         )
 
-    # ... (existing code)
+        # Create a simple GUI to collect human feedback
+        root = tk.Tk()
+        root.withdraw()  # Hide the root window
+
+        # Show an input dialog to collect feedback
+        feedback = simpledialog.askstring(
+            "Feedback", "Please provide your feedback on the mesh:"
+        )
+
+        if feedback:
+            logging.info(f"Human feedback received: {feedback}")
+            # Process the feedback as needed
+            # For example, you can save it to a file or use it in further processing
+            feedback_file_path = os.path.join(render_dir, "human_feedback.txt")
+            with open(feedback_file_path, "w") as f:
+                f.write(feedback)
+            logging.info(f"Feedback saved to {feedback_file_path}")
+        else:
+            logging.info("No feedback provided.")
+
+        root.destroy()  # Close the GUI
+
+        return feedback
 
     def _generate_executable_code(
         self,
@@ -536,7 +563,8 @@ def parse_args():
         help="Paths to reference images for the design",
     )
     parser.add_argument(
-        "--output-dir",
+        "-o",
+        "--output_dir",
         default="./design_task_results",
         help="Directory to save the results of the design task",
     )

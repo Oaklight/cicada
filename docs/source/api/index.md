@@ -6,11 +6,11 @@ Welcome to the API documentation for the project. Below is a list of available m
 :maxdepth: 2
 :caption: Contents:
 
+common
+geometry_pipeline
 describe
 retrieval
-geometry_pipeline
+coding
 feedbacks
 workflow
-common
-coding
 ```

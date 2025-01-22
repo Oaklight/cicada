@@ -3,7 +3,7 @@
 # Directory paths
 SOURCE_DIR="source/api"
 INDEX_FILE="source/api/index.md"
-MODULES=("describe" "retrieval" "geometry_pipeline" "feedbacks" "workflow" "common" "coding")
+MODULES=("common" "geometry_pipeline" "describe" "retrieval" "coding" "feedbacks" "workflow")
 ROOT_DIR=".."
 
 # Ensure the output directory exists

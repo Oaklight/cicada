@@ -10,8 +10,8 @@ _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
 from common import vlm
+from common.basics import PromptBuilder
 from common.utils import (
-    PromptBuilder,
     colorstring,
     get_image_paths,
     image_to_base64,

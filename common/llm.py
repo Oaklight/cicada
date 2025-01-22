@@ -12,7 +12,8 @@ _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
-from common.utils import PromptBuilder, colorstring, load_config
+from common.basics import PromptBuilder
+from common.utils import colorstring, load_config
 
 # Configure logging
 logging.basicConfig(

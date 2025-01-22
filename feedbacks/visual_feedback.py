@@ -9,13 +9,8 @@ _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
 from common import vlm
-from common.utils import (
-    PromptBuilder,
-    colorstring,
-    load_config,
-    load_prompts,
-    parse_design_goal,
-)
+from common.basics import PromptBuilder
+from common.utils import colorstring, load_config, load_prompts, parse_design_goal
 
 # Configure logging
 logging.basicConfig(

@@ -1,5 +1,4 @@
 import argparse
-import json
 import logging
 import os
 import sys
@@ -17,8 +16,8 @@ sys.path.extend([_current_dir, _parent_dir])
 from coding.code_cache import CodeCache
 from coding.code_executor import CodeExecutor
 from coding.code_generator import CodeGenerator
+from common.basics import DesignGoal
 from common.utils import (
-    DesignGoal,
     colorstring,
     find_files_with_extensions,
     load_config,
@@ -410,18 +409,18 @@ class CodeExecutionLoop:
             tuple[str, dict] | None: A tuple containing the generated code and a dictionary of coding_plan,
         """
         # generate plan (using text only)
-        # if self.code_master:
-        #     coding_plan = self.code_master.plan_code(
-        #         design_goal.text,
-        #         feedbacks=feedbacks,
-        #         previous_plan=coding_plan,
-        #     )
-        # else:
-        coding_plan = self.code_generator.plan_code(
-            design_goal.text,
-            feedbacks=feedbacks,
-            previous_plan=coding_plan,
-        )
+        if self.code_master:
+            coding_plan = self.code_master.plan_code(
+                design_goal.text,
+                feedbacks=feedbacks,
+                previous_plan=coding_plan,
+            )
+        else:
+            coding_plan = self.code_generator.plan_code(
+                design_goal.text,
+                feedbacks=feedbacks,
+                previous_plan=coding_plan,
+            )
         logging.info(colorstring(f"Coding plan:\n{coding_plan}", "white"))
 
         use_master = False

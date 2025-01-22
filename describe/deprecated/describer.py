@@ -12,13 +12,7 @@ _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
 from common import vlm
-from common.utils import (
-    DesignGoal,
-    colorstring,
-    image_to_base64,
-    load_config,
-    load_prompts,
-)
+from common.utils import colorstring, image_to_base64, load_config, load_prompts
 from describe.utils import load_object_metadata, save_descriptions
 
 # Configure logging

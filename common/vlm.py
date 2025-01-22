@@ -179,9 +179,8 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    config = load_config(args.config)
+    vlm_config = load_config(args.config, "vlm")
 
-    vlm_config = config["vlm"]
     image_path = "../data/cute-cat-with-glass.jpg"
     image_data = image_to_base64(image_path)
 

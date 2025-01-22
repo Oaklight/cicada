@@ -84,9 +84,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    config = load_config(args.config)
-
-    embed_config = config["embed"]
+    embed_config = load_config(args.config, "embed")
 
     embed = Embed(
         embed_config["api_key"],

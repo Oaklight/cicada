@@ -206,7 +206,7 @@ def _main():
     )
     args = parser.parse_args()
 
-    config = load_config(args.config).get("visual_qa", {})
+    config = load_config(args.config, "visual_qa")
     prompt_templates = load_prompts(args.prompts, "visual_qa")
 
     visual_qa = VisualQA(

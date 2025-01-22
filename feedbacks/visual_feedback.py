@@ -99,7 +99,7 @@ def _main():
     )
     args = parser.parse_args()
 
-    config = load_config(args.config).get("visual_feedback")
+    config = load_config(args.config, "visual_feedback")
     prompt_templates = load_prompts(args.prompts, "visual_feedback")
 
     # Initialize the VisualFeedback

@@ -11,7 +11,6 @@ sys.path.extend([_parent_dir, _grandparent_dir])
 from typing import List, Union
 
 from common.embed import Embed
-from common.utils import colorstring, load_config
 from retrieval.core.basics import Document, Embeddings
 
 

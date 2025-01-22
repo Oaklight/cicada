@@ -94,9 +94,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    config = load_config(args.config)
-
-    rerank_config = config["rerank"]
+    rerank_config = load_config(args.config, "rerank")
 
     rerank = Rerank(
         api_key=rerank_config["api_key"],

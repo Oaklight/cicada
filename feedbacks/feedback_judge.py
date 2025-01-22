@@ -1,21 +1,13 @@
-import argparse
 import logging
 import os
 import sys
-from typing import List
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
 from common import vlm
-from common.utils import (
-    DesignGoal,
-    PromptBuilder,
-    colorstring,
-    load_config,
-    load_prompts,
-)
+from common.utils import PromptBuilder, colorstring
 
 # Configure logging
 logging.basicConfig(

@@ -126,11 +126,14 @@ class PromptBuilder:
         self.messages.append({"role": "user", "content": content})
 
 
-def load_config(config_path: str) -> dict:
-    """Load a YAML configuration file and return its contents as a dictionary.
+def load_config(config_path: str, config_name: Optional[str] = None) -> dict:
+    """Load a YAML configuration file or a specific configuration from a folder or file.
 
     Args:
-        config_path (str): Path to the YAML configuration file.
+        config_path (str): Path to the YAML configuration file or folder containing configuration files.
+        config_name (Optional[str]): Name of the target configuration file (if config_path is a folder)
+                                    or the key within the YAML file (if config_path is a file).
+                                    If omitted and config_path is a file, the entire file is loaded.
 
     Returns:
         dict: Dictionary containing the configuration data.
@@ -138,9 +141,43 @@ def load_config(config_path: str) -> dict:
     Raises:
         FileNotFoundError: If the specified `config_path` does not exist.
         yaml.YAMLError: If the YAML file is malformed or cannot be parsed.
+        ValueError: If the `config_name` is not found in the configuration.
     """
-    with open(config_path, "r") as file:
-        return yaml.safe_load(file)
+    if os.path.isdir(config_path):
+        # If config_path is a folder, config_name must be provided
+        if config_name is None:
+            raise ValueError(
+                "config_name must be provided when config_path is a folder."
+            )
+
+        # Construct the full path to the config file
+        config_file_path = os.path.join(config_path, f"{config_name}.yaml")
+        if not os.path.exists(config_file_path):
+            raise FileNotFoundError(
+                f"Configuration file '{config_file_path}' not found in folder '{config_path}'."
+            )
+
+        with open(config_file_path, "r") as file:
+            return yaml.safe_load(file)
+
+    elif os.path.isfile(config_path):
+        # If config_path is a file, load the YAML
+        with open(config_path, "r") as file:
+            config_data = yaml.safe_load(file)
+
+        # If config_name is provided, extract the specific config
+        if config_name is not None:
+            if config_name not in config_data:
+                raise ValueError(
+                    f"Configuration key '{config_name}' not found in file '{config_path}'."
+                )
+            return config_data[config_name]
+
+        # If config_name is omitted, return the entire config
+        return config_data
+
+    else:
+        raise FileNotFoundError(f"Path '{config_path}' does not exist.")
 
 
 def load_prompts(prompts_path: str, which_model: str) -> dict:
@@ -156,8 +193,8 @@ def load_prompts(prompts_path: str, which_model: str) -> dict:
     Raises:
         KeyError: If the specified `which_model` key is not found in the YAML file.
     """
-    prompts_all = load_config(prompts_path)
-    return prompts_all[which_model]
+    prompt_templates = load_config(prompts_path, which_model)
+    return prompt_templates
 
 
 def colorstring(message: str, color: Optional[str] = "green") -> str:

@@ -9,7 +9,6 @@ _grandparent_dir = os.path.dirname(_parent_dir)
 sys.path.extend([_parent_dir, _grandparent_dir])
 
 from common.rerank import Rerank
-from common.utils import colorstring, load_config
 from retrieval.core.basics import Document
 
 

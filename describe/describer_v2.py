@@ -272,9 +272,7 @@ def _main():
     )
     args = parser.parse_args()
 
-    config = load_config(args.config)
-
-    describe_vlm_config = config["describe-vlm"]
+    describe_vlm_config = load_config(args.config, "describe-vlm")
 
     vlm = Describer(
         describe_vlm_config["api_key"],

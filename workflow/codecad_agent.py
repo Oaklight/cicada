@@ -437,16 +437,19 @@ class CodeExecutionLoop:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Assistive Large Language Model")
     parser.add_argument(
-        "--config", default="config.yaml", help="Path to the configuration YAML file"
+        "--config",
+        default="config",
+        help="Path to the configuration YAML file or folder",
     )
     parser.add_argument(
-        "--prompts", default="prompts.yaml", help="Path to the prompts YAML file"
+        "--prompts",
+        default="prompts",
+        help="Path to the prompts YAML file or folder",
     )
     args = parser.parse_args()
 
-    config = load_config(args.config)
     # ===== describer agent =====
-    describer_config = config["describe-vlm"]
+    describer_config = load_config(args.config, "describe-vlm")
     describer = Describer(
         describer_config["api_key"],
         describer_config.get("api_base_url"),
@@ -457,7 +460,7 @@ if __name__ == "__main__":
     )
 
     # ===== coding agents =====
-    code_llm_config = config["code-llm"]
+    code_llm_config = load_config(args.config, "code-llm")
     code_generator = CodeGenerator(
         code_llm_config["api_key"],
         code_llm_config.get("api_base_url"),
@@ -467,7 +470,7 @@ if __name__ == "__main__":
         **code_llm_config.get("model_kwargs", {}),
     )
 
-    master_code_llm_config = config.get("master-code-llm", None)
+    master_code_llm_config = load_config(args.config, "master-code-llm")
     code_master = (
         CodeGenerator(
             master_code_llm_config["api_key"],
@@ -482,7 +485,7 @@ if __name__ == "__main__":
     )
 
     # ===== visual feedback =====
-    visual_feedback_config = config.get("visual_feedback")
+    visual_feedback_config = load_config(args.config, "visual_feedback")
 
     visual_feedback = VisualFeedback(
         visual_feedback_config["api_key"],
@@ -493,7 +496,7 @@ if __name__ == "__main__":
         **visual_feedback_config.get("model_kwargs", {}),
     )
 
-    feedback_judge_config = config.get("feedback_judge")
+    feedback_judge_config = load_config(args.config, "feedback_judge")
     feedback_judge = FeedbackJudge(
         feedback_judge_config["api_key"],
         feedback_judge_config.get("api_base_url"),

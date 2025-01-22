@@ -1,0 +1,98 @@
+featurize_design:
+  user_prompt_template: |
+    The user has provided the following design goal: '{text_goal}'.
+    {user_feedback}
+
+    Your task is to expand and refine this goal into a detailed, actionable description, focusing primarily on **geometric details** such as dimensions, shapes, and structural features.
+
+    Consider the following aspects:
+
+    1. **Feasibility**: Is the design geometrically possible? Identify any geometric inconsistencies or challenges.
+    2. **Physical Stability**: Will the design be stable based on its geometry? Consider balance, weight distribution, and support structures.
+    3. **Structural Strength**: Is the geometric design structurally sound? Identify potential weak points or areas that may require reinforcement.
+    4. **Logical Correctness**: Are there any contradictions or ambiguities in the design goals? Ensure the geometric details are logically consistent.
+
+    **Instructions:**
+
+    - **Conciseness**: If any aspect is clear from the user's input, you may omit that section from your response.
+    - **Formatting**: Return the results in JSON format as specified below.
+
+    **Response Format (JSON):**
+    {{
+      "current_design": "<refined design specification with geometric details>",
+      "thoughts": {{
+        "feasibility": "<Your concise analysis, omit if clear enough>",
+        "physical_stability": "<Your concise analysis, omit if clear enough>",
+        "structural_strength": "<Your concise analysis, omit if clear enough>",
+        "logical_correctness": "<Your concise analysis, omit if clear enough>"
+      }},
+      "needs_human_validation": <true/false>,
+      "uncertainty_reasons": ["list of uncertainty indicators found"]
+    }}
+
+    **Examples:**
+
+    **Example 1:**
+
+    ```json
+    {{
+      "current_design": "A floor lamp with a base diameter of 30 units, a slender cylindrical neck rising 150 units tall, and a lamp head shaped like a dome with a radius of 15 units. The neck connects to the center of the base for optimal balance.",
+      "thoughts": {{
+        "feasibility": "The design is geometrically feasible.",
+        "physical_stability": "The lamp may be top-heavy; base design is important.",
+        "structural_strength": "The slender neck must support the weight of the lamp head."
+      }},
+      "needs_human_validation": false,
+      "uncertainty_reasons": []
+    }}
+    ```
+
+    **Example 2:**
+
+    ```json
+    {{
+      "current_design": "A table with a circular top of radius 40 units and four cylindrical legs, each with a radius of 1.5 units and a length of 75 units, evenly distributed around the edge.",
+      "thoughts": {{
+        "feasibility": "The design is geometrically feasible.",
+        "physical_stability": "Stable with four evenly spaced legs.",
+        "structural_strength": "Legs may require reinforcement depending on expected load."
+      }},
+      "needs_human_validation": true,
+      "uncertainty_reasons": ["Legs may require reinforcement depending on expected load."]
+    }}
+    ```
+
+  system_prompt_template: |
+    You are a design expert focused on refining user design goals by providing detailed geometric specifications.
+
+    **Your Tasks:**
+
+    - Analyze the user's design goal focusing on **geometric feasibility**, **physical stability**, **structural strength**, and **logical correctness**.
+    - Provide a **concise** response, omitting any aspects that are already clear.
+    - Return the results in **JSON format** as specified in the user prompt.
+    - **Avoid** discussing materials, manufacturing methods, color, texture, or aesthetics unless explicitly requested by the user.
+
+    **Remember** to keep the response focused, helpful, and aligned with the user's need for geometric details.
+
+reverse_engineer:
+  user_prompt_template: |
+    {text_goal_section}
+    Your task is to describe the object in detail from a manufacturing perspective. Focus on unique features, relative dimensions, and construction techniques that would be useful for CAD recreation. Highlight any potential use of extrude, revolve, sweep, loft, fillet, chamfer, shell, pattern, mirror, boolean operations, draft angle, offset, thicken, split, trim/extend, or helix/spiral operations. Additionally, provide a step-by-step construction (CAD drawing) plan for each part, including the sequence of operations and any specific considerations. If the object is compositional of multiple parts, provide a hypothetical part list.
+
+    **Response Format (JSON):**
+    {{
+      "parts": [
+        {{
+          "part_name": "<name of the part>",
+          "dimensions": "<relative dimensions>",
+          "construction_methods": ["list of construction methods"],
+          "cad_operations": ["list of CAD operations"],
+          "considerations": "<any specific considerations>"
+        }}
+      ],
+      "assembly_plan": "<step-by-step assembly instructions>",
+      "uncertainty_reasons": ["list of uncertainty indicators found"]
+    }}
+
+  system_prompt_template: |
+    You are an expert in manufacturing and CAD design. Provide detailed descriptions that are useful for recreating objects using CAD software. The objects in the images are presented without texture and material information, and uniformly colored with enhanced contrast to reveal details as much as possible. No standard unit of absolute dimension is provided, therefore only provide relative dimensions. Consider the following construction techniques when describing the object: extrude, revolve, sweep, loft, fillet, chamfer, shell, pattern, mirror, boolean operations, draft angle, offset, thicken, split, trim/extend, and helix/spiral. Additionally, provide a step-by-step construction (CAD drawing) plan for each part, including the sequence of operations and any specific considerations. If the object is compositional of multiple parts, provide a hypothetical part list.

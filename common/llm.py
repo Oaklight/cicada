@@ -170,9 +170,7 @@ if __name__ == "__main__":
     )
     args = parser.parse_args()
 
-    config = load_config(args.config)
-
-    llm_config = config["llm"]
+    llm_config = load_config(args.config, "llm")
 
     llm = LanguageModel(
         llm_config["api_key"],

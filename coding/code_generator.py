@@ -180,9 +180,8 @@ if __name__ == "__main__":
 
     os.makedirs(args.output_dir, exist_ok=True)
 
-    config = load_config(args.config)
+    code_llm_config = load_config(args.config, "code-llm")
 
-    code_llm_config = config["code-llm"]
     prompt_templates = load_prompts(args.prompts, "code-llm")
     code_generator = CodeGenerator(
         code_llm_config["api_key"],

@@ -342,8 +342,9 @@ def _main():
     )
 
     # Initialize SQLiteVec
-    db_file = "test_vec.db"
-    table = "test_table"
+    sqlitevec_store_config = load_config("config.yaml", "sqlitevec_store")
+    db_file = sqlitevec_store_config["db_file"]
+    table = sqlitevec_store_config["table"]
     sqlite_vec = SQLiteVec(
         table=table, db_file=db_file, pool_size=5, embedding=embedding_model
     )

@@ -23,7 +23,7 @@ _parent_dir = os.path.dirname(_current_dir)
 _grandparent_dir = os.path.dirname(_parent_dir)
 sys.path.extend([_parent_dir, _grandparent_dir])
 
-from common.utils import colorstring, cprint
+from common.utils import colorstring, cprint, load_config, setup_logging
 from retrieval.core.basics import Document, Embeddings, VectorStore
 
 logger = logging.getLogger(__name__)
@@ -158,7 +158,9 @@ class PGVector(VectorStore):
         finally:
             session.close()
 
-    def similarity_search(self, query: str, k: int = 4) -> List[Document]:
+    def similarity_search(
+        self, query: str, k: int = 4
+    ) -> tuple[List[Document], List[float]]:
         """Perform a similarity search for a query.
 
         Args:
@@ -166,7 +168,7 @@ class PGVector(VectorStore):
             k (int, optional): The number of results to return. Defaults to 4.
 
         Returns:
-            List[Document]: The documents that match the query.
+            tuple[List[Document], List[float]]: A tuple containing the list of documents that match the query and their corresponding similarity scores.
         """
         try:
             embedding = self._embedding.embed_query(query)
@@ -182,16 +184,8 @@ class PGVector(VectorStore):
 
     def similarity_search_by_vector(
         self, embedding: List[float], k: int = 4
-    ) -> List[Document]:
-        """Perform a similarity search by vector.
-
-        Args:
-            embedding (List[float]): The embedding vector to search for.
-            k (int, optional): The number of results to return. Defaults to 4.
-
-        Returns:
-            List[Document]: The documents that match the vector.
-        """
+    ) -> tuple[List[Document], List[float]]:
+        """Perform a similarity search by vector."""
         session = self._Session()
         try:
             collection = (
@@ -200,46 +194,67 @@ class PGVector(VectorStore):
                 .first()
             )
             results = (
-                session.query(EmbeddingStore)
+                session.query(
+                    EmbeddingStore,
+                    EmbeddingStore.embedding.l2_distance(embedding).label("distance"),
+                )
                 .filter(EmbeddingStore.collection_id == collection.uuid)
-                .order_by(EmbeddingStore.embedding.l2_distance(embedding))
+                .order_by("distance")
                 .limit(k)
                 .all()
             )
             docs = [
-                Document(page_content=result.document, metadata=result.cmetadata)
+                Document(
+                    page_content=result.EmbeddingStore.document,
+                    metadata=result.EmbeddingStore.cmetadata,
+                )
                 for result in results
             ]
+            scores = [result.distance for result in results]
             logger.info(colorstring(f"Found {len(docs)} results for the query", "cyan"))
-            return docs
+            return docs, scores
         except Exception as e:
-            logger.error(
-                colorstring(
-                    f"Failed to perform similarity search by vector: {e}", "red"
-                )
-            )
+            logger.error(f"Failed to perform similarity search by vector: {e}")
             raise e
         finally:
             session.close()
 
 
 def _main():
+    setup_logging()
     """Test the PGVector class with SiliconFlowEmbeddings."""
 
     # Import the SiliconFlowEmbeddings class
     from siliconflow_embeddings import SiliconFlowEmbeddings
     from siliconflow_rerank import SiliconFlowRerank
 
+    embed_config = load_config("config.yaml", "embed")
+
     # Initialize SiliconFlowEmbeddings
     embedding_model = SiliconFlowEmbeddings(
-        api_key="sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc",
-        api_base_url="https://oneapi.service.oaklight.cn/v1",
-        model_name="BAAI/bge-m3",
+        embed_config["api_key"],
+        embed_config.get("api_base_url"),
+        embed_config.get("model_name", "text-embedding-3-small"),
+        embed_config.get("org_id"),
+        **embed_config.get("model_kwargs", {}),
+    )
+
+    rerank_config = load_config("config.yaml", "rerank")
+
+    # Initialize SiliconFlowRerank
+    rerank_model = SiliconFlowRerank(
+        api_key=rerank_config["api_key"],
+        api_base_url=rerank_config.get(
+            "api_base_url", "https://api.siliconflow.cn/v1/"
+        ),
+        model_name=rerank_config.get("model_name", "BAAI/bge-reranker-v2-m3"),
+        **rerank_config.get("model_kwargs", {}),
     )
 
     # Initialize PGVector
-    connection_string = "postgresql://ppp:codecad_1s_g00d@localhost/codecad_db"  # Replace with your connection string
-    collection_name = "test_collection"
+    pgvector_store_config = load_config("config.yaml", "pgvector_store")
+    connection_string = pgvector_store_config["connection_string"]
+    collection_name = pgvector_store_config["collection_name"]
     pg_vector = PGVector(
         connection_string=connection_string,
         embedding=embedding_model,
@@ -285,15 +300,8 @@ def _main():
 
     for query in queries:
         cprint(f"\nQuery: {query}", "blue")
-        results = pg_vector.similarity_search(query, k=10)
-        cprint(f"Similarity search results: {results}", "yellow")
-
-        # Initialize SiliconFlowRerank
-        rerank_model = SiliconFlowRerank(
-            api_key="sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc",
-            api_base_url="https://oneapi.service.oaklight.cn/v1",
-            model_name="BAAI/bge-reranker-v2-m3",
-        )
+        results, scores = pg_vector.similarity_search(query, k=10)
+        cprint(f"Similarity search results: {list(zip(results, scores))}", "yellow")
 
         # Rerank the results
         reranked_results = rerank_model.rerank(

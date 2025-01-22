@@ -146,7 +146,9 @@ class CodeGenerator(llm.LanguageModel):
         """
 
         # use absolute path except for current directory
-        target_output_dir = os.path.abspath(target_output_dir) or f"."
+        target_output_dir = target_output_dir or "."
+        if target_output_dir != ".":
+            target_output_dir = os.path.abspath(target_output_dir)
 
         # Define the filename based on format
         filename = f"exported_model.{format}"

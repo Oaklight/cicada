@@ -87,6 +87,47 @@ class LanguageModel(ABC):
                 return complete_response.strip()
             else:
                 return response.choices[0].text.strip()
+        elif self.model_name in ["deepseek-r1", "deepseek-reasoner"]:
+            messages = [
+                {"role": "user", "content": prompt},
+            ]
+
+            if system_prompt:
+                messages = [
+                    {"role": "system", "content": system_prompt},
+                ] + messages
+
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                stream=stream,
+                **self.model_kwargs,
+            )
+
+            if stream:
+                complete_response = ""
+                for chunk in response:
+                    chunk_content = chunk.choices[0].delta.content
+                    reasoning_content = getattr(
+                        chunk.choices[0].delta, "reasoning_content", None
+                    )
+                    if chunk_content:
+                        cprint(chunk_content, "white", end="", flush=True)
+                        complete_response += chunk_content
+                    if reasoning_content:
+                        cprint(reasoning_content, "cyan", end="", flush=True)
+                        complete_response += reasoning_content
+                print()  # Add a newline after the response
+                return complete_response.strip()
+            else:
+                response_content = response.choices[0].message.content
+                reasoning_content = getattr(
+                    response.choices[0].message, "reasoning_content", None
+                )
+                if reasoning_content:
+                    return f"[Reasoning]: {reasoning_content}\n\n[Response]: {response_content}".strip()
+                else:
+                    return response_content.strip()
         else:
             messages = [
                 {"role": "user", "content": prompt},
@@ -115,8 +156,6 @@ class LanguageModel(ABC):
                 return complete_response.strip()
             else:
                 return response.choices[0].message.content.strip()
-
-    # (The rest of the original code remains unchanged)
 
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(3)

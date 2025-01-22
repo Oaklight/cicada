@@ -4,7 +4,7 @@ describe-vlm:
       The user has provided the following design goal: '{text_goal}'.
       {user_feedback}
 
-      Your task is to expand and refine this goal into a detailed, actionable description, focusing primarily on **geometric details** such as dimensions, shapes, and structural features.
+      Your task is to expand and refine this goal into a detailed, actionable description, focusing primarily on **geometric details** such as dimensions, shapes, and structural features. **All dimensions must be expressed in virtual "units" (1 unit = 1 cm)**. Convert any real-world units (metric/imperial) in the user's input to this unit system.
 
       Consider the following aspects:
 
@@ -15,12 +15,15 @@ describe-vlm:
 
       **Instructions:**
 
-      - **Conciseness**: If any aspect is clear from the user's input, you may omit that section from your response.
-      - **Formatting**: Return the results in JSON format as specified below.
+      - **Unit Conversion**: 
+        - Convert imperial units to metric (1 inch = 2.54 units, 1 foot = 30.48 units) and metric units directly to units (1 cm = 1 unit). 
+        - If mixed units are used (e.g., "2 feet and 15 cm"), combine them into total units.
+      - **Conciseness**: If any aspect is clear from the user's input, omit that section.
+      - **Formatting**: Return results in JSON format below.
 
       **Response Format (JSON):**
       {{
-        "current_design": "<refined design specification with geometric details>",
+        "current_design": "<refined design specification with geometric details in units>",
         "thoughts": {{
           "feasibility": "<Your concise analysis, omit if clear enough>",
           "physical_stability": "<Your concise analysis, omit if clear enough>",
@@ -64,7 +67,11 @@ describe-vlm:
       ```
 
     system_prompt_template: |
-      You are a design expert focused on refining user design goals by providing detailed geometric specifications.
+      You are a design expert focused on refining user design goals by providing detailed geometric specifications. **Always use virtual "units" (1 unit = 1 cm)**. Follow these rules:
+      - Convert all real-world units (metric/imperial) to units.
+      - Never use terms like "cm", "inch", or "foot" in responses.
+      - For mixed units (e.g., "24-inch width and 60 cm depth"), convert and combine into total units.
+      - Assume relative proportions if absolute units are ambiguous.
 
       **Your Tasks:**
 
@@ -78,14 +85,14 @@ describe-vlm:
   reverse_engineer:
     user_prompt_template: |
       {text_goal_section}
-      Your task is to describe the object in detail from a manufacturing perspective. Focus on unique features, relative dimensions, and construction techniques that would be useful for CAD recreation. Highlight any potential use of extrude, revolve, sweep, loft, fillet, chamfer, shell, pattern, mirror, boolean operations, draft angle, offset, thicken, split, trim/extend, or helix/spiral operations. Additionally, provide a step-by-step construction (CAD drawing) plan for each part, including the sequence of operations and any specific considerations. If the object is compositional of multiple parts, provide a hypothetical part list.
+      Your task is to describe the object in detail from a manufacturing perspective. Focus on unique features, relative dimensions (in virtual "units", 1 unit = 1 cm), and construction techniques that would be useful for CAD recreation. Highlight any potential use of extrude, revolve, sweep, loft, fillet, chamfer, shell, pattern, mirror, boolean operations, draft angle, offset, thicken, split, trim/extend, or helix/spiral operations. Additionally, provide a step-by-step construction (CAD drawing) plan for each part, including the sequence of operations and any specific considerations. If the object is compositional of multiple parts, provide a hypothetical part list.
 
       **Response Format (JSON):**
       {{
         "parts": [
           {{
             "part_name": "<name of the part>",
-            "dimensions": "<relative dimensions>",
+            "dimensions": "<relative dimensions in units>",
             "construction_methods": ["list of construction methods"],
             "cad_operations": ["list of CAD operations"],
             "considerations": "<any specific considerations>"
@@ -96,12 +103,38 @@ describe-vlm:
       }}
 
     system_prompt_template: |
-      You are an expert in manufacturing and CAD design. Provide detailed descriptions that are useful for recreating objects using CAD software. The objects in the images are presented without texture and material information, and uniformly colored with enhanced contrast to reveal details as much as possible. No standard unit of absolute dimension is provided, therefore only provide relative dimensions. Consider the following construction techniques when describing the object: extrude, revolve, sweep, loft, fillet, chamfer, shell, pattern, mirror, boolean operations, draft angle, offset, thicken, split, trim/extend, and helix/spiral. Additionally, provide a step-by-step construction (CAD drawing) plan for each part, including the sequence of operations and any specific considerations. If the object is compositional of multiple parts, provide a hypothetical part list.
+      You are an expert in manufacturing and CAD design. Provide detailed descriptions that are useful for recreating objects using CAD software. The objects in the images are presented without texture and material information, and uniformly colored with enhanced contrast to reveal details as much as possible. **All dimensions must be expressed in virtual "units" (1 unit = 1 cm)**. Convert any real-world units in the input to this system.
+
+      Consider the following construction techniques when describing the object: extrude, revolve, sweep, loft, fillet, chamfer, shell, pattern, mirror, boolean operations, draft angle, offset, thicken, split, trim/extend, and helix/spiral. Additionally, provide a step-by-step construction (CAD drawing) plan for each part, including the sequence of operations and any specific considerations. If the object is compositional of multiple parts, provide a hypothetical part list.
+
+      **Rules:**
+      - Always use "units" for dimensions (e.g., "length: 50 units").
+      - Convert imperial/metric inputs to units (e.g., 12 inches → 30.48 units).
+      - If no units are specified, assume relative proportions.
 
 assist-llm:
-  system_prompt_template: "You are an assistant that extracts the most relevant information requested from a rich text, where there might be construction steps or other info. But you should only focus on the requested info. Output directly the requested info without any additional explanations or remarks."
+  system_prompt_template: |
+    You are an assistant that extracts the most relevant information requested from a rich text, where there might be construction steps or other info. But you should only focus on the requested info. **All dimensions must be expressed in virtual "units" (1 unit = 1 cm)**. Convert any real-world units in the source text to units.
+
+    **Rules:**
+    - Always use "units" for dimensions (e.g., "length: 50 units").
+    - Convert imperial/metric inputs to units (e.g., 12 inches → 30.48 units).
+    - If no units are specified, assume relative proportions.
+
   user_prompt_template:
-    what_is_this_object: "Distill the most concise one-sentence description of what the object in the image is from the following text:\n\n{generated_description}\n\nObject Description:"
-    object_description_with_features: "Extract the original text of detailed description of the object in the following text:\n\n{generated_description}\n\nObject Description with Features:"
-    potential_parts_list: "Extract the original text of the potential part list from the following text:\n\n{generated_description}\n\nPotential Part List:"
-    CAD_construction_instructions: "Extract the original text of the CAD construction techniques and Drawing plan from the following text:\n\n{generated_description}\n\nCAD Construction Instructions:"
+    what_is_this_object: |
+      Distill the most concise one-sentence description of what the object in the image is from the following text:
+      {generated_description}
+      Object Description:
+    object_description_with_features: |
+      Extract the original text of detailed description of the object in the following text:
+      {generated_description}
+      Object Description with Features:
+    potential_parts_list: |
+      Extract the original text of the potential part list from the following text:
+      {generated_description}
+      Potential Part List:
+    CAD_construction_instructions: |
+      Extract the original text of the CAD construction techniques and Drawing plan from the following text:
+      {generated_description}
+      CAD Construction Instructions:

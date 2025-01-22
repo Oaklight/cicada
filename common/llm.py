@@ -1,10 +1,10 @@
 import argparse
-import json
 import logging
 import os
 import sys
 from abc import ABC
 
+import httpx
 import openai
 import tenacity
 
@@ -48,7 +48,9 @@ class LanguageModel(ABC):
         stop=tenacity.stop_after_attempt(3)
         | tenacity.stop_after_delay(30),  # Stop after 3 attempts or 30 seconds
         wait=tenacity.wait_random_exponential(multiplier=1, min=2, max=10),
-        retry=tenacity.retry_if_exception_type(Exception),  # Retry on any exception
+        retry=tenacity.retry_if_exception_type(
+            (openai.APIError, httpx.ReadTimeout, httpx.ConnectTimeout)
+        ),  # Retry on API errors or network timeouts
         before_sleep=tenacity.before_sleep_log(
             logging.getLogger(), logging.WARNING
         ),  # Log before retrying
@@ -122,7 +124,9 @@ class LanguageModel(ABC):
         stop=tenacity.stop_after_attempt(3)
         | tenacity.stop_after_delay(30),  # Stop after 3 attempts or 30 seconds
         wait=tenacity.wait_random_exponential(multiplier=1, min=2, max=10),
-        retry=tenacity.retry_if_exception_type(Exception),  # Retry on any exception
+        retry=tenacity.retry_if_exception_type(
+            (openai.APIError, httpx.ReadTimeout, httpx.ConnectTimeout)
+        ),  # Retry on API errors or network timeouts
         before_sleep=tenacity.before_sleep_log(
             logging.getLogger(), logging.WARNING
         ),  # Log before retrying

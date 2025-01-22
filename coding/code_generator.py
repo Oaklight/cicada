@@ -130,26 +130,36 @@ class CodeGenerator(llm.LanguageModel):
         self, code, format: Literal["stl", "step"] = "stl", target_output_dir=None
     ) -> tuple[str, str]:
         """
-        Extends the provided code with export functionality, exporting the result to the specified format.
+        This method appends code to center the 3D model at the origin and export it in the desired format (STL or STEP).
+        The exported file is saved in the specified directory or the current working directory if none is provided.
 
         Args:
-            code (str): Code to be extended with export functionality.
-            format (Literal["stl", "step"], optional): Desired export format. Defaults to "stl".
-            target_output_dir (str, optional): Directory to save the exported 3D file. Defaults to None, which will use the code execution directory.
+            code (str): The original code to be extended with export functionality.
+            format (Literal["stl", "step"], optional): The desired export format. Defaults to "stl".
+            target_output_dir (str, optional): The directory where the exported 3D file will be saved.
+            If None, the file will be saved in the current working directory.
 
         Returns:
-            patched_code: Extended code with export functionality.
-            target_output_dir: Directory where the exported 3D file will be saved.
+            tuple[str, str]: A tuple containing:
+                - patched_code: The extended code with the added export functionality.
+                - target_output_dir: The directory where the exported 3D file will be saved.
         """
 
-        target_output_dir = target_output_dir or f"."
+        # use absolute path except for current directory
+        target_output_dir = os.path.abspath(target_output_dir) or f"."
 
         # Define the filename based on format
         filename = f"exported_model.{format}"
         file_path = os.path.join(target_output_dir, filename)
 
-        # Code to append - will depend on the build123d API or relevant method used to export
+        # Add centering logic and export code
         export_code = f"""
+# =========== end of the original code ===========
+# Center the model at the origin
+bbox = result.bounding_box()
+current_center = (bbox.min + bbox.max) / 2
+result = result.translate(-current_center)
+
 # Export the result to {format} format
 from build123d import export_{format}
 export_{format}(to_export=result, file_path="{file_path}")

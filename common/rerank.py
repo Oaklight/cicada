@@ -41,9 +41,13 @@ class Rerank(ABC):
         self.model_kwargs = model_kwargs
 
     @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
+        stop=tenacity.stop_after_attempt(3)
+        | tenacity.stop_after_delay(30),  # Stop after 3 attempts or 30 seconds
         wait=tenacity.wait_random_exponential(multiplier=1, min=2, max=10),
-        retry=tenacity.retry_if_exception_type(requests.exceptions.RequestException),
+        retry=tenacity.retry_if_exception_type(Exception),  # Retry on any exception
+        before_sleep=tenacity.before_sleep_log(
+            logging.getLogger(), logging.WARNING
+        ),  # Log before retrying
         reraise=True,
     )
     def rerank(

@@ -45,9 +45,13 @@ class LanguageModel(ABC):
         )
 
     @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
+        stop=tenacity.stop_after_attempt(3)
+        | tenacity.stop_after_delay(30),  # Stop after 3 attempts or 30 seconds
         wait=tenacity.wait_random_exponential(multiplier=1, min=2, max=10),
-        retry=tenacity.retry_if_exception_type(openai.APIError),
+        retry=tenacity.retry_if_exception_type(Exception),  # Retry on any exception
+        before_sleep=tenacity.before_sleep_log(
+            logging.getLogger(), logging.WARNING
+        ),  # Log before retrying
         reraise=True,
     )
     def query(self, prompt, system_prompt=None):
@@ -115,9 +119,13 @@ class LanguageModel(ABC):
     # (The rest of the original code remains unchanged)
 
     @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3),
+        stop=tenacity.stop_after_attempt(3)
+        | tenacity.stop_after_delay(30),  # Stop after 3 attempts or 30 seconds
         wait=tenacity.wait_random_exponential(multiplier=1, min=2, max=10),
-        retry=tenacity.retry_if_exception_type(openai.APIError),
+        retry=tenacity.retry_if_exception_type(Exception),  # Retry on any exception
+        before_sleep=tenacity.before_sleep_log(
+            logging.getLogger(), logging.WARNING
+        ),  # Log before retrying
         reraise=True,
     )
     def query_with_promptbuilder(self, pb: PromptBuilder) -> str:

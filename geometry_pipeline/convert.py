@@ -48,15 +48,16 @@ def recenter_and_reaxis_mesh(
     # Find the index of the smallest moment of inertia (assumed to be the "up" direction)
     up_axis_index = np.argmin(principal_axes)
 
-    # Create a rotation matrix to align the up axis with the Z-axis
+    # Adjusted rotation logic to align the object's "up" direction with +Y (trimesh's upward direction)
+    # 调整旋转逻辑，将物体的“上”方向对齐到+Y轴（trimesh的垂直正方向）
     if up_axis_index == 0:
-        # If the smallest moment is along the X-axis, rotate 90 degrees around Y-axis
-        rotation_matrix = np.array([[0, 0, -1], [0, 1, 0], [1, 0, 0]])
-    elif up_axis_index == 1:
-        # If the smallest moment is along the Y-axis, rotate 90 degrees around X-axis
-        rotation_matrix = np.array([[1, 0, 0], [0, 0, -1], [0, 1, 0]])
+        # X-axis -> Rotate 90° around Z to align X to Y
+        rotation_matrix = np.array([[0, -1, 0], [1, 0, 0], [0, 0, 1]])
+    elif up_axis_index == 2:
+        # Z-axis -> Rotate -90° around X to align Z to Y
+        rotation_matrix = np.array([[1, 0, 0], [0, 0, 1], [0, -1, 0]])
     else:
-        # If the smallest moment is along the Z-axis, no rotation is needed
+        # Y-axis (no rotation needed)
         rotation_matrix = np.eye(3)
 
     # Convert the 3x3 rotation matrix to a 4x4 transformation matrix

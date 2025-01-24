@@ -1,12 +1,23 @@
 import argparse
 import importlib
 import inspect
+import json
+import logging
 import os
 import pickle
 import re
+import sys
 from functools import lru_cache
 
-from thefuzz import process  # For fuzzy matching
+from thefuzz import process
+
+_current_dir = os.path.dirname(os.path.abspath(__file__))
+_parent_dir = os.path.dirname(_current_dir)
+sys.path.extend([_current_dir, _parent_dir])
+
+from common.utils import setup_logging  # For fuzzy matching
+
+logger = logging.getLogger(__name__)
 
 
 class CodeDocHelper:
@@ -148,14 +159,6 @@ class CodeDocHelper:
         Returns:
         dict: A dictionary containing the function name, signature, and docstring (optional).
         """
-        cache_key = (function_path, with_docstring)
-        if cache_key in self.query_cache:
-            return self.query_cache[cache_key]
-
-        # Fuzzy match for similar queries
-        match, score = self._fuzzy_match_cache(function_path)
-        if score >= self.fuzzy_threshold:
-            return self.query_cache[match]
 
         try:
             parts = function_path.split(".")
@@ -174,8 +177,7 @@ class CodeDocHelper:
             data = {"name": function_path, "signature": f"{parts[-1]}{signature}"}
             if with_docstring:
                 data["docstring"] = inspect.getdoc(obj) or "No docstring available."
-            self.query_cache[cache_key] = data
-            self._save_cache()  # Save cache after updating
+
             return data
         except Exception as e:
             return {"error": f"Error getting function info: {e}"}
@@ -192,14 +194,6 @@ class CodeDocHelper:
         Returns:
         dict: A dictionary containing the class name, signature, methods, variables, and docstring (optional).
         """
-        cache_key = (class_path, with_docstring)
-        if cache_key in self.query_cache:
-            return self.query_cache[cache_key]
-
-        # Fuzzy match for similar queries
-        match, score = self._fuzzy_match_cache(class_path)
-        if score >= self.fuzzy_threshold:
-            return self.query_cache[match]
 
         try:
             parts = class_path.split(".")
@@ -244,8 +238,7 @@ class CodeDocHelper:
             for name, member in inspect.getmembers(cls):
                 if not inspect.isfunction(member) and not name.startswith("_"):
                     data["variables"].append(name)
-            self.query_cache[cache_key] = data
-            self._save_cache()  # Save cache after updating
+
             return data
         except Exception as e:
             return {"error": f"Error getting class info: {e}"}
@@ -261,14 +254,6 @@ class CodeDocHelper:
         Returns:
         dict: A dictionary containing the module name, classes, functions, variables, and docstring (optional).
         """
-        cache_key = (module_name, with_docstring)
-        if cache_key in self.query_cache:
-            return self.query_cache[cache_key]
-
-        # Fuzzy match for similar queries
-        match, score = self._fuzzy_match_cache(module_name)
-        if score >= self.fuzzy_threshold:
-            return self.query_cache[match]
 
         try:
             module = importlib.import_module(module_name)
@@ -309,15 +294,14 @@ class CodeDocHelper:
                         "type": type(member).__name__,
                     }
                     data["variables"].append(variable_info)
-            self.query_cache[cache_key] = data
-            self._save_cache()  # Save cache after updating
+
             return data
         except ImportError:
             return {"error": f"Module '{module_name}' not found."}
         except Exception as e:
             return {"error": f"An unexpected error occurred: {str(e)}"}
 
-    def get_info(self, path, with_docstring=True):
+    def get_info(self, path, with_docstring=True, disable_cache=False):
         """
         Retrieve information about a module, class, function, or variable.
 
@@ -328,14 +312,15 @@ class CodeDocHelper:
         Returns:
         dict: A dictionary containing the information about the module, class, function, or variable.
         """
-        cache_key = (path, with_docstring)
-        if cache_key in self.query_cache:
-            return self.query_cache[cache_key]
+        if not disable_cache:
+            cache_key = (path, with_docstring)
+            if cache_key in self.query_cache:
+                return self.query_cache[cache_key]
 
-        # Fuzzy match for similar queries
-        match, score = self._fuzzy_match_cache(path)
-        if score >= self.fuzzy_threshold:
-            return self.query_cache[match]
+            # Fuzzy match for similar queries
+            match, score = self._fuzzy_match_cache(path)
+            if score >= self.fuzzy_threshold:
+                return self.query_cache[match]
 
         try:
             parts = path.split(".")
@@ -359,8 +344,15 @@ class CodeDocHelper:
                     "type": type(obj).__name__,
                     "value": str(obj),
                 }
-            self.query_cache[cache_key] = result
-            self._save_cache()  # Save cache after updating
+            # debug purpose, save result to local file
+            logger.debug(f"Saving debug info to debug_info.json")
+            with open("debug_info.json", "w") as f:
+                json.dump(result, f, indent=4)
+
+            if not disable_cache:
+                self.query_cache[cache_key] = result
+                self._save_cache()  # Save cache after updating
+
             return result
         except ImportError:
             return {"error": f"Module '{module_name}' not found."}
@@ -478,6 +470,16 @@ def _main():
         action="store_true",
         help="Include the docstring in the output (only applies to path queries).",
     )
+    parser.add_argument(
+        "--disable_cache",
+        action="store_true",
+        help="Disable the cache for this query.",
+    )
+    parser.add_argument(
+        "--no_output",
+        action="store_true",
+        help="Disable output to the console.",
+    )
     args = parser.parse_args()
 
     # Initialize the CodeDocHelper
@@ -491,10 +493,15 @@ def _main():
             print(f"{key}: {value}")
     else:
         # Get the information based on the provided path
-        info = helper.get_info(args.path, with_docstring=args.docstring)
+        info = helper.get_info(
+            args.path, with_docstring=args.docstring, disable_cache=args.disable_cache
+        )
+        if args.no_output:
+            return
         # Convert the information to Markdown and print it
         print(helper.dict_to_markdown(info, show_docstring=args.docstring))
 
 
 if __name__ == "__main__":
+    setup_logging()
     _main()

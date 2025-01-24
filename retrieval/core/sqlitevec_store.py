@@ -4,7 +4,7 @@ import os
 import sqlite3
 import struct
 import sys
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
@@ -25,7 +25,7 @@ class SQLiteVec(VectorStore):
         table: str,
         db_file: str = "vec.db",
         pool_size: int = 5,
-        embedding: Embeddings = None,
+        embedding: Optional[Embeddings] = None,
     ):
         """Initialize the SQLiteVec instance.
 
@@ -40,14 +40,16 @@ class SQLiteVec(VectorStore):
         self._embedding = embedding
         self._pool = self._create_connection_pool(pool_size)
         self.create_table_if_not_exists()
+        self.create_metadata_table()
 
-    def _create_connection_pool(self, pool_size: int) -> sqlite3.Connection:
+    def _create_connection_pool(self, pool_size: int) -> List[sqlite3.Connection]:
         """Create a connection pool for SQLite.
+
         Args:
             pool_size (int): The size of the connection pool.
 
         Returns:
-            sqlite3.Connection: A list of SQLite connections.
+            List[sqlite3.Connection]: A list of SQLite connections.
         """
         pool = []
         for _ in range(pool_size):
@@ -77,6 +79,7 @@ class SQLiteVec(VectorStore):
 
     def _release_connection(self, connection: sqlite3.Connection):
         """Release a connection back to the pool.
+
         Args:
             connection (sqlite3.Connection): The SQLite connection to release.
         """
@@ -121,7 +124,7 @@ class SQLiteVec(VectorStore):
             )
             raise e
 
-    def create_table_if_not_exists(self) -> None:
+    def create_table_if_not_exists(self):
         """Create tables if they don't exist.
 
         Raises:
@@ -160,11 +163,54 @@ class SQLiteVec(VectorStore):
         finally:
             self._release_connection(connection)
 
+    def create_metadata_table(self):
+        """Create metadata table if not exists"""
+        connection = self._get_connection()
+        try:
+            connection.execute(
+                "CREATE TABLE IF NOT EXISTS metadata (key TEXT PRIMARY KEY, value TEXT)"
+            )
+            connection.commit()
+        finally:
+            self._release_connection(connection)
+
+    def get_metadata(self, key: str) -> Optional[str]:
+        """Get metadata value by key.
+        Args:
+            key (str): The key to retrieve the metadata value for.
+        Returns:
+            Optional[str]: The metadata value if found, otherwise None.
+        """
+        connection = self._get_connection()
+        try:
+            cursor = connection.execute(
+                "SELECT value FROM metadata WHERE key = ?", (key,)
+            )
+            result = cursor.fetchone()
+            return result[0] if result else None
+        finally:
+            self._release_connection(connection)
+
+    def set_metadata(self, key: str, value: str):
+        """Set metadata key-value pair.
+        Args:
+            key (str): The key to set.
+            value (str): The value to associate with the key.
+        """
+        connection = self._get_connection()
+        try:
+            connection.execute(
+                "INSERT OR REPLACE INTO metadata (key, value) VALUES (?, ?)",
+                (key, value),
+            )
+            connection.commit()
+        finally:
+            self._release_connection(connection)
+
     def add_texts(
         self, texts: List[str], metadatas: Optional[List[Dict]] = None
     ) -> List[str]:
         """Add texts to the vector store.
-
         Args:
             texts (List[str]): The list of texts to add.
             metadatas (Optional[List[Dict]], optional): The list of metadata dictionaries. Defaults to None.
@@ -213,7 +259,7 @@ class SQLiteVec(VectorStore):
 
     def similarity_search(
         self, query: str, k: int = 4
-    ) -> tuple[List[Document], List[float]]:
+    ) -> Tuple[List[Document], List[float]]:
         """Perform a similarity search.
 
         Args:
@@ -221,7 +267,7 @@ class SQLiteVec(VectorStore):
             k (int, optional): The number of results to return. Defaults to 4.
 
         Returns:
-            tuple[List[Document], List[float]]: A tuple containing the list of documents that match the query and their corresponding similarity scores.
+            Tuple[List[Document], List[float]]: A tuple containing the list of documents that match the query and their corresponding similarity scores.
 
         Raises:
             Exception: If the similarity search fails.
@@ -240,7 +286,7 @@ class SQLiteVec(VectorStore):
 
     def similarity_search_by_vector(
         self, embedding: List[float], k: int = 4
-    ) -> tuple[List[Document], List[float]]:
+    ) -> Tuple[List[Document], List[float]]:
         """Perform a similarity search by vector.
 
         Args:
@@ -248,7 +294,7 @@ class SQLiteVec(VectorStore):
             k (int, optional): The number of results to return. Defaults to 4.
 
         Returns:
-            tuple[List[Document], List[float]]: A tuple containing the list of documents that match the query and their corresponding similarity scores.
+            Tuple[List[Document], List[float]]: A tuple containing the list of documents that match the query and their corresponding similarity scores.
 
         Raises:
             sqlite3.Error: If the similarity search fails.
@@ -311,8 +357,8 @@ class SQLiteVec(VectorStore):
 
 
 def _main():
-    setup_logging()
     """Test the SQLiteVec class with SiliconFlowEmbeddings."""
+    setup_logging()
 
     # Import the SiliconFlowEmbeddings class
     from siliconflow_embeddings import SiliconFlowEmbeddings
@@ -349,6 +395,23 @@ def _main():
         table=table, db_file=db_file, pool_size=5, embedding=embedding_model
     )
 
+    # ============ metadata operations ============
+    # Test metadata functionality
+    cprint("\nTesting metadata operations...", "cyan")
+
+    # Set metadata
+    sqlite_vec.set_metadata("version", "1.0")
+    sqlite_vec.set_metadata("status", "active")
+
+    # Get single metadata
+    version = sqlite_vec.get_metadata("version")
+    cprint(f"Retrieved version: {version}", "green")
+
+    # Test non-existent key
+    missing = sqlite_vec.get_metadata("nonexistent")
+    cprint(f"Non-existent key returns: {missing}", "yellow")
+
+    # ============ text operations ============
     # Add texts
     texts = [
         "apple",  # English

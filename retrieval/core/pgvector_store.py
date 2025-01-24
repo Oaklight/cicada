@@ -2,7 +2,7 @@ import logging
 import os
 import sys
 import uuid
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Tuple
 
 import sqlalchemy
 from pgvector.sqlalchemy import Vector
@@ -11,10 +11,8 @@ from sqlalchemy import (
     UUID,
     Column,
     ForeignKey,
-    Integer,
     String,
     create_engine,
-    func,
 )
 from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 
@@ -32,9 +30,16 @@ Base = declarative_base()
 
 
 class CollectionStore(Base):
-    """Represents a collection in the database."""
+    """Represents a collection in the database.
 
-    __tablename__ = "langchain_pg_collection"
+    Attributes:
+        uuid (UUID): Primary key for the collection.
+        name (str): Name of the collection.
+        cmetadata (dict): Metadata associated with the collection.
+        embeddings (List[EmbeddingStore]): List of embeddings associated with the collection.
+    """
+
+    __tablename__ = "vectorsearch_pg_collection"
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String)
     cmetadata = Column(JSON)
@@ -44,13 +49,23 @@ class CollectionStore(Base):
 
 
 class EmbeddingStore(Base):
-    """Represents an embedding in the database."""
+    """Represents an embedding in the database.
 
-    __tablename__ = "langchain_pg_embedding"
+    Attributes:
+        uuid (UUID): Primary key for the embedding.
+        collection_id (UUID): Foreign key referencing the collection.
+        collection (CollectionStore): Collection associated with the embedding.
+        embedding (Vector): The embedding vector.
+        document (str): The document associated with the embedding.
+        cmetadata (dict): Metadata associated with the embedding.
+        custom_id (str): Custom ID for the embedding.
+    """
+
+    __tablename__ = "vectorsearch_pg_embedding"
     uuid = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     collection_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("langchain_pg_collection.uuid", ondelete="CASCADE"),
+        ForeignKey("vectorsearch_pg_collection.uuid", ondelete="CASCADE"),
     )
     collection = relationship(CollectionStore, back_populates="embeddings")
     embedding = Column(Vector)
@@ -60,22 +75,31 @@ class EmbeddingStore(Base):
 
 
 class PGVector(VectorStore):
-    """A vector store implementation using PostgreSQL and pgvector."""
+    """A vector store implementation using PostgreSQL and pgvector.
+
+    Attributes:
+        _engine (sqlalchemy.engine.Engine): SQLAlchemy engine for database connection.
+        _Session (sqlalchemy.orm.sessionmaker): SQLAlchemy session maker.
+        _embedding (Embeddings): Embedding model used for generating embeddings.
+        _collection_name (str): Name of the collection in the database.
+        _collection (CollectionStore): The collection associated with this vector store.
+    """
 
     def __init__(
         self,
         connection_string: str,
         embedding: Embeddings,
-        collection_name: str = "langchain",
+        collection_name: str = "vectorsearch",
         pool_size: int = 5,
+        **kwargs,
     ):
-        """Initialize the PGVector instance.
+        """Initialize the PGVector store.
 
         Args:
-            connection_string (str): The PostgreSQL connection string.
-            embedding (Embeddings): The embedding model to use.
-            collection_name (str, optional): The name of the collection. Defaults to "langchain".
-            pool_size (int, optional): The size of the connection pool. Defaults to 5.
+            connection_string (str): Database connection string.
+            embedding (Embeddings): Embedding model to use.
+            collection_name (str, optional): Name of the collection. Defaults to "vectorsearch".
+            pool_size (int, optional): Connection pool size. Defaults to 5.
         """
         self._engine = create_engine(
             connection_string, pool_size=pool_size, max_overflow=10
@@ -84,7 +108,91 @@ class PGVector(VectorStore):
         self._embedding = embedding
         self._collection_name = collection_name
         self.create_tables_if_not_exists()
-        self.create_collection()
+        self._collection = self._get_or_create_collection()
+
+    def _get_or_create_collection(self) -> CollectionStore:
+        """Get existing collection or create a new one.
+        Returns:
+            CollectionStore: The collection object.
+        """
+        session = self._Session()
+        try:
+            collection = (
+                session.query(CollectionStore)
+                .filter_by(name=self._collection_name)
+                .first()
+            )
+            if not collection:
+                collection = CollectionStore(name=self._collection_name, cmetadata={})
+                session.add(collection)
+                session.commit()
+            return collection
+        except Exception as e:
+            session.rollback()
+            raise e
+        finally:
+            session.close()
+
+    def set_collection_metadata(self, key: str, value: str):
+        """Set metadata for the collection.
+
+        Args:
+            key (str): Metadata key.
+            value (str): Metadata value.
+        """
+        with self._Session() as session:
+            # Using session.merge to re-attach the detached instance
+            collection = session.merge(self._collection)
+            if not collection.cmetadata:
+                collection.cmetadata = {}
+            collection.cmetadata[key] = value
+            session.commit()
+
+    def get_collection_metadata(self, key: str) -> Optional[str]:
+        """Get metadata from the collection.
+
+        Args:
+            key (str): Metadata key.
+
+        Returns:
+            Optional[str]: The metadata value if it exists, otherwise None.
+        """
+        with self._Session() as session:
+            # Re-fetch the collection within the new session context
+            # ===== NOT Correct ========
+            # collection = session.get(CollectionStore, self._collection.uuid)
+            #
+            # ===== Correct ========
+            # collection = (
+            #     session.query(CollectionStore)
+            #     .filter_by(name=self._collection_name)
+            #     .first()
+            # )
+            #
+            # ===== Why? ========
+            # The original code was incorrect because it directly accessed self._collection.uuid,
+            # which could be detached from the session.
+            collection = (
+                session.query(CollectionStore)
+                .filter_by(name=self._collection_name)
+                .first()
+            )
+            return collection.cmetadata.get(key) if collection.cmetadata else None
+
+    def get_all_collection_metadata(self) -> Dict:
+        """Get all metadata from the collection.
+
+        Returns:
+            Dict: A dictionary containing all metadata.
+        """
+        with self._Session() as session:
+            # Re-fetch the collection within the new session context (see above for explanation)
+            collection = (
+                session.query(CollectionStore)
+                .filter_by(name=self._collection_name)
+                .first()
+            )
+            return collection.cmetadata or {}
 
     def create_tables_if_not_exists(self) -> None:
         """Create tables in the database if they don't exist."""
@@ -116,6 +224,7 @@ class PGVector(VectorStore):
         self, texts: List[str], metadatas: Optional[List[Dict]] = None
     ) -> List[str]:
         """Add texts to the vector store.
+
         Args:
             texts (List[str]): The texts to add.
             metadatas (Optional[List[Dict]], optional): Metadata for each text. Defaults to None.
@@ -160,7 +269,7 @@ class PGVector(VectorStore):
 
     def similarity_search(
         self, query: str, k: int = 4
-    ) -> tuple[List[Document], List[float]]:
+    ) -> Tuple[List[Document], List[float]]:
         """Perform a similarity search for a query.
 
         Args:
@@ -168,7 +277,7 @@ class PGVector(VectorStore):
             k (int, optional): The number of results to return. Defaults to 4.
 
         Returns:
-            tuple[List[Document], List[float]]: A tuple containing the list of documents that match the query and their corresponding similarity scores.
+            Tuple[List[Document], List[float]]: A tuple containing the list of documents that match the query and their corresponding similarity scores.
         """
         try:
             embedding = self._embedding.embed_query(query)
@@ -184,8 +293,16 @@ class PGVector(VectorStore):
 
     def similarity_search_by_vector(
         self, embedding: List[float], k: int = 4
-    ) -> tuple[List[Document], List[float]]:
-        """Perform a similarity search by vector."""
+    ) -> Tuple[List[Document], List[float]]:
+        """Perform a similarity search by vector.
+
+        Args:
+            embedding (List[float]): The embedding vector to search with.
+            k (int, optional): The number of results to return. Defaults to 4.
+
+        Returns:
+            Tuple[List[Document], List[float]]: A tuple containing the list of documents that match the query and their corresponding similarity scores.
+        """
         session = self._Session()
         try:
             collection = (
@@ -221,16 +338,14 @@ class PGVector(VectorStore):
 
 
 def _main():
-    setup_logging()
     """Test the PGVector class with SiliconFlowEmbeddings."""
+    setup_logging()
 
-    # Import the SiliconFlowEmbeddings class
     from siliconflow_embeddings import SiliconFlowEmbeddings
     from siliconflow_rerank import SiliconFlowRerank
 
     embed_config = load_config("config.yaml", "embed")
 
-    # Initialize SiliconFlowEmbeddings
     embedding_model = SiliconFlowEmbeddings(
         embed_config["api_key"],
         embed_config.get("api_base_url"),
@@ -241,7 +356,6 @@ def _main():
 
     rerank_config = load_config("config.yaml", "rerank")
 
-    # Initialize SiliconFlowRerank
     rerank_model = SiliconFlowRerank(
         api_key=rerank_config["api_key"],
         api_base_url=rerank_config.get(
@@ -251,7 +365,6 @@ def _main():
         **rerank_config.get("model_kwargs", {}),
     )
 
-    # Initialize PGVector
     pgvector_store_config = load_config("config.yaml", "pgvector_store")
     connection_string = pgvector_store_config["connection_string"]
     collection_name = pgvector_store_config["collection_name"]
@@ -262,6 +375,27 @@ def _main():
         pool_size=5,
     )
 
+    # ============ metadata operations ============
+    # Test metadata functionality
+    cprint("\nTesting metadata operations...", "cyan")
+
+    # Set metadata
+    pg_vector.set_collection_metadata("version", "1.0")
+    pg_vector.set_collection_metadata("status", "active")
+
+    # Get single metadata
+    version = pg_vector.get_collection_metadata("version")
+    cprint(f"Retrieved version: {version}", "green")
+
+    # Get all metadata
+    all_metadata = pg_vector.get_all_collection_metadata()
+    cprint(f"All metadata: {all_metadata}", "blue")
+
+    # Test non-existent key
+    missing = pg_vector.get_collection_metadata("nonexistent")
+    cprint(f"Non-existent key returns: {missing}", "yellow")
+
+    # ============ text operations ============
     # Add texts
     texts = [
         "apple",  # English

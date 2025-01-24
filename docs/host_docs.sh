@@ -25,7 +25,7 @@ done
 DOCS_DIR="${DOCS_DIR:-build/html}"                                  # Default Sphinx docs path, can be overridden
 DOCS_DIR=$("$REALPATH" "$DOCS_DIR" | "$SED" -e 's/[[:space:]]*$//') # Convert to absolute path and trim trailing spaces
 SERVER_HOST="cloud.pol1"
-SERVER_DOCS_DIR="domains/cicada.pol1.oaklight.cn/public_html"
+SERVER_DOCS_DIR="domains/cicada.lab.oaklight.cn/public_html"
 
 # print out pwd
 echo "Current working directory: $(pwd)"

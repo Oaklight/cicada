@@ -4,6 +4,7 @@ import json
 import logging
 import logging.config
 import os
+import re
 from typing import Any, Dict, Iterable, List, Optional
 
 import yaml
@@ -87,33 +88,46 @@ def load_prompts(prompts_path: str, which_model: str) -> dict:
     return prompt_templates
 
 
-def colorstring(message: str, color: Optional[str] = "green") -> str:
+def colorstring(
+    message: str,
+    color: Optional[str] = "green",
+    bold: bool = False,
+) -> str:
     """
-    Returns a colored string using blessed terminal capabilities.
+    Returns a colored string using either ANSI escape codes or blessed terminal capabilities.
 
     :param message: The message to be colored.
-    :param color: The color to apply. Supported colors: 'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'.
-    :return: A string with the specified color.
+    :param color: The color to apply. Supported colors: 'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
+                 and their bright variants: 'bright_black', 'bright_red', 'bright_green', 'bright_yellow', 'bright_blue',
+                 'bright_magenta', 'bright_cyan', 'bright_white'.
+    :param bold: If True, applies bold styling to the text (only applicable when use_ansi=True).
+    :param use_ansi: If True, uses ANSI escape codes for coloring. If False, uses blessed terminal capabilities.
+    :return: A string with the specified color and styling.
     """
     color_mapping = {
         "black": _term.black,
-        "red": _term.red,
-        "bright_red": _term.bright_red,
-        "green": _term.green,
-        "bright_green": _term.bright_green,
-        "yellow": _term.yellow,
-        "bright_yellow": _term.bright_yellow,
         "blue": _term.blue,
-        "bright_blue": _term.bright_blue,
-        "magenta": _term.magenta,
         "cyan": _term.cyan,
+        "green": _term.green,
+        "magenta": _term.magenta,
+        "red": _term.red,
         "white": _term.white,
+        "yellow": _term.yellow,
+        "bright_black": _term.bright_black,
+        "bright_blue": _term.bright_blue,
+        "bright_cyan": _term.bright_cyan,
+        "bright_green": _term.bright_green,
+        "bright_magenta": _term.bright_magenta,
+        "bright_red": _term.bright_red,
+        "bright_white": _term.bright_white,
+        "bright_yellow": _term.bright_yellow,
     }
 
-    # Default to white if the color is not found
     color_func = color_mapping.get(color.lower(), _term.white)
-
-    return color_func(message)
+    styled_message = color_func(message)
+    if bold:
+        styled_message = _term.bold(styled_message)
+    return styled_message
 
 
 def cprint(message: str, color: Optional[str] = "green", **kwargs) -> None:
@@ -337,60 +351,96 @@ def parse_design_goal(design_goal_input: str) -> str:
     return design_goal_input
 
 
+class ANSIStrippingFormatter(logging.Formatter):
+    """
+    A logging formatter that removes ANSI escape codes from log messages.
+
+    This formatter is particularly useful when logging to files, where ANSI escape codes
+    (used for terminal coloring) are not needed and can clutter the log output.
+    """
+
+    ansi_escape = re.compile(r"\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])")
+
+    def format(self, record):
+        """
+        Format the log record, removing any ANSI escape codes from the message.
+
+        Args:
+            record (logging.LogRecord): The log record to format.
+
+        Returns:
+            str: The formatted log message with ANSI escape codes removed.
+        """
+        message = super().format(record)
+        return self.ansi_escape.sub("", message)
+
+
 def setup_logging(
     log_level: str = "INFO",
     log_file: Optional[str] = None,
-    console_log: bool = True,
     log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
 ) -> None:
     """
-    Configure logging for the entire application.
+    Configure the logging system.
+
+    This function sets up logging with the following behavior:
+    - Console logs retain ANSI escape codes for colored output.
+    - File logs (if specified) have ANSI escape codes removed for cleaner output.
 
     Args:
-        log_level (str): The logging level (e.g., "DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL").
-        log_file (Optional[str]): Path to the log file. If None, logging to file is disabled.
-        console_log (bool): Whether to enable logging to the console.
-        log_format (str): Format string for the log messages.
+        log_level (str): The logging level (e.g., "INFO", "DEBUG"). Defaults to "INFO".
+        log_file (Optional[str]): Path to the log file. If None, no file logging is performed.
+        log_format (str): The format string for log messages. Defaults to "%(asctime)s - %(name)s - %(levelname)s - %(message)s".
+
+    Returns:
+        None
     """
-    # Define the logging configuration dictionary
-    logging_config: Dict[str, Any] = {
+    # 定义格式化器
+    formatters = {
+        "console": {
+            "format": log_format,
+        },
+        "file": {
+            "()": ANSIStrippingFormatter,  # Remove ANSI escape codes for file logs
+            "format": log_format,
+        },
+    }
+
+    # define handlers (default enable console)
+    handlers = {
+        "console": {
+            "level": log_level.upper(),
+            "class": "logging.StreamHandler",
+            "formatter": "console",
+            "stream": "ext://sys.stdout",
+        }
+    }
+
+    # only add file handler when log_file is provided
+    if log_file:
+        handlers["file"] = {
+            "level": log_level.upper(),
+            "class": "logging.FileHandler",
+            "filename": log_file,
+            "formatter": "file",
+            "mode": "w",
+        }
+
+    # configure logging
+    logging_config = {
         "version": 1,
         "disable_existing_loggers": False,
-        "formatters": {
-            "standard": {
-                "format": log_format,
-            },
-        },
-        "handlers": {},
+        "formatters": formatters,
+        "handlers": handlers,
         "loggers": {
-            "": {  # Root logger
+            "": {
                 "level": log_level.upper(),
-                "handlers": [],
-                "propagate": True,
+                "handlers": list(handlers.keys()),
+                "propagate": True,  # logs propagate to root logger
             },
         },
     }
 
-    # Add console handler if enabled
-    if console_log:
-        logging_config["handlers"]["console"] = {
-            "level": log_level.upper(),
-            "class": "logging.StreamHandler",
-            "formatter": "standard",
-        }
-        logging_config["loggers"][""]["handlers"].append("console")
-
-    # Add file handler if log_file is provided
-    if log_file:
-        logging_config["handlers"]["file"] = {
-            "level": log_level.upper(),
-            "class": "logging.FileHandler",
-            "filename": log_file,
-            "formatter": "standard",
-        }
-        logging_config["loggers"][""]["handlers"].append("file")
-
-    # Apply the logging configuration
     logging.config.dictConfig(logging_config)
     logging.info("Logging configuration is set up.")
 

@@ -265,7 +265,6 @@ class CodeDocHelper:
         Returns:
         dict: A dictionary containing the module name, classes, functions, variables, and docstring (optional).
         """
-
         logger.debug(colorstring(f"Getting module info for {module_name}", "yellow"))
 
         try:
@@ -279,9 +278,15 @@ class CodeDocHelper:
             if with_docstring:
                 data["docstring"] = inspect.getdoc(module) or "No docstring available."
 
+            # Helper function to check if member belongs to the module
+            def belongs_to_module(member):
+                return hasattr(member, "__module__") and member.__module__.startswith(
+                    module_name
+                )
+
             # Collect classes
             for name, member in inspect.getmembers(module, inspect.isclass):
-                if member.__module__.startswith(module_name):
+                if belongs_to_module(member):
                     class_info = self.get_class_info(
                         f"{module_name}.{name}", with_docstring
                     )
@@ -289,27 +294,23 @@ class CodeDocHelper:
                         data["classes"].append(class_info)
 
             # Collect functions (including built-in functions)
-            for name, member in inspect.getmembers(module):
-                if (
-                    inspect.isfunction(member)
-                    or inspect.isbuiltin(member)
-                    or inspect.ismethod(member)
-                ):
-                    if member.__module__.startswith(module_name):
-                        func_info = self.get_function_info(
-                            f"{module_name}.{name}", with_docstring
-                        )
-                        if "error" not in func_info:
-                            data["functions"].append(func_info)
+            for name, member in inspect.getmembers(
+                module, lambda m: inspect.isroutine(m)
+            ):
+                if belongs_to_module(member):
+                    func_info = self.get_function_info(
+                        f"{module_name}.{name}", with_docstring
+                    )
+                    if "error" not in func_info:
+                        data["functions"].append(func_info)
 
             # Collect variables
             for name, member in inspect.getmembers(module):
                 if (
                     not inspect.isclass(member)
-                    and not inspect.isfunction(member)
-                    and not inspect.isbuiltin(member)
-                    and not inspect.ismethod(member)
+                    and not inspect.isroutine(member)
                     and not name.startswith("_")
+                    and belongs_to_module(member)
                 ):
                     variable_info = {
                         "name": name,

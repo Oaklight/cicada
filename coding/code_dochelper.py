@@ -205,26 +205,23 @@ class CodeDocHelper:
         Returns:
         dict: A dictionary containing the class name, signature, methods, variables, and docstring (optional).
         """
-
         logger.debug(colorstring(f"Getting class info for {class_path}", "cyan"))
 
         try:
             parts = class_path.split(".")
             module_name = parts[0]
             module = importlib.import_module(module_name)
+
             # Traverse the path to get the class
             cls = module
             for part in parts[1:]:
                 cls = getattr(cls, part)
 
-            # Handle built-in methods (e.g., __init__)
-            if "__init__" in cls.__dict__:
-                init_func = cls.__init__
-                signature = str(inspect.signature(init_func))
-                if signature.startswith("(self, "):
-                    signature = signature.replace("(self, ", "(")
-            else:
-                signature = "()"
+            # Handle __init__ method
+            init_func = cls.__init__ if "__init__" in cls.__dict__ else None
+            signature = str(inspect.signature(init_func)) if init_func else "()"
+            if signature.startswith("(self, "):
+                signature = signature.replace("(self, ", "(")
 
             data = {
                 "name": class_path,
@@ -237,24 +234,20 @@ class CodeDocHelper:
 
             # Collect methods
             for name, member in inspect.getmembers(cls):
-                if inspect.isfunction(member) or inspect.ismethod(member):
-                    if not name.startswith("_"):
-                        if inspect.isbuiltin(member):
-                            continue  # Skip built-in methods
-                        method = getattr(cls, name)
-                        sig = str(inspect.signature(method))
-                        if sig.startswith("(self, "):
-                            sig = sig.replace("(self, ", "(")
-                        method_info = {"name": name, "signature": f"{name}{sig}"}
-                        if with_docstring:
-                            method_info["docstring"] = (
-                                inspect.getdoc(method) or "No docstring available."
-                            )
-                        data["methods"].append(method_info)
+                if inspect.isroutine(member) and not name.startswith("_"):
+                    sig = str(inspect.signature(member))
+                    if sig.startswith("(self, "):
+                        sig = sig.replace("(self, ", "(")
+                    method_info = {"name": name, "signature": f"{name}{sig}"}
+                    if with_docstring:
+                        method_info["docstring"] = (
+                            inspect.getdoc(member) or "No docstring available."
+                        )
+                    data["methods"].append(method_info)
 
             # Collect variables
             for name, member in inspect.getmembers(cls):
-                if not inspect.isfunction(member) and not name.startswith("_"):
+                if not inspect.isroutine(member) and not name.startswith("_"):
                     data["variables"].append(name)
 
             return data

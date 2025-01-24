@@ -168,24 +168,22 @@ class CodeDocHelper:
             parts = function_path.split(".")
             module_name = parts[0]
             module = importlib.import_module(module_name)
-            # Traverse the path to get the function
+
+            # Traverse the path to get the function or method
             obj = module
             for part in parts[1:]:
                 obj = getattr(obj, part)
 
-            # Handle built-in functions
-            if inspect.isbuiltin(obj):
-                signature = str(inspect.signature(obj))
-                data = {"name": function_path, "signature": f"{parts[-1]}{signature}"}
-                if with_docstring:
-                    data["docstring"] = inspect.getdoc(obj) or "No docstring available."
-                return data
-
-            # Handle regular functions
-            if inspect.isfunction(obj) or inspect.ismethod(obj):
+            # Check if the object is a function or method
+            if inspect.isroutine(obj):
                 signature = str(inspect.signature(obj))
                 if inspect.ismethod(obj) and signature.startswith("(self, "):
-                    signature = signature.replace("(self, ", "(")
+                    signature = f"({signature[7:]}"  # Remove "(self, "
+
+                # # `parts[-1]` version: clearer to read, but may be ambiguous for llm
+                # data = {"name": parts[-1], "signature": f"{parts[-1]}{signature}"}
+
+                # `function_path` version: more verbose, but provide which module it comes from
                 data = {"name": function_path, "signature": f"{parts[-1]}{signature}"}
                 if with_docstring:
                     data["docstring"] = inspect.getdoc(obj) or "No docstring available."

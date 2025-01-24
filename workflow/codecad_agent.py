@@ -43,8 +43,8 @@ class CodeExecutionLoop:
         visual_feedback: VisualFeedback,
         feedback_judge: FeedbackJudge,
         code_master: CodeGenerator = None,
-        max_iterations=5,
-        max_correction_iterations=3,
+        max_design_iterations=10,
+        max_coding_iterations=5,
     ):
         self.code_generator = code_generator
         self.code_executor = code_executor
@@ -52,15 +52,15 @@ class CodeExecutionLoop:
         self.feedback_judge = feedback_judge
         self.code_cache = code_cache
         self.describer = describer
-        self.max_iterations = max_iterations
-        self.max_correction_iterations = max_correction_iterations
+        self.max_design_iterations = max_design_iterations
+        self.max_coding_iterations = max_coding_iterations
         self.code_master = code_master
 
     def run(
         self,
         design_goal: DesignGoal,
         output_dir: str,
-        max_iterations: int = 10,
+        max_design_iterations: int = 10,
         stop_threshold: float = 0.8,
     ):
         # step 0: prepare output directory
@@ -88,7 +88,7 @@ class CodeExecutionLoop:
         is_completed = False
 
         # Step 2: Proceed with the code generation and execution loop using the refined design goal
-        while iteration < max_iterations:
+        while iteration < max_design_iterations:
             # Create iteration-specific directory
             iteration_dir = os.path.join(output_dir, f"iteration_{iteration + 1}")
             os.makedirs(iteration_dir, exist_ok=True)
@@ -422,9 +422,11 @@ class CodeExecutionLoop:
 
         use_master = False
         # Iterate to generate executable code
-        for i in range(self.max_iterations):
-            logger.info(f"[code generation] Iteration {i + 1}/{self.max_iterations}")
-            if i >= 2 / 3 * self.max_iterations:
+        for i in range(self.max_coding_iterations):
+            logger.info(
+                f"[code generation] Iteration {i + 1}/{self.max_coding_iterations}"
+            )
+            if i >= 2 / 3 * self.max_coding_iterations:
                 use_master = True
 
             # Generate or fix code
@@ -470,7 +472,7 @@ class CodeExecutionLoop:
         # If we reach here, the maximum number of iterations was exceeded
         logger.warning(
             colorstring(
-                f"[code generation] Maximum iterations ({self.max_iterations}) reached without generating valid and executable code.",
+                f"[code generation] Maximum iterations ({self.max_coding_iterations}) reached without generating valid and executable code.",
                 "red",
             )
         )

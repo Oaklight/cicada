@@ -3,12 +3,9 @@ import importlib
 import inspect
 import logging
 import os
-import pickle
-import re
 import sys
 from functools import lru_cache
 
-from thefuzz import process
 
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
@@ -20,132 +17,15 @@ logger = logging.getLogger(__name__)
 
 
 class CodeDocHelper:
-    def __init__(self, fuzzy_threshold=80, cache_file="code_doc_cache.pkl"):
+    def __init__(self, fuzzy_threshold=80):
         """
-        Initialize the CodeDocHelper with a cache and fuzzy matching threshold.
+        Initialize the CodeDocHelper with fuzzy matching threshold.
 
         Parameters:
         fuzzy_threshold (int): The minimum similarity score (0-100) for fuzzy matching.
-        cache_file (str): The file to store the cache for persistence.
         """
-        self.query_cache = {}
         self.fuzzy_threshold = fuzzy_threshold
-        self.cache_file = cache_file
         # Load cache from file if it exists
-        self._load_cache()
-
-    def __del__(self):
-        """
-        Save the cache to a file when the CodeDocHelper instance is destroyed.
-        """
-        self._save_cache()
-
-    def _load_cache(self):
-        """
-        Load the cache from a file if it exists.
-        """
-        if os.path.exists(self.cache_file):
-            with open(self.cache_file, "rb") as f:
-                self.query_cache = pickle.load(f)
-
-    def _save_cache(self):
-        """
-        Save the cache to a file.
-        """
-        with open(self.cache_file, "wb") as f:
-            pickle.dump(self.query_cache, f)
-
-    def _fuzzy_match_cache(self, query):
-        """
-        Perform fuzzy matching on the cache keys to find the closest match.
-
-        Parameters:
-        query (str): The query to match against cache keys.
-
-        Returns:
-        tuple: The closest matching cache key and its score, or (None, 0) if no match is found.
-        """
-        if not self.query_cache:
-            return None, 0
-
-        # Extract all cache keys
-        cache_keys = list(self.query_cache.keys())
-        # Perform fuzzy matching
-        match, score = process.extractOne(query, cache_keys)
-        return match, score
-
-    def pre_fill_cache(self, markdown_file):
-        """
-        Pre-fill the cache with objects/functions extracted from a markdown file.
-
-        Parameters:
-        markdown_file (str): The path to the markdown file.
-
-        Returns:
-        dict: A dictionary containing the parts of the cache that were changed during the pre-fill process.
-        """
-
-        def extract_objects_from_markdown(markdown_content):
-            """
-            Extract objects/functions from the markdown content.
-
-            Parameters:
-            markdown_content (str): The content of the markdown file.
-
-            Returns:
-            list: A list of objects/functions extracted from the markdown.
-            """
-            # Regular expressions to match stateful contexts, objects, operations, selectors, etc.
-            stateful_context_pattern = re.compile(r"\* \*\*(\w+)\*\* \(`([\w\.]+)`\)")
-            object_pattern = re.compile(r"\* \*\*(\w+)\*\* \(`([\w\.]+)`\)")
-            operation_pattern = re.compile(r"\* \*\*(\w+)\*\* \(`([\w\.]+)`\)")
-            selector_pattern = re.compile(r"\* \*\*(\w+)\*\* \(`([\w\.]+)`\)")
-            enum_pattern = re.compile(r"\| \*\*(\w+)\*\*")
-
-            # Extract stateful contexts
-            stateful_contexts = stateful_context_pattern.findall(markdown_content)
-
-            # Extract objects
-            objects = object_pattern.findall(markdown_content)
-
-            # Extract operations
-            operations = operation_pattern.findall(markdown_content)
-
-            # Extract selectors
-            selectors = selector_pattern.findall(markdown_content)
-
-            # Extract enums
-            enums = enum_pattern.findall(markdown_content)
-
-            # Combine all extracted objects/functions
-            objects_functions = (
-                [f"{context[1]}" for context in stateful_contexts]
-                + [f"{obj[1]}" for obj in objects]
-                + [f"{op[1]}" for op in operations]
-                + [f"{sel[1]}" for sel in selectors]
-                + [f"{enum}" for enum in enums]
-            )
-
-            return objects_functions
-
-        # Read the markdown file
-        with open(markdown_file, "r", encoding="utf-8") as file:
-            markdown_content = file.read()
-
-        # Extract objects/functions from the markdown content
-        objects_functions = extract_objects_from_markdown(markdown_content)
-
-        # Track changes to the cache
-        changed_cache = {}
-
-        # Fill the cache with the extracted objects/functions
-        for obj in objects_functions:
-            # Query the object/function and cache the result
-            result = self.get_info(f"build123d.{obj}", with_docstring=True)
-            if "error" not in result:
-                changed_cache[obj] = result
-
-        return changed_cache
 
     def get_function_info(self, function_path, with_docstring=False):
         """
@@ -325,21 +205,10 @@ class CodeDocHelper:
         except Exception as e:
             return {"error": f"An unexpected error occurred: {str(e)}"}
 
-    def get_info(self, path, with_docstring=True, disable_cache=False):
+    def get_info(self, path, with_docstring=True):
         """
         Retrieve information about a module, class, function, or variable.
         """
-        if not disable_cache:
-            cache_key = (path, with_docstring)
-            if cache_key in self.query_cache:
-                logger.debug(f"Cache hit for key: {cache_key}")
-                return self.query_cache[cache_key]
-
-            # Fuzzy match for similar queries
-            match, score = self._fuzzy_match_cache(path)
-            if score >= self.fuzzy_threshold:
-                logger.debug(f"Fuzzy match found: {match} with score {score}")
-                return self.query_cache[match]
 
         try:
             parts = path.split(".")
@@ -386,10 +255,6 @@ class CodeDocHelper:
 
                 with open("debug_info.json", "w") as f:
                     json.dump(result, f, indent=4)
-
-            if not disable_cache:
-                self.query_cache[cache_key] = result
-                self._save_cache()  # Save cache after updating
 
             return result
         except ImportError as e:
@@ -491,30 +356,16 @@ def _main():
     parser = argparse.ArgumentParser(
         description="Query module, class, function, or method information."
     )
-    # Exclusive group for path or fill_cache
-    group = parser.add_mutually_exclusive_group(required=True)
-    group.add_argument(
+    parser.add_argument(
         "path",
         type=str,
         nargs="?",  # Makes the path argument optional (consumes one argument if provided)
         help="The full import path or keyword to query (e.g., 'Box' or 'build123d.Box').",
     )
-    group.add_argument(
-        "-cfm",
-        "--cache_from_cheatsheet",
-        type=str,
-        help="Pre-fill the cache using a markdown file.",
-    )
-    # --docstring only applies to the path branch
     parser.add_argument(
         "--docstring",
         action="store_true",
         help="Include the docstring in the output (only applies to path queries).",
-    )
-    parser.add_argument(
-        "--disable_cache",
-        action="store_true",
-        help="Disable the cache for this query.",
     )
     parser.add_argument(
         "--no_output",
@@ -532,21 +383,22 @@ def _main():
     # Initialize the CodeDocHelper
     helper = CodeDocHelper()
 
-    if args.cache_from_cheatsheet:
-        # Pre-fill the cache and print the changed parts
-        changed_cache = helper.pre_fill_cache(args.cache_from_cheatsheet)
-        print("Cache pre-filled with the following items:")
-        for key, value in changed_cache.items():
-            print(f"{key}: {value}")
-    else:
-        # Get the information based on the provided path
-        info = helper.get_info(
-            args.path, with_docstring=args.docstring, disable_cache=args.disable_cache
-        )
-        if args.no_output:
-            return
-        # Convert the information to Markdown and print it
-        print(helper.dict_to_markdown(info, show_docstring=args.docstring))
+    # Get the information based on the provided path
+    info = helper.get_info(args.path, with_docstring=args.docstring)
+    if args.no_output:
+        return
+    # Convert the information to Markdown and print it
+    markdown_formatted_str = helper.dict_to_markdown(
+        info, show_docstring=args.docstring
+    )
+    print(markdown_formatted_str)
+    # Save debug info
+
+    logger.debug(f"Saving debug info to debug_info.json")
+    if logging.root.level == logging.DEBUG:
+        # Save the output to a file
+        with open("debug_info.md", "w") as f:
+            f.write(markdown_formatted_str)
 
 
 if __name__ == "__main__":

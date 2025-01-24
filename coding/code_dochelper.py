@@ -1,7 +1,6 @@
 import argparse
 import importlib
 import inspect
-import json
 import logging
 import os
 import pickle
@@ -15,7 +14,7 @@ _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
-from common.utils import setup_logging  # For fuzzy matching
+from common.utils import colorstring, setup_logging  # For fuzzy matching
 
 logger = logging.getLogger(__name__)
 
@@ -159,6 +158,11 @@ class CodeDocHelper:
         Returns:
         dict: A dictionary containing the function name, signature, and docstring (optional).
         """
+        logger.debug(
+            colorstring(
+                f"Getting function info for {function_path}", color="bright_blue"
+            )
+        )
 
         try:
             parts = function_path.split(".")
@@ -168,17 +172,26 @@ class CodeDocHelper:
             obj = module
             for part in parts[1:]:
                 obj = getattr(obj, part)
-            # Get the signature
-            signature = str(inspect.signature(obj))
-            # Handle class methods
-            if inspect.ismethod(obj):
-                if signature.startswith("(self, "):
-                    signature = signature.replace("(self, ", "(")
-            data = {"name": function_path, "signature": f"{parts[-1]}{signature}"}
-            if with_docstring:
-                data["docstring"] = inspect.getdoc(obj) or "No docstring available."
 
-            return data
+            # Handle built-in functions
+            if inspect.isbuiltin(obj):
+                signature = str(inspect.signature(obj))
+                data = {"name": function_path, "signature": f"{parts[-1]}{signature}"}
+                if with_docstring:
+                    data["docstring"] = inspect.getdoc(obj) or "No docstring available."
+                return data
+
+            # Handle regular functions
+            if inspect.isfunction(obj) or inspect.ismethod(obj):
+                signature = str(inspect.signature(obj))
+                if inspect.ismethod(obj) and signature.startswith("(self, "):
+                    signature = signature.replace("(self, ", "(")
+                data = {"name": function_path, "signature": f"{parts[-1]}{signature}"}
+                if with_docstring:
+                    data["docstring"] = inspect.getdoc(obj) or "No docstring available."
+                return data
+
+            return {"error": f"Object '{function_path}' is not a function or method."}
         except Exception as e:
             return {"error": f"Error getting function info: {e}"}
 
@@ -195,6 +208,8 @@ class CodeDocHelper:
         dict: A dictionary containing the class name, signature, methods, variables, and docstring (optional).
         """
 
+        logger.debug(colorstring(f"Getting class info for {class_path}", "cyan"))
+
         try:
             parts = class_path.split(".")
             module_name = parts[0]
@@ -203,7 +218,8 @@ class CodeDocHelper:
             cls = module
             for part in parts[1:]:
                 cls = getattr(cls, part)
-            # Get the class signature
+
+            # Handle built-in methods (e.g., __init__)
             if "__init__" in cls.__dict__:
                 init_func = cls.__init__
                 signature = str(inspect.signature(init_func))
@@ -211,6 +227,7 @@ class CodeDocHelper:
                     signature = signature.replace("(self, ", "(")
             else:
                 signature = "()"
+
             data = {
                 "name": class_path,
                 "signature": f"{parts[-1]}{signature}",
@@ -219,22 +236,25 @@ class CodeDocHelper:
             }
             if with_docstring:
                 data["docstring"] = inspect.getdoc(cls) or "No docstring available."
-            # Get public methods
-            for name, member in inspect.getmembers(cls, inspect.isfunction):
-                if not name.startswith("_"):
-                    if inspect.isbuiltin(member):
-                        continue  # Skip built-in methods
-                    method = getattr(cls, name)
-                    sig = str(inspect.signature(method))
-                    if sig.startswith("(self, "):
-                        sig = sig.replace("(self, ", "(")
-                    method_info = {"name": name, "signature": f"{name}{sig}"}
-                    if with_docstring:
-                        method_info["docstring"] = (
-                            inspect.getdoc(method) or "No docstring available."
-                        )
-                    data["methods"].append(method_info)
-            # Get member variables
+
+            # Collect methods
+            for name, member in inspect.getmembers(cls):
+                if inspect.isfunction(member) or inspect.ismethod(member):
+                    if not name.startswith("_"):
+                        if inspect.isbuiltin(member):
+                            continue  # Skip built-in methods
+                        method = getattr(cls, name)
+                        sig = str(inspect.signature(method))
+                        if sig.startswith("(self, "):
+                            sig = sig.replace("(self, ", "(")
+                        method_info = {"name": name, "signature": f"{name}{sig}"}
+                        if with_docstring:
+                            method_info["docstring"] = (
+                                inspect.getdoc(method) or "No docstring available."
+                            )
+                        data["methods"].append(method_info)
+
+            # Collect variables
             for name, member in inspect.getmembers(cls):
                 if not inspect.isfunction(member) and not name.startswith("_"):
                     data["variables"].append(name)
@@ -255,6 +275,8 @@ class CodeDocHelper:
         dict: A dictionary containing the module name, classes, functions, variables, and docstring (optional).
         """
 
+        logger.debug(colorstring(f"Getting module info for {module_name}", "yellow"))
+
         try:
             module = importlib.import_module(module_name)
             data = {
@@ -265,7 +287,8 @@ class CodeDocHelper:
             }
             if with_docstring:
                 data["docstring"] = inspect.getdoc(module) or "No docstring available."
-            # Get classes defined in the module or its submodules
+
+            # Collect classes
             for name, member in inspect.getmembers(module, inspect.isclass):
                 if member.__module__.startswith(module_name):
                     class_info = self.get_class_info(
@@ -273,19 +296,28 @@ class CodeDocHelper:
                     )
                     if "error" not in class_info:
                         data["classes"].append(class_info)
-            # Get functions defined in the module or its submodules
-            for name, member in inspect.getmembers(module, inspect.isfunction):
-                if member.__module__.startswith(module_name):
-                    func_info = self.get_function_info(
-                        f"{module_name}.{name}", with_docstring
-                    )
-                    if "error" not in func_info:
-                        data["functions"].append(func_info)
-            # Get variables defined in the module
+
+            # Collect functions (including built-in functions)
+            for name, member in inspect.getmembers(module):
+                if (
+                    inspect.isfunction(member)
+                    or inspect.isbuiltin(member)
+                    or inspect.ismethod(member)
+                ):
+                    if member.__module__.startswith(module_name):
+                        func_info = self.get_function_info(
+                            f"{module_name}.{name}", with_docstring
+                        )
+                        if "error" not in func_info:
+                            data["functions"].append(func_info)
+
+            # Collect variables
             for name, member in inspect.getmembers(module):
                 if (
                     not inspect.isclass(member)
                     and not inspect.isfunction(member)
+                    and not inspect.isbuiltin(member)
+                    and not inspect.ismethod(member)
                     and not name.startswith("_")
                 ):
                     variable_info = {
@@ -304,63 +336,80 @@ class CodeDocHelper:
     def get_info(self, path, with_docstring=True, disable_cache=False):
         """
         Retrieve information about a module, class, function, or variable.
-
-        Parameters:
-        path (str): The full import path to the module, class, function, or variable.
-        with_docstring (bool): If True, include the docstring in the output.
-
-        Returns:
-        dict: A dictionary containing the information about the module, class, function, or variable.
         """
         if not disable_cache:
             cache_key = (path, with_docstring)
             if cache_key in self.query_cache:
+                logger.debug(f"Cache hit for key: {cache_key}")
                 return self.query_cache[cache_key]
 
             # Fuzzy match for similar queries
             match, score = self._fuzzy_match_cache(path)
             if score >= self.fuzzy_threshold:
+                logger.debug(f"Fuzzy match found: {match} with score {score}")
                 return self.query_cache[match]
 
         try:
             parts = path.split(".")
             module_name = parts[0]
+            logger.debug(f"Importing module: {module_name}")
             module = importlib.import_module(module_name)
+            logger.debug(f"Successfully imported module: {module_name}")
+
             # Traverse the path to get the member
             obj = module
             for part in parts[1:]:
+                logger.debug(f"Traversing path: {part}")
                 obj = getattr(obj, part)
+                logger.debug(f"Retrieved object: {obj}")
+
+            logger.debug(f"Inspecting object: {obj}")
             # Determine the type of the member
-            if inspect.isfunction(obj):
+            if (
+                inspect.isfunction(obj)
+                or inspect.isbuiltin(obj)
+                or inspect.ismethod(obj)
+            ):
+                logger.debug(colorstring(f"Detected function: {path}", "magenta"))
                 result = self.get_function_info(path, with_docstring=with_docstring)
             elif inspect.isclass(obj):
+                logger.debug(colorstring(f"Detected class: {path}", "cyan"))
                 result = self.get_class_info(path, with_docstring=with_docstring)
             elif inspect.ismodule(obj):
+                logger.debug(colorstring(f"Detected module: {path}", "yellow"))
                 result = self.get_module_info(path, with_docstring=with_docstring)
             else:
+                logger.debug(f"Detected variable: {path}")
                 # Handle variables or other types
                 result = {
                     "name": path,
                     "type": type(obj).__name__,
                     "value": str(obj),
                 }
-            # debug purpose, save result to local file
+
+            # Save debug info
             logger.debug(f"Saving debug info to debug_info.json")
-            with open("debug_info.json", "w") as f:
-                json.dump(result, f, indent=4)
+            if logging.root.level == logging.DEBUG:
+                import json
+
+                with open("debug_info.json", "w") as f:
+                    json.dump(result, f, indent=4)
 
             if not disable_cache:
                 self.query_cache[cache_key] = result
                 self._save_cache()  # Save cache after updating
 
             return result
-        except ImportError:
+        except ImportError as e:
+            logger.error(f"ImportError: {e}")
             return {"error": f"Module '{module_name}' not found."}
-        except AttributeError:
+        except AttributeError as e:
+            logger.error(f"AttributeError: {e}")
             return {
                 "error": f"Member '{parts[-1]}' not found in module '{module_name}'."
             }
         except Exception as e:
+            logger.error(f"Unexpected error: {e}")
             return {"error": f"An unexpected error occurred: {str(e)}"}
 
     def dict_to_markdown(self, data, show_docstring=True):
@@ -480,7 +529,13 @@ def _main():
         action="store_true",
         help="Disable output to the console.",
     )
+    parser.add_argument("--debug", action="store_true", help="Enable debug logging.")
     args = parser.parse_args()
+
+    setup_logging(
+        log_level="DEBUG" if args.debug else "INFO",
+        log_file="code_dochelper.log",
+    )
 
     # Initialize the CodeDocHelper
     helper = CodeDocHelper()
@@ -503,5 +558,4 @@ def _main():
 
 
 if __name__ == "__main__":
-    setup_logging()
     _main()

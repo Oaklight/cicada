@@ -127,6 +127,9 @@ class DesignGoal:
             f"DesignGoal(text='{self.text}', images={self.images}, extra={self.extra})"
         )
 
+    def __repr__(self):
+        return self.__str__()
+
     def to_dict(self) -> Dict[str, Any]:
         """Convert the DesignGoal object to a dictionary.
 

@@ -13,7 +13,9 @@ _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
 from common import llm
+from common.basics import DesignGoal
 from common.utils import (
+    colorstring,
     cprint,
     extract_section_markdown,
     load_config,
@@ -60,17 +62,61 @@ class CodeGenerator(llm.LanguageModel):
         else:
             return response.strip()
 
-    def generate_code(self, description: str, plan: dict = None) -> str:
+    def generate_or_fix_code(
+        self,
+        design_goal: DesignGoal,
+        plan: dict = None,
+        existing_code: str = None,
+        feedbacks: List[str] = None,
+    ) -> str:
+        """
+        Generate new code or fix existing code based on the provided design goal, plan, and feedback.
+
+        Args:
+            design_goal (DesignGoal): The design goal containing text and decomposition details.
+            plan (dict, optional): A dictionary containing the coding plan, typically including a 'plan' key.
+            existing_code (str, optional): The existing code that needs to be fixed or improved.
+            feedbacks (List[str], optional): A list of feedback messages or errors from previous iterations.
+
+        Returns:
+            str: The generated or fixed code as a string. Returns None if no code could be generated or fixed.
+        """
+        if existing_code:
+            # Fix existing code
+            generated_code = self.fix_code(existing_code, design_goal, feedbacks)
+            logger.info(colorstring(f"Fixed code:\n{generated_code}", "white"))
+        else:
+            # Generate new code
+            generated_code = self.generate_code(design_goal, plan=plan)
+            logger.info(colorstring(f"Generated code:\n{generated_code}", "white"))
+
+        return generated_code
+
+    def generate_code(self, design_goal: DesignGoal, plan: dict = None) -> str:
+        """
+        Generates a build123d script based on the design goal and plan, focusing purely on geometric information.
+        """
+        description = design_goal.text
+        decomposition = design_goal.extra.get("decomposition", {})
+
         if plan:
             prompt = (
-                f"Generate a build123d script to create a 3D model based on the following description and plan:\n"
+                f"Generate a build123d script based on the following description and plan:\n"
                 f"Description:\n{description}\n\n"
+                f"Decomposition Details:\n"
+                f"- Parts: {decomposition.get('parts', [])}\n"
+                f"- Assembly Steps: {decomposition.get('assembly_plan', [])}\n"
+                f"- Uncertainties: {decomposition.get('uncertainty_reasons', [])}\n\n"
                 f"Plan:\n{plan}\n\n"
                 "The code should be enclosed within triple backticks:\n```python\n...```"
             )
         else:
             prompt = (
-                f"Generate a build123d script to create a 3D model based on the following description:\n{description}\n\n"
+                f"Generate a build123d script based on the following description:\n{description}\n\n"
+                f"Decomposition Details:\n"
+                f"- Parts: {decomposition.get('parts', [])}\n"
+                f"- Assembly Steps: {decomposition.get('assembly_plan', [])}\n"
+                f"- Uncertainties: {decomposition.get('uncertainty_reasons', [])}\n\n"
                 "The code should be enclosed within triple backticks:\n```python\n...```"
             )
 
@@ -86,13 +132,25 @@ class CodeGenerator(llm.LanguageModel):
             f.write(code)
         logger.info(f"Code saved to {filename}")
 
-    def fix_code(self, code: str, description: str, feedbacks: List[str] | None) -> str:
+    def fix_code(
+        self, code: str, design_goal: DesignGoal, feedbacks: List[str] | None
+    ) -> str:
+        """
+        Fixes the code based on feedback, focusing purely on geometric information.
+        """
+        description = design_goal.text
+        decomposition = design_goal.extra.get("decomposition", {})
+
         if isinstance(feedbacks, list):
             feedbacks = "\n".join(feedbacks)
 
         prompt = (
             f"The following code has errors:\n```python\n{code}\n```\n"
             f"The original description was:\n{description}\n\n"
+            f"Decomposition Details:\n"
+            f"- Parts: {decomposition.get('parts', [])}\n"
+            f"- Assembly Steps: {decomposition.get('assembly_plan', [])}\n"
+            f"- Uncertainties: {decomposition.get('uncertainty_reasons', [])}\n\n"
             f"Error feedbacks are:\n{feedbacks}\n\n"
             "Please fix the code and ensure it meets the original description. "
             "The corrected code should be enclosed within triple backticks:\n```python\n...```"
@@ -107,32 +165,67 @@ class CodeGenerator(llm.LanguageModel):
 
     def plan_code(
         self,
-        description,
+        design_goal: DesignGoal,  # Receives the full design_goal structure
         feedbacks: str = None,
         previous_plan: dict = None,
     ) -> dict | None:
         """
-        Plans out the building blocks using build123d API.
+        Plans out the building blocks using build123d API, focusing purely on geometric information.
         """
-        if not feedbacks:
-            prompt = f"Based on the following description, create a detailed plan in markdown format:\n{description}\n\n"
-        else:  # a prompt to refine/revise/redo previous plan
-            prompt = (
-                f"Based on the following description and previous plan, create a revised plan in markdown format:\n"
-                f"Description:\n{description}\n\n"
-                f"Previous Plan:\n{previous_plan}\n\n"
-                f"Feedbacks:\n{feedbacks}\n\n"
+        # Parse structured data
+        description = design_goal.text
+        decomposition = design_goal.extra.get("decomposition", {})
+
+        # Construct the prompt
+        prompt = (
+            f"Generate a detailed geometric plan based on the following input:\n"
+            f"Text Description:\n{description}\n\n"
+            f"Decomposition Details:\n"
+            f"- Parts: {decomposition.get('parts', [])}\n"
+            f"- Assembly Steps: {decomposition.get('assembly_plan', [])}\n"
+            f"- Uncertainties: {decomposition.get('uncertainty_reasons', [])}\n\n"
+        )
+
+        # If there are feedbacks or a previous plan, add them to the prompt
+        if feedbacks or previous_plan:
+            prompt += (
+                f"Feedbacks:\n{feedbacks}\n\n" f"Previous Plan:\n{previous_plan}\n\n"
             )
 
         try:
+            # Call the LLM to generate the plan
             plan_response = self.query(prompt, self.system_prompt_code_planning)
+
+            # Extract the plan section
             plan = extract_section_markdown(plan_response, " Plan")
+
+            # Extract the API elements section
             elements = extract_section_markdown(plan_response, " Elements").split("\n")
             elements = [elem.strip() for elem in elements if elem.strip()]
-            return {"plan": plan, "elements": elements}
+
+            # Extract the considerations section
+            considerations = extract_section_markdown(
+                plan_response, " Considerations"
+            ).split("\n")
+            considerations = [cons.strip() for cons in considerations if cons.strip()]
+
+            return {
+                "plan": plan,
+                "elements": elements,
+                "considerations": considerations,  # New considerations section
+            }
         except Exception as e:
             logger.error(f"API call failed: {e}")
-        return None
+            return None
+            return {
+                "plan": plan,
+                "elements": elements,
+                "considerations": considerations,  # 新增考虑事项部分
+                "considerations": considerations,  # New considerations section
+            }
+        except Exception as e:
+            logger.error(f"API call failed: {e}")
+            return None
 
     def patch_code_to_export(
         self, code, format: Literal["stl", "step"] = "stl", target_output_dir=None
@@ -200,21 +293,26 @@ if __name__ == "__main__":
 
     os.makedirs(args.output_dir, exist_ok=True)
 
+    # Load configuration and prompts
     code_llm_config = load_config(args.config, "code-llm")
-
     prompt_templates = load_prompts(args.prompts, "code-llm")
+
+    # Initialize CodeGenerator
     code_generator = CodeGenerator(
         code_llm_config["api_key"],
         code_llm_config.get("api_base_url"),
-        code_llm_config.get("model_name", "gpt-4o-mini"),
+        code_llm_config.get("model_name", "gpt-4"),
         code_llm_config.get("org_id"),
         prompt_templates,
         **code_llm_config.get("model_kwargs", {}),
     )
 
-    # Step 1: Plan the code
+    # Test 1: Generate code from a description
     description = "Create a cylindrical container with a height of 50 units and a radius of 20 units, with a smaller cylindrical hole of radius 5 units drilled through its center along the height."
-    plan = code_generator.plan_code(description)
+    design_goal = DesignGoal(description)
+
+    # Step 1: Plan the code
+    plan = code_generator.plan_code(design_goal)
 
     if plan:
         print("Code Plan:")
@@ -226,7 +324,7 @@ if __name__ == "__main__":
         sys.exit(1)
 
     # Step 2: Generate code based on the plan
-    generated_code = code_generator.generate_code(description, plan=plan["plan"])
+    generated_code = code_generator.generate_code(design_goal, plan=plan["plan"])
 
     if generated_code:
         print("\nGenerated Code:")
@@ -238,14 +336,14 @@ if __name__ == "__main__":
         print("Failed to generate code.")
         sys.exit(1)
 
-    # Step 3: Simulate feedback for fixing the code (Optional)
+    # Test 2: Fix code based on feedback
     feedbacks = [
-        "The cube side length should be 20 units instead of 10 units.",
-        "Ensure the cube is centered at the origin.",
+        "The hole should be centered along the height of the container.",
+        "Ensure the hole has a radius of 5 units.",
     ]
 
-    # Step 4: Fix the code based on feedback (Optional)
-    fixed_code = code_generator.fix_code(generated_code, description, feedbacks)
+    # Step 3: Fix the code based on feedback
+    fixed_code = code_generator.fix_code(generated_code, design_goal, feedbacks)
 
     if fixed_code:
         print("\nFixed Code:")
@@ -256,10 +354,44 @@ if __name__ == "__main__":
     else:
         print("Failed to fix the code.")
 
+    # Test 3: Test generate_or_fix_code for generating new code
+    print("\nTesting generate_or_fix_code for generating new code:")
+    new_code = code_generator.generate_or_fix_code(
+        design_goal,
+        plan=plan["plan"],
+    )
+
+    if new_code:
+        print("\nGenerated Code (via generate_or_fix_code):")
+        print(new_code)
+        code_generator.save_code_to_file(
+            new_code, filename=os.path.join(args.output_dir, "new_code.py")
+        )
+    else:
+        print("Failed to generate code via generate_or_fix_code.")
+
+    # Test 4: Test generate_or_fix_code for fixing existing code
+    print("\nTesting generate_or_fix_code for fixing existing code:")
+    fixed_code_via_generate_or_fix = code_generator.generate_or_fix_code(
+        design_goal,
+        existing_code=generated_code,
+        feedbacks=feedbacks,
+    )
+
+    if fixed_code_via_generate_or_fix:
+        print("\nFixed Code (via generate_or_fix_code):")
+        print(fixed_code_via_generate_or_fix)
+        code_generator.save_code_to_file(
+            fixed_code_via_generate_or_fix,
+            filename=os.path.join(args.output_dir, "fixed_code_via_generate_or_fix.py"),
+        )
+    else:
+        print("Failed to fix code via generate_or_fix_code.")
+
     # Step 5: Patch code to export with export functionality
-    if fixed_code:
+    if fixed_code_via_generate_or_fix:
         patched_code, file_path = code_generator.patch_code_to_export(
-            fixed_code, format="stl"
+            fixed_code_via_generate_or_fix, format="stl"
         )
         print("\nPatched Code with Export Functionality:")
         print(patched_code)

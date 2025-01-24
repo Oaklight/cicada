@@ -396,11 +396,6 @@ class CodeExecutionLoop:
         """
         Generates executable code based on the provided design goal.
 
-        This method first generates a coding plan using the design goal's text. It then iteratively
-        generates or fixes code, validates it, and attempts to execute it. If the code is not valid
-        or fails to execute, feedback is collected and used to improve the code in subsequent iterations.
-        The process continues until valid and executable code is generated or the maximum number of
-        iterations is reached.
         Args:
             design_goal (DesignGoal): The design goal containing the text description and optional images.
             feedbacks (str, optional): Feedback from the previous iteration. Defaults to None.
@@ -408,47 +403,51 @@ class CodeExecutionLoop:
             coding_plan (dict, optional): The coding plan generated in the previous iteration. Defaults to None.
 
         Returns:
-            tuple[str, dict] | None: A tuple containing the generated code and a dictionary of coding_plan,
+            tuple[str, dict] | None: A tuple containing the generated code and a dictionary of coding_plan.
         """
-        # generate plan (using text only)
+        # Generate plan
         if self.code_master:
             coding_plan = self.code_master.plan_code(
-                design_goal.text,
+                design_goal,
                 feedbacks=feedbacks,
                 previous_plan=coding_plan,
             )
         else:
             coding_plan = self.code_generator.plan_code(
-                design_goal.text,
+                design_goal,
                 feedbacks=feedbacks,
                 previous_plan=coding_plan,
             )
         logger.info(colorstring(f"Coding plan:\n{coding_plan}", "white"))
 
         use_master = False
-        # iterate to generate executable code
+        # Iterate to generate executable code
         for i in range(self.max_iterations):
             logger.info(f"[code generation] Iteration {i + 1}/{self.max_iterations}")
             if i >= 2 / 3 * self.max_iterations:
                 use_master = True
 
-            # generate code
-            generated_code = self._generate_or_fix_code(
-                design_goal.text,
+            # Generate or fix code
+            generator = (
+                self.code_master
+                if use_master and self.code_master
+                else self.code_generator
+            )
+            generated_code = generator.generate_or_fix_code(
+                design_goal,
                 coding_plan,
                 existing_code=generated_code,
                 feedbacks=feedbacks,
-                use_master=use_master,
             )
 
-            # validate
+            # Validate
             is_valid, errors = self.code_executor.validate_code(generated_code)
             if not is_valid:
                 feedbacks = errors
                 logger.warning(colorstring(f"Code is not valid:\n{errors}", "yellow"))
                 continue
 
-            # execute
+            # Execute
             is_runnable, results = self.code_executor.execute_code(
                 generated_code, test_run=True
             )
@@ -462,7 +461,7 @@ class CodeExecutionLoop:
 
             logger.info(
                 colorstring(
-                    f"Executeable code generated:\n{generated_code}", "bright_blue"
+                    f"Executable code generated:\n{generated_code}", "bright_blue"
                 )
             )
 
@@ -476,41 +475,6 @@ class CodeExecutionLoop:
             )
         )
         return (None, None)
-
-    def _generate_or_fix_code(
-        self,
-        description: str,
-        plan: dict = None,
-        existing_code: str = None,
-        feedbacks: List[str] = None,
-        use_master: bool = False,
-    ) -> str:
-        """
-        Generate new code or fix existing code based on the provided description, plan, and feedback.
-
-        Args:
-            description (str): A textual description of the design goal or the problem to solve.
-            plan (dict, optional): A dictionary containing the coding plan, typically including a 'plan' key.
-            existing_code (str, optional): The existing code that needs to be fixed or improved.
-            feedbacks (List[str], optional): A list of feedback messages or errors from previous iterations.
-            use_master (bool, optional): If True, the master code generator will be used for code generation or fixing.
-
-        Returns:
-            str: The generated or fixed code as a string. Returns None if no code could be generated or fixed.
-        """
-        generated_code = None
-
-        generator = self.code_generator
-        if use_master and self.code_master:
-            generator = self.code_master
-
-        if existing_code:
-            generated_code = generator.fix_code(existing_code, description, feedbacks)
-            logger.info(colorstring(f"Fixed code:\n{generated_code}", "white"))
-        else:
-            generated_code = generator.generate_code(description, plan["plan"])
-            logger.info(colorstring(f"Generated code:\n{generated_code}", "white"))
-        return generated_code
 
     def _mark_iteration_as_runnable(self, iteration_id):
         self.code_cache.update_iteration(iteration_id, is_runnable=True)

@@ -15,9 +15,10 @@ sys.path.extend([_parent_dir, _grandparent_dir])
 
 from coding.code_dochelper import CodeDocHelper
 from common.rerank import Rerank
-from common.utils import load_config, setup_logging
+from common.utils import colorstring, cprint, load_config, setup_logging
 from retrieval.core.basics import Embeddings
 from retrieval.core.siliconflow_embeddings import SiliconFlowEmbeddings
+from retrieval.core.siliconflow_rerank import SiliconFlowRerank
 from retrieval.core.sqlitevec_store import Document, SQLiteVec
 
 logger = logging.getLogger(__name__)
@@ -30,7 +31,8 @@ class Build123dRetriever:
         table: str = "build123d_objects",
         embedding_model: Embeddings = None,
         reranking_model: Rerank = None,
-        **kwargs,
+        embedding_config: Dict = None,
+        rerank_config: Dict = None,
     ):
         """
         Initialize the Build123dRetriever.
@@ -38,6 +40,10 @@ class Build123dRetriever:
         Args:
             db_file (str): Path to the SQLite database file. Defaults to "build123d_vec.db".
             table (str): Name of the table to store the vectors. Defaults to "build123d_objects".
+            embedding_model (Embeddings): Pre-initialized embedding model. Defaults to None.
+            reranking_model (Rerank): Pre-initialized reranking model. Defaults to None.
+            embedding_config (Dict): Configuration for the embedding model. Defaults to None.
+            rerank_config (Dict): Configuration for the reranking model. Defaults to None.
         """
         self.db_file = db_file
         self.table = table
@@ -47,16 +53,26 @@ class Build123dRetriever:
             self.embedding_model = embedding_model
         else:
             # check config parameters from kwargs, raise error if missing
-            embedding_config = kwargs.get("embedding_config")
-            if not embedding_config or not embedding_config.get("api_key"):
+            if not embedding_config and not embedding_config.get("api_key"):
                 raise ValueError("Missing embedding_config or api_key")
             # Initialize the embedding model
             self.embedding_model = SiliconFlowEmbeddings(
                 embedding_config["api_key"],
                 embedding_config.get("api_base_url"),
-                embedding_config.get("model_name", "text-embedding-3-small"),
+                embedding_config.get("model_name"),
                 embedding_config.get("org_id"),
                 **embedding_config.get("model_kwargs", {}),
+            )
+        if reranking_model:
+            self.rerank_model = reranking_model
+        else:
+            if not rerank_config and not rerank_config.get("api_key"):
+                raise ValueError("Missing rerank_config or api_key")
+            self.rerank_model = SiliconFlowRerank(
+                rerank_config["api_key"],
+                rerank_config.get("api_base_url"),
+                rerank_config.get("model_name"),
+                **rerank_config.get("model_kwargs", {}),
             )
 
         # Initialize the SQLiteVec instance with the embedding model
@@ -161,7 +177,11 @@ class Build123dRetriever:
 
         return texts, metadatas
 
-    def query(self, query_text: str, k: int = 5) -> List[Dict]:
+    def query(
+        self,
+        query_text: str,
+        k: int = 10,
+    ) -> List[Dict]:
         """
         Query the database with a sentence or description in parallel.
 
@@ -174,13 +194,32 @@ class Build123dRetriever:
         """
         query_embedding = self.embedding_model.embed_query(query_text)
         results, scores = self.vector_store.similarity_search_by_vector(
-            query_embedding, k
+            query_embedding, k=k
         )
+
+        logger.debug(colorstring(f"Initial results: {results}", "blue"))
+        logger.debug(colorstring(f"Initial scores: {scores}", "blue"))
+
+        reranked_results = self.rerank_model.rerank(query_text, results, 4)
+        # [{'index': 0, 'relevance_score': 0.455078125, 'document': {'text': '苹果'}}, {'index': 2, 'relevance_score': 0.33984375, 'document': {'text': '水果'}}, {'index': 1, 'relevance_score': 0.25, 'document': {'text': 'banana'}}, {'index': 4, 'relevance_score': 0.189453125, 'document': {'text': 'manzana'}}]
+        logger.debug(
+            colorstring(f"Reranked results: {reranked_results}", "bright_green")
+        )
+        # get rerank order by sequencing `index`
+        rerank_order = [int(r["index"]) for r in reranked_results]
+        rerank_score = [float(r["relevance_score"]) for r in reranked_results]
+        results = [results[i] for i in rerank_order]
+        scores = rerank_score
+
         logger.debug(f"Query results: {results}")
         return [doc.metadata for doc in results], scores
 
     def get_complete_info(
-        self, query_text: str, k: int = 5, with_docstring: bool = False
+        self,
+        query_text: str,
+        k: int = 10,
+        with_docstring: bool = False,
+        threshold: float = 0.8,
     ) -> List[Dict]:
         """
         Get complete information about the queried objects in parallel.
@@ -192,7 +231,7 @@ class Build123dRetriever:
         Returns:
             List[Dict]: A list of dictionaries containing complete information about the objects.
         """
-        results, scores = self.query(query_text, k)
+        reranked_results, reranked_scores = self.query(query_text, k)
         complete_info = []
 
         # Function to fetch complete info for a single result
@@ -212,13 +251,13 @@ class Build123dRetriever:
                     "value": result["value"],
                 }
 
-        # Use ThreadPoolExecutor to fetch info in parallel
-        with ThreadPoolExecutor() as executor:
-            futures = [executor.submit(fetch_info, result) for result in results]
-            for future in as_completed(futures):
-                complete_info.append(future.result())
+        complete_info_with_score = [
+            (fetch_info(result), score)
+            for result, score in zip(reranked_results, reranked_scores)
+            if score >= threshold
+        ]
 
-        return complete_info
+        return complete_info_with_score
 
 
 # Example usage
@@ -230,32 +269,58 @@ if __name__ == "__main__":
         action="store_true",
         help="Force rebuild the database",
     )
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Run in interactive mode to ask multiple questions",
+    )
+    parser.add_argument(
+        "--query",
+        type=str,
+        help="Query text to search in the database",
+    )
     args = parser.parse_args()
 
     retriever_config = load_config("config.yaml", "build123d_retriever")
-
-    # # Initialize SiliconFlowEmbeddings
-    # embedding_model = SiliconFlowEmbeddings(
-    #     retriever_config["api_key"],
-    #     retriever_config.get("api_base_url"),
-    #     retriever_config.get("model_name", "text-embedding-3-small"),
-    #     retriever_config.get("org_id"),
-    #     **retriever_config.get("model_kwargs", {}),
-    # )
 
     retriever = Build123dRetriever(
         db_file=retriever_config["db_file"],
         table=retriever_config["table"],
         embedding_config=retriever_config["embedding_config"],
+        rerank_config=retriever_config["rerank_config"],
     )
 
     # Build the database only if it doesn't exist or if forced
     retriever._init_database(
-        force_rebuild=False, only_names=True
+        force_rebuild=args.force_rebuild, only_names=True
     )  # Set force_rebuild=True to rebuild
 
-    # Query the database
-    query_text = "How to create a box in build123d?"
-    results = retriever.get_complete_info(query_text)
-    for result in results:
-        print(result)
+    if args.interactive:
+        # Interactive mode: keep asking for queries until the user exits
+        while True:
+            query_text = input("\nEnter your query (or type 'exit' to quit): ").strip()
+            if query_text.lower() == "exit":
+                cprint("Exiting interactive mode. Goodbye!", "bright_green")
+                break
+
+            if not query_text:
+                cprint("Please enter a valid query.", "bright_red")
+                continue
+
+            # Query the database
+            results = retriever.get_complete_info(
+                query_text, k=10, with_docstring=False
+            )
+            if not results:
+                cprint("No results found.", "bright_red")
+            else:
+                for result, score in results:
+                    cprint(f"Score: {score}", "bright_yellow")
+                    print(result)
+    else:
+        # Non-interactive mode: run a single query
+        query_text = "How to create a box in build123d?"
+        results = retriever.get_complete_info(query_text, k=10, with_docstring=False)
+        for result, score in results:
+            cprint(f"Score: {score}", "bright_yellow")
+            print(result)

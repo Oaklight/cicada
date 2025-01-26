@@ -84,10 +84,12 @@ class Rerank(ABC):
             "Content-Type": "application/json",
         }
 
+        logger.debug(colorstring(f"Payload: {payload}", "blue"))
+        logger.debug(colorstring(f"Headers: {headers}", "blue"))
         try:
             response = requests.post(self.api_base_url, json=payload, headers=headers)
             response.raise_for_status()
-            return response.json()
+            return response.json()["results"]
         except requests.exceptions.RequestException as e:
             logger.error(colorstring(f"Failed to rerank documents: {e}", "red"))
             raise

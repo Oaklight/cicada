@@ -6,3 +6,8 @@ build123d_retriever:
     api_key: "sk-gpictjyjiywniufdjmdudqbidrqprcblsykmmvizeahoqbyr"
     api_base_url: "https://api.siliconflow.com/v1" # Optional custom API base URL
     model_name: "Pro/BAAI/bge-m3" # "Pro/BAAI/bge-m3" for higher token/s
+  rerank_config:
+    ## Siliconflow
+    api_key: "sk-gpictjyjiywniufdjmdudqbidrqprcblsykmmvizeahoqbyr"
+    api_base_url: "https://api.siliconflow.com/v1" # Optional custom API base URL
+    model_name: "Pro/BAAI/bge-reranker-v2-m3" # "Pro/BAAI/bge-m3" for higher token/s

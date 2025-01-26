@@ -89,19 +89,18 @@ def load_prompts(prompts_path: str, which_model: str) -> dict:
 
 
 def colorstring(
-    message: str,
+    message: Any,  # Accept any type of input
     color: Optional[str] = "green",
     bold: bool = False,
 ) -> str:
     """
     Returns a colored string using either ANSI escape codes or blessed terminal capabilities.
 
-    :param message: The message to be colored.
+    :param message: The message to be colored. Can be of any type (e.g., str, int, float, bool).
     :param color: The color to apply. Supported colors: 'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
                  and their bright variants: 'bright_black', 'bright_red', 'bright_green', 'bright_yellow', 'bright_blue',
                  'bright_magenta', 'bright_cyan', 'bright_white'.
     :param bold: If True, applies bold styling to the text (only applicable when use_ansi=True).
-    :param use_ansi: If True, uses ANSI escape codes for coloring. If False, uses blessed terminal capabilities.
     :return: A string with the specified color and styling.
     """
     color_mapping = {
@@ -123,18 +122,21 @@ def colorstring(
         "bright_yellow": _term.bright_yellow,
     }
 
+    # Convert the message to a string
+    message_str = str(message)
+
     color_func = color_mapping.get(color.lower(), _term.white)
-    styled_message = color_func(message)
+    styled_message = color_func(message_str)
     if bold:
         styled_message = _term.bold(styled_message)
     return styled_message
 
 
-def cprint(message: str, color: Optional[str] = "green", **kwargs) -> None:
+def cprint(message: Any, color: Optional[str] = "green", **kwargs) -> None:
     """
     Prints a colored string using blessed terminal capabilities.
 
-    :param message: The message to be colored.
+    :param message: The message to be colored. Can be of any type (e.g., str, int, float, bool).
     :param color: The color to apply. Supported colors: 'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'.
     :param kwargs: Additional keyword arguments to pass to the `print` function (e.g., `end`, `sep`, `file`, `flush`).
     """

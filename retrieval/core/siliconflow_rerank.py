@@ -9,6 +9,7 @@ _grandparent_dir = os.path.dirname(_parent_dir)
 sys.path.extend([_parent_dir, _grandparent_dir])
 
 from common.rerank import Rerank
+from common.utils import setup_logging
 from retrieval.core.basics import Document
 
 
@@ -85,6 +86,7 @@ class SiliconFlowRerank(Rerank):
 
 
 if __name__ == "__main__":
+    setup_logging(log_level="DEBUG")
     # Initialize the SiliconFlow BGE-Reranker model
     rerank_model = SiliconFlowRerank(
         api_key="sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc",

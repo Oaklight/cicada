@@ -184,6 +184,7 @@ class Build123dRetriever:
                     "type": "method",
                     "signature": method["signature"],
                     "docstring": method.get("docstring", ""),
+                    "parent_class": cls["name"],  # Add parent class information
                 }
                 objects.append(method_info)
 
@@ -322,7 +323,7 @@ if __name__ == "__main__":
         "--metric",
         type=str,
         choices=["l2", "cosine"],
-        default="cosine",
+        default="l2",
         help="Distance metric to use for similarity search",
     )
     parser.add_argument(
@@ -334,6 +335,9 @@ if __name__ == "__main__":
         "--debug",
         action="store_true",
         help="Enable debug mode for detailed logging",
+    )
+    parser.add_argument(
+        "-k", type=int, default=10, help="Number of results to return for each query"
     )
     args = parser.parse_args()
 
@@ -371,7 +375,7 @@ if __name__ == "__main__":
             # Query the database
             results = retriever.get_complete_info(
                 query_text,
-                k=100,
+                k=args.k,
                 with_docstring=True,
                 threshold=0.1,
                 distance_metrics=args.metric,
@@ -387,7 +391,7 @@ if __name__ == "__main__":
         query_text = "How to create a box in build123d?"
         results = retriever.get_complete_info(
             query_text,
-            k=100,
+            k=args.k,
             with_docstring=True,
             threshold=0.1,
             distance_metrics=args.metric,

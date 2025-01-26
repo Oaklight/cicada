@@ -6,7 +6,6 @@ import os
 import sys
 from functools import lru_cache
 
-
 _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
@@ -111,6 +110,7 @@ class CodeDocHelper:
                 "signature": f"{class_path}{signature}",
                 "methods": [],  # Flattened methods (as standalone functions)
                 "variables": [],
+                "parent_classes": [],  # List of parent classes
             }
             if with_docstring:
                 data["docstring"] = inspect.getdoc(cls) or "No docstring available."
@@ -121,7 +121,14 @@ class CodeDocHelper:
                     method_path = f"{class_path}.{name}"
                     method_info = self.get_function_info(method_path, with_docstring)
                     if "error" not in method_info:
-                        data["methods"].append(method_info)
+                        # Check if the method is defined in the current class or inherited
+                        if member.__qualname__.split(".")[0] == cls.__name__:
+                            data["methods"].append(method_info)
+                        else:
+                            # Add parent class information
+                            parent_class = member.__qualname__.split(".")[0]
+                            if parent_class not in data["parent_classes"]:
+                                data["parent_classes"].append(parent_class)
 
             # Collect variables
             for name, member in inspect.getmembers(cls):
@@ -294,6 +301,8 @@ class CodeDocHelper:
                     markdown_output += f"- **Signature**: `{cls['signature']}`\n"
                     if show_docstring and "docstring" in cls:
                         markdown_output += f"- **Docstring**:\n```markdown\n{cls['docstring']}\n```\n\n"
+                    if cls["parent_classes"]:
+                        markdown_output += f"- **Parent Classes**: {', '.join(cls['parent_classes'])}\n"
             if data["functions"]:
                 markdown_output += "## Functions\n"
                 for func in data["functions"]:
@@ -324,6 +333,10 @@ class CodeDocHelper:
                     markdown_output += (
                         f"- **Docstring**:\n```markdown\n{method['docstring']}\n```\n\n"
                     )
+            if data["parent_classes"]:
+                markdown_output += (
+                    f"- **Parent Classes**: {', '.join(data['parent_classes'])}\n"
+                )
             markdown_output += "## Variables\n"
             for var in data["variables"]:
                 markdown_output += f"- {var}\n"

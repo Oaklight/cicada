@@ -82,7 +82,11 @@ class Build123dRetriever:
         self._init_database(force_rebuild=False, batch_size=15)
 
     def _init_database(
-        self, force_rebuild: bool = False, only_names: bool = True, batch_size: int = 16
+        self,
+        force_rebuild: bool = False,
+        only_names: bool = True,
+        batch_size: int = 100,
+        embed_batch_size: int = 40,
     ):
         """
         Build initial database records of all the object names inside the build123d module.
@@ -91,6 +95,8 @@ class Build123dRetriever:
         Args:
             force_rebuild (bool): Whether to force rebuild the database. Defaults to False.
             only_names (bool): Whether to only store names and their embeddings. Defaults to True.
+            batch_size (int): The size of batches for writing to the database. Defaults to 16.
+            embed_batch_size (int): The size of batches for embedding computation. Defaults to 100.
         """
         if os.path.exists(self.db_file) and not force_rebuild:
             try:
@@ -105,25 +111,57 @@ class Build123dRetriever:
                     )
             except Exception as e:
                 print(f"Error checking database completeness: {e}. Rebuilding...")
+        else:
+            # Force rebuild: Drop the existing table and start fresh
+            print(f"Force rebuilding database at {self.db_file}...")
+            self.vector_store.drop_table()  # Drop the existing table
+            self.vector_store.create_table()  # Recreate the table
 
         module_info_json = self.helper.get_info("build123d", with_docstring=True)
         objects = self.extract_all_objects(module_info_json)
 
-        # Generate embeddings in parallel
+        # Generate texts and metadatas
         texts, metadatas = self.generate_embedding_pairs(objects, only_names)
 
-        # Batch texts/metadatas into chunks of 16
+        # Compute embeddings in parallel using a thread pool
+        embeddings = []
+        with tqdm(total=len(texts), desc="Computing embeddings", unit="object") as pbar:
+            with ThreadPoolExecutor() as executor:
+                # Submit tasks to the thread pool
+                futures = [
+                    executor.submit(
+                        self.embedding_model.embed_documents,
+                        texts[i : i + embed_batch_size],
+                    )
+                    for i in range(0, len(texts), embed_batch_size)
+                ]
+
+                # Collect results as they complete
+                for future in as_completed(futures):
+                    batch_embeddings = future.result()
+                    embeddings.extend(batch_embeddings)
+                    pbar.update(len(batch_embeddings))  # Update progress by batch size
+
+        # Batch texts/metadatas/embeddings into chunks of batch_size
         text_batches = [
             texts[i : i + batch_size] for i in range(0, len(texts), batch_size)
         ]
         metadata_batches = [
             metadatas[i : i + batch_size] for i in range(0, len(metadatas), batch_size)
         ]
+        embedding_batches = [
+            embeddings[i : i + batch_size]
+            for i in range(0, len(embeddings), batch_size)
+        ]
 
         # Add batches sequentially in main thread
         with tqdm(total=len(texts), desc="Building database", unit="object") as pbar:
-            for batch_texts, batch_metadatas in zip(text_batches, metadata_batches):
-                self.vector_store.add_texts(batch_texts, batch_metadatas)
+            for batch_texts, batch_metadatas, batch_embeddings in zip(
+                text_batches, metadata_batches, embedding_batches
+            ):
+                self.vector_store.add_texts_with_embeddings(
+                    batch_texts, batch_embeddings, batch_metadatas
+                )
                 pbar.update(len(batch_texts))  # Update progress by batch size
 
         # Mark the database as complete

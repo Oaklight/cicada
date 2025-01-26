@@ -42,6 +42,62 @@ class SQLiteVec(VectorStore):
         self.create_table_if_not_exists()
         self.create_metadata_table()
 
+    def drop_table(self):
+        """Drop the main table and the virtual table if they exist."""
+        connection = self._get_connection()
+        try:
+            # Drop the main table
+            connection.execute(f"DROP TABLE IF EXISTS {self._table}")
+            # Drop the virtual table
+            connection.execute(f"DROP TABLE IF EXISTS {self._table}_vec")
+            connection.commit()
+            logger.info(
+                colorstring(
+                    f"Dropped tables: {self._table} and {self._table}_vec", "red"
+                )
+            )
+        except sqlite3.Error as e:
+            logger.error(colorstring(f"Failed to drop tables: {e}", "red"))
+            raise e
+        finally:
+            self._release_connection(connection)
+
+    def create_table(self):
+        """Create the main table and the virtual table."""
+        connection = self._get_connection()
+        try:
+            # Create the main table
+            connection.execute(
+                f"""
+                CREATE TABLE {self._table} (
+                    rowid INTEGER PRIMARY KEY AUTOINCREMENT,
+                    text TEXT,
+                    metadata BLOB,
+                    text_embedding BLOB
+                );
+            """
+            )
+            # Create the virtual table
+            connection.execute(
+                f"""
+                CREATE VIRTUAL TABLE {self._table}_vec USING vec0(
+                    rowid INTEGER PRIMARY KEY,
+                    text_embedding float[{self.get_dimensionality()}]
+                );
+            """
+            )
+            connection.commit()
+            logger.info(
+                colorstring(
+                    f"Created tables: {self._table} and {self._table}_vec", "green"
+                )
+            )
+        except sqlite3.Error as e:
+            logger.error(colorstring(f"Failed to create tables: {e}", "red"))
+            raise e
+        finally:
+            self._release_connection(connection)
+
     def _create_connection_pool(self, pool_size: int) -> List[sqlite3.Connection]:
         """Create a connection pool for SQLite.
 
@@ -132,33 +188,36 @@ class SQLiteVec(VectorStore):
         """
         connection = self._get_connection()
         try:
-            connection.execute(
-                f"""
-                CREATE TABLE IF NOT EXISTS {self._table} (
-                    rowid INTEGER PRIMARY KEY AUTOINCREMENT,
-                    text TEXT,
-                    metadata BLOB,
-                    text_embedding BLOB
-                );
-            """
+            # Check if the main table exists
+            cursor = connection.execute(
+                f"SELECT name FROM sqlite_master WHERE type='table' AND name='{self._table}'"
             )
-            connection.execute(
-                f"""
-                CREATE VIRTUAL TABLE IF NOT EXISTS {self._table}_vec USING vec0(
-                    rowid INTEGER PRIMARY KEY,
-                    text_embedding float[{self.get_dimensionality()}]
-                );
-            """
+            main_table_exists = cursor.fetchone() is not None
+
+            # Check if the virtual table exists
+            cursor = connection.execute(
+                f"SELECT name FROM sqlite_master WHERE type='table' AND name='{self._table}_vec'"
             )
-            connection.commit()
-            logger.info(
-                colorstring(
-                    f"Tables created or verified: {self._table}, {self._table}_vec",
-                    "green",
+            virtual_table_exists = cursor.fetchone() is not None
+
+            # If either table does not exist, create both tables
+            if not main_table_exists or not virtual_table_exists:
+                self.create_table()
+                logger.info(
+                    colorstring(
+                        f"Tables created: {self._table}, {self._table}_vec",
+                        "green",
+                    )
                 )
-            )
+            else:
+                logger.info(
+                    colorstring(
+                        f"Tables already exist: {self._table}, {self._table}_vec",
+                        "blue",
+                    )
+                )
         except sqlite3.Error as e:
-            logger.error(colorstring(f"Failed to create tables: {e}", "red"))
+            logger.error(colorstring(f"Failed to check or create tables: {e}", "red"))
             raise e
         finally:
             self._release_connection(connection)
@@ -233,6 +292,59 @@ class SQLiteVec(VectorStore):
             # Insert into the main table and get the rowids
             rowids = []
             for text, metadata, embed in zip(texts, metadatas, embeds):
+                cursor = connection.execute(
+                    f"INSERT INTO {self._table}(text, metadata, text_embedding) VALUES (?, ?, ?)",
+                    (text, json.dumps(metadata), self.serialize_f32(embed)),
+                )
+                rowid = cursor.lastrowid  # Get the rowid of the inserted row
+                rowids.append(rowid)
+
+                # Insert into the virtual table
+                connection.execute(
+                    f"INSERT INTO {self._table}_vec(rowid, text_embedding) VALUES (?, ?)",
+                    (rowid, self.serialize_f32(embed)),
+                )
+
+            connection.commit()
+            logger.info(
+                colorstring(f"Added {len(texts)} texts to the vector store", "blue")
+            )
+            return [str(rowid) for rowid in rowids]
+        except sqlite3.Error as e:
+            logger.error(colorstring(f"Failed to add texts: {e}", "red"))
+            raise e
+        finally:
+            self._release_connection(connection)
+
+    def add_texts_with_embeddings(
+        self,
+        texts: List[str],
+        embeddings: List[List[float]],
+        metadatas: Optional[List[Dict]] = None,
+    ) -> List[str]:
+        """Add texts with precomputed embeddings to the vector store.
+
+        Args:
+            texts (List[str]): The list of texts to add.
+            embeddings (List[List[float]]): The list of precomputed embeddings.
+            metadatas (Optional[List[Dict]], optional): The list of metadata dictionaries. Defaults to None.
+
+        Returns:
+            List[str]: The list of row IDs for the added texts.
+
+        Raises:
+            sqlite3.Error: If the addition of texts fails.
+        """
+        if len(texts) != len(embeddings):
+            raise ValueError("The number of texts and embeddings must be the same.")
+
+        connection = self._get_connection()
+        try:
+            metadatas = metadatas or [{} for _ in texts]
+            rowids = []
+
+            # Insert into the main table and get the rowids
+            for text, metadata, embed in zip(texts, metadatas, embeddings):
                 cursor = connection.execute(
                     f"INSERT INTO {self._table}(text, metadata, text_embedding) VALUES (?, ?, ?)",
                     (text, json.dumps(metadata), self.serialize_f32(embed)),

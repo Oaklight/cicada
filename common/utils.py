@@ -388,6 +388,7 @@ def setup_logging(
     This function sets up logging with the following behavior:
     - Console logs retain ANSI escape codes for colored output.
     - File logs (if specified) have ANSI escape codes removed for cleaner output.
+    - Mutes httpx INFO logs while keeping the global log_level at INFO.
 
     Args:
         log_level (str): The logging level (e.g., "INFO", "DEBUG"). Defaults to "INFO".
@@ -397,7 +398,7 @@ def setup_logging(
     Returns:
         None
     """
-    # 定义格式化器
+    # Define formatters
     formatters = {
         "console": {
             "format": log_format,
@@ -438,7 +439,13 @@ def setup_logging(
             "": {
                 "level": log_level.upper(),
                 "handlers": list(handlers.keys()),
-                "propagate": True,  # logs propagate to root logger
+                "propagate": True,  # Logs propagate to root logger
+            },
+            # Add a custom logger for httpx to mute INFO logs
+            "httpx": {
+                "level": "WARNING",  # Set httpx logger to WARNING to mute INFO logs
+                "handlers": list(handlers.keys()),
+                "propagate": False,  # Prevent httpx logs from propagating to root logger
             },
         },
     }

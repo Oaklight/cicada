@@ -83,7 +83,7 @@ class CodeDocHelper:
         with_docstring (bool): If True, include the docstring in the output.
 
         Returns:
-        dict: A dictionary containing the class name, signature, methods, variables, and docstring (optional).
+        dict: A dictionary containing the class name, signature, flattened methods, variables, and docstring (optional).
         """
         logger.debug(colorstring(f"Getting class info for {class_path}", "cyan"))
 
@@ -106,19 +106,22 @@ class CodeDocHelper:
             data = {
                 "name": class_path,
                 "signature": f"{parts[-1]}{signature}",
-                "methods": [],
+                "methods": [],  # Flattened methods (as standalone functions)
                 "variables": [],
             }
             if with_docstring:
                 data["docstring"] = inspect.getdoc(cls) or "No docstring available."
 
-            # Collect methods
+            # Collect methods and flatten them
             for name, member in inspect.getmembers(cls):
                 if inspect.isroutine(member) and not name.startswith("_"):
                     sig = str(inspect.signature(member))
                     if sig.startswith("(self, "):
                         sig = sig.replace("(self, ", "(")
-                    method_info = {"name": name, "signature": f"{name}{sig}"}
+                    method_info = {
+                        "name": f"{class_path}.{name}",  # Full path to the method
+                        "signature": f"{name}{sig}",
+                    }
                     if with_docstring:
                         method_info["docstring"] = (
                             inspect.getdoc(member) or "No docstring available."

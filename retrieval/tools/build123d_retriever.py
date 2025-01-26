@@ -139,6 +139,16 @@ class Build123dRetriever:
             cls["type"] = "class"
             objects.append(cls)
 
+            # Extract methods from the class and treat them as standalone functions
+            for method in cls.get("methods", []):
+                method_info = {
+                    "name": f"{cls['name']}.{method['name']}",  # Full path to the method
+                    "type": "method",
+                    "signature": method["signature"],
+                    "docstring": method.get("docstring", ""),
+                }
+                objects.append(method_info)
+
         for func in module_info_json.get("functions", []):
             func["type"] = "function"
             objects.append(func)
@@ -240,7 +250,7 @@ class Build123dRetriever:
                 return self.helper.get_class_info(
                     result["name"], with_docstring=with_docstring
                 )
-            elif result["type"] == "function":
+            elif result["type"] in ["function", "method"]:
                 return self.helper.get_function_info(
                     result["name"], with_docstring=with_docstring
                 )

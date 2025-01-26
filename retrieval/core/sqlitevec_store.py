@@ -266,6 +266,27 @@ class SQLiteVec(VectorStore):
         finally:
             self._release_connection(connection)
 
+    def delete_by_ids(self, ids: List[str]):
+        """Delete documents by their row IDs."""
+        connection = self._get_connection()
+        try:
+            placeholders = ",".join("?" for _ in ids)
+            # Delete from main table
+            connection.execute(
+                f"DELETE FROM {self._table} WHERE rowid IN ({placeholders})", ids
+            )
+            # Delete from virtual table
+            connection.execute(
+                f"DELETE FROM {self._table}_vec WHERE rowid IN ({placeholders})", ids
+            )
+            connection.commit()
+            logger.info(colorstring(f"Deleted {len(ids)} documents", "blue"))
+        except sqlite3.Error as e:
+            logger.error(colorstring(f"Failed to delete documents: {e}", "red"))
+            raise e
+        finally:
+            self._release_connection(connection)
+
     def add_texts(
         self, texts: List[str], metadatas: Optional[List[Dict]] = None
     ) -> List[str]:
@@ -397,33 +418,61 @@ class SQLiteVec(VectorStore):
             raise e
 
     def similarity_search_by_vector(
-        self, embedding: List[float], k: int = 4
+        self, embedding: List[float], k: int = 4, distance_metric: str = "cosine"
     ) -> Tuple[List[Document], List[float]]:
-        """Perform a similarity search by vector.
+        """Perform a similarity search by vector with configurable distance metrics.
 
         Args:
             embedding (List[float]): The embedding vector to search with.
             k (int, optional): The number of results to return. Defaults to 4.
+            distance_metric (str, optional): Distance metric to use.
+                Supported: 'l2' (Euclidean), 'cosine'. Defaults to "l2". see https://alexgarcia.xyz/sqlite-vec/api-reference.html#distance for more details.
 
         Returns:
-            Tuple[List[Document], List[float]]: A tuple containing the list of documents that match the query and their corresponding similarity scores.
-
-        Raises:
-            sqlite3.Error: If the similarity search fails.
+            Tuple[List[Document], List[float]]: Documents and similarity scores.
         """
+        # Validate distance metric
+        if distance_metric not in ["l2", "cosine"]:
+            raise ValueError(
+                f"Unsupported distance metric: {distance_metric}. Use 'l2' or 'cosine'."
+            )
+
+        # Normalization check (same for both implementations)
+        if distance_metric == "cosine":
+            l2_norm = sum(x**2 for x in embedding) ** 0.5
+            if not (0.99 < l2_norm < 1.01):
+                distance_metric = "l2"
+                logger.warning(
+                    colorstring("Non-unit vector - using L2 distance", "yellow")
+                )
+
         connection = self._get_connection()
         try:
             cursor = connection.cursor()
+            # Use SQLiteVec's built-in distance functions
+            match distance_metric:
+                case "l2":
+                    distance_function = "vec_distance_l2"
+                case "cosine":
+                    distance_function = "vec_distance_cosine"
+                case _:
+                    raise ValueError("Invalid distance metric. Use 'l2', or 'cosine'.")
+
             cursor.execute(
                 f"""
-                SELECT text, metadata, distance
+                SELECT text, metadata, {distance_function}(v.text_embedding, ?) AS distance
                 FROM {self._table} AS e
                 INNER JOIN {self._table}_vec AS v ON v.rowid = e.rowid
                 WHERE v.text_embedding MATCH ? AND k = ?
                 ORDER BY distance
                 LIMIT ?
                 """,
-                [self.serialize_f32(embedding), k, k],
+                [
+                    self.serialize_f32(embedding),  # For distance calculation
+                    self.serialize_f32(embedding),  # For MATCH operator
+                    k,  # For MATCH operator
+                    k,  # For LIMIT
+                ],
             )
             results = []
             scores = []
@@ -434,14 +483,15 @@ class SQLiteVec(VectorStore):
                 results.append(document)
                 scores.append(row["distance"])
             logger.info(
-                colorstring(f"Found {len(results)} results for the query", "cyan")
+                colorstring(
+                    f"Found {len(results)} results using {distance_metric} metric",
+                    "cyan",
+                )
             )
             return results, scores
         except sqlite3.Error as e:
             logger.error(
-                colorstring(
-                    f"Failed to perform similarity search by vector: {e}", "red"
-                )
+                colorstring(f"Similarity search failed ({distance_metric}): {e}", "red")
             )
             raise e
         finally:

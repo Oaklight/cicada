@@ -109,6 +109,19 @@ class PGVector(VectorStore):
         self._collection_name = collection_name
         self.create_tables_if_not_exists()
         self._collection = self._get_or_create_collection()
+        # Validate embedding dimensions
+        self._validate_embedding_dimensionality()
+
+    def _validate_embedding_dimensionality(self):
+        """Check if embedding dimensions match the database schema."""
+        dummy_embedding = self._embedding.embed_query("test")
+        column_type = EmbeddingStore.embedding.type
+        if hasattr(column_type, "dimensions") and column_type.dimensions is not None:
+            if len(dummy_embedding) != column_type.dimensions:
+                raise ValueError(
+                    f"Embedding dimension ({len(dummy_embedding)}) "
+                    f"does not match database schema ({column_type.dimensions})."
+                )
 
     def _get_or_create_collection(self) -> CollectionStore:
         """Get existing collection or create a new one.
@@ -220,6 +233,22 @@ class PGVector(VectorStore):
         finally:
             session.close()
 
+    def delete_by_ids(self, ids: List[str]):
+        """Delete documents by their IDs."""
+        session = self._Session()
+        try:
+            session.query(EmbeddingStore).filter(
+                EmbeddingStore.custom_id.in_(ids)
+            ).delete()
+            session.commit()
+            logger.info(colorstring(f"Deleted {len(ids)} documents", "blue"))
+        except Exception as e:
+            session.rollback()
+            logger.error(colorstring(f"Failed to delete documents: {e}", "red"))
+            raise e
+        finally:
+            session.close()
+
     def add_texts(
         self, texts: List[str], metadatas: Optional[List[Dict]] = None
     ) -> List[str]:
@@ -267,6 +296,59 @@ class PGVector(VectorStore):
         finally:
             session.close()
 
+    def add_texts_with_embeddings(
+        self,
+        texts: List[str],
+        embeddings: List[List[float]],
+        metadatas: Optional[List[Dict]] = None,
+    ) -> List[str]:
+        """Add texts with precomputed embeddings to the vector store.
+
+        Args:
+            texts (List[str]): The texts to add.
+            embeddings (List[List[float]]): Precomputed embeddings.
+            metadatas (Optional[List[Dict]], optional): Metadata for each text. Defaults to None.
+
+        Returns:
+            List[str]: The IDs of the added texts.
+        """
+        if len(texts) != len(embeddings):
+            raise ValueError("Texts and embeddings must have the same length.")
+
+        session = self._Session()
+        try:
+            metadatas = metadatas or [{} for _ in texts]
+            ids = [str(uuid.uuid4()) for _ in texts]
+            collection = (
+                session.query(CollectionStore)
+                .filter_by(name=self._collection_name)
+                .first()
+            )
+            documents = [
+                EmbeddingStore(
+                    embedding=embedding,
+                    document=text,
+                    cmetadata=metadata,
+                    custom_id=id,
+                    collection_id=collection.uuid,
+                )
+                for text, metadata, embedding, id in zip(
+                    texts, metadatas, embeddings, ids
+                )
+            ]
+            session.bulk_save_objects(documents)
+            session.commit()
+            logger.info(
+                colorstring(f"Added {len(texts)} texts with custom embeddings", "blue")
+            )
+            return ids
+        except Exception as e:
+            session.rollback()
+            logger.error(colorstring(f"Failed to add texts: {e}", "red"))
+            raise e
+        finally:
+            session.close()
+
     def similarity_search(
         self, query: str, k: int = 4
     ) -> Tuple[List[Document], List[float]]:
@@ -292,17 +374,33 @@ class PGVector(VectorStore):
             raise e
 
     def similarity_search_by_vector(
-        self, embedding: List[float], k: int = 4
+        self, embedding: List[float], k: int = 4, distance_metric: str = "cosine"
     ) -> Tuple[List[Document], List[float]]:
-        """Perform a similarity search by vector.
+        """Perform a similarity search by vector with configurable distance metrics.
 
         Args:
             embedding (List[float]): The embedding vector to search with.
             k (int, optional): The number of results to return. Defaults to 4.
+            distance_metric (str, optional): The distance metric to use. Defaults to "l2". Options are "l2" and "cosine". see https://github.com/pgvector/pgvector?tab=readme-ov-file#querying for more details.
 
         Returns:
-            Tuple[List[Document], List[float]]: A tuple containing the list of documents that match the query and their corresponding similarity scores.
+            Tuple[List[Document], List[float]]: Documents and similarity scores.
         """
+        # Validate distance metric
+        if distance_metric not in ["l2", "cosine"]:
+            raise ValueError(
+                f"Unsupported distance metric: {distance_metric}. Use 'l2' or 'cosine'."
+            )
+
+        # Normalization check (same for both implementations)
+        if distance_metric == "cosine":
+            l2_norm = sum(x**2 for x in embedding) ** 0.5
+            if not (0.99 < l2_norm < 1.01):
+                distance_metric = "l2"
+                logger.warning(
+                    colorstring("Non-unit vector - using L2 distance", "yellow")
+                )
+
         session = self._Session()
         try:
             collection = (
@@ -310,13 +408,18 @@ class PGVector(VectorStore):
                 .filter_by(name=self._collection_name)
                 .first()
             )
+            match distance_metric:
+                case "cosine":
+                    distance_expr = EmbeddingStore.embedding.cosine_distance(embedding)
+                case "l2":
+                    distance_expr = EmbeddingStore.embedding.l2_distance(embedding)
+                case _:
+                    raise ValueError("Invalid distance metric. Use 'l2', or 'cosine'.")
+
             results = (
-                session.query(
-                    EmbeddingStore,
-                    EmbeddingStore.embedding.l2_distance(embedding).label("distance"),
-                )
+                session.query(EmbeddingStore, distance_expr.label("distance"))
                 .filter(EmbeddingStore.collection_id == collection.uuid)
-                .order_by("distance")
+                .order_by(distance_expr)
                 .limit(k)
                 .all()
             )
@@ -328,10 +431,17 @@ class PGVector(VectorStore):
                 for result in results
             ]
             scores = [result.distance for result in results]
-            logger.info(colorstring(f"Found {len(docs)} results for the query", "cyan"))
+            logger.info(
+                colorstring(
+                    f"Found {len(docs)} results using {distance_metric} metric",
+                    "cyan",
+                )
+            )
             return docs, scores
         except Exception as e:
-            logger.error(f"Failed to perform similarity search by vector: {e}")
+            logger.error(
+                colorstring(f"Similarity search failed ({distance_metric}): {e}", "red")
+            )
             raise e
         finally:
             session.close()

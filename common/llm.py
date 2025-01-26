@@ -27,7 +27,15 @@ class LanguageModel(ABC):
         org_id,
         **model_kwargs,
     ):
-        # ... (rest of the __init__ method remains the same)
+        """
+        Initialize the LanguageModel instance.
+        Args:
+            api_key (str): The API key for the language model.
+            api_base_url (str): The base URL for the API.
+            model_name (str): The name of the model to use.
+            org_id (str): The organization ID for the API.
+            **model_kwargs: Additional keyword arguments for the model.
+        """
         self.api_key = api_key
         self.api_base_url = api_base_url
         self.model_name = model_name

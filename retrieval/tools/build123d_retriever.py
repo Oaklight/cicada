@@ -4,7 +4,7 @@ import os
 import sys
 from concurrent.futures import ThreadPoolExecutor, as_completed
 from functools import partial
-from typing import Dict, List
+from typing import Dict, List, Literal
 
 from tqdm import tqdm
 
@@ -79,10 +79,14 @@ class Build123dRetriever:
         self.vector_store = SQLiteVec(
             table=table, db_file=db_file, embedding=self.embedding_model
         )
-        self._init_database(force_rebuild=False, batch_size=15)
+        self._init_database(force_rebuild=False, batch_size=100, embed_batch_size=32)
 
     def _init_database(
-        self, force_rebuild: bool = False, only_names: bool = True, batch_size: int = 16
+        self,
+        force_rebuild: bool = False,
+        only_names: bool = False,
+        batch_size: int = 500,
+        embed_batch_size: int = 40,
     ):
         """
         Build initial database records of all the object names inside the build123d module.
@@ -91,6 +95,8 @@ class Build123dRetriever:
         Args:
             force_rebuild (bool): Whether to force rebuild the database. Defaults to False.
             only_names (bool): Whether to only store names and their embeddings. Defaults to True.
+            batch_size (int): The size of batches for writing to the database. Defaults to 16.
+            embed_batch_size (int): The size of batches for embedding computation. Defaults to 100.
         """
         if os.path.exists(self.db_file) and not force_rebuild:
             try:
@@ -105,25 +111,57 @@ class Build123dRetriever:
                     )
             except Exception as e:
                 print(f"Error checking database completeness: {e}. Rebuilding...")
+        else:
+            # Force rebuild: Drop the existing table and start fresh
+            print(f"Force rebuilding database at {self.db_file}...")
+            self.vector_store.drop_table()  # Drop the existing table
+            self.vector_store.create_table()  # Recreate the table
 
         module_info_json = self.helper.get_info("build123d", with_docstring=True)
         objects = self.extract_all_objects(module_info_json)
 
-        # Generate embeddings in parallel
+        # Generate texts and metadatas
         texts, metadatas = self.generate_embedding_pairs(objects, only_names)
 
-        # Batch texts/metadatas into chunks of 16
+        # Compute embeddings in parallel using a thread pool
+        embeddings = []
+        with tqdm(total=len(texts), desc="Computing embeddings", unit="object") as pbar:
+            with ThreadPoolExecutor() as executor:
+                # Submit tasks to the thread pool
+                futures = [
+                    executor.submit(
+                        self.embedding_model.embed_documents,
+                        texts[i : i + embed_batch_size],
+                    )
+                    for i in range(0, len(texts), embed_batch_size)
+                ]
+
+                # Collect results as they complete
+                for future in as_completed(futures):
+                    batch_embeddings = future.result()
+                    embeddings.extend(batch_embeddings)
+                    pbar.update(len(batch_embeddings))  # Update progress by batch size
+
+        # Batch texts/metadatas/embeddings into chunks of batch_size
         text_batches = [
             texts[i : i + batch_size] for i in range(0, len(texts), batch_size)
         ]
         metadata_batches = [
             metadatas[i : i + batch_size] for i in range(0, len(metadatas), batch_size)
         ]
+        embedding_batches = [
+            embeddings[i : i + batch_size]
+            for i in range(0, len(embeddings), batch_size)
+        ]
 
         # Add batches sequentially in main thread
         with tqdm(total=len(texts), desc="Building database", unit="object") as pbar:
-            for batch_texts, batch_metadatas in zip(text_batches, metadata_batches):
-                self.vector_store.add_texts(batch_texts, batch_metadatas)
+            for batch_texts, batch_metadatas, batch_embeddings in zip(
+                text_batches, metadata_batches, embedding_batches
+            ):
+                self.vector_store.add_texts_with_embeddings(
+                    batch_texts, batch_embeddings, batch_metadatas
+                )
                 pbar.update(len(batch_texts))  # Update progress by batch size
 
         # Mark the database as complete
@@ -138,6 +176,16 @@ class Build123dRetriever:
         for cls in module_info_json.get("classes", []):
             cls["type"] = "class"
             objects.append(cls)
+
+            # Extract methods from the class and treat them as standalone functions
+            for method in cls.get("methods", []):
+                method_info = {
+                    "name": f"{method['name']}",  # this name has been expanded at function_info level
+                    "type": "method",
+                    "signature": method["signature"],
+                    "docstring": method.get("docstring", ""),
+                }
+                objects.append(method_info)
 
         for func in module_info_json.get("functions", []):
             func["type"] = "function"
@@ -181,6 +229,7 @@ class Build123dRetriever:
         self,
         query_text: str,
         k: int = 10,
+        distance_metric: Literal["l2", "cosine"] = "cosine",
     ) -> List[Dict]:
         """
         Query the database with a sentence or description in parallel.
@@ -194,13 +243,13 @@ class Build123dRetriever:
         """
         query_embedding = self.embedding_model.embed_query(query_text)
         results, scores = self.vector_store.similarity_search_by_vector(
-            query_embedding, k=k
+            query_embedding, k=k, distance_metric=distance_metric
         )
 
         logger.debug(colorstring(f"Initial results: {results}", "blue"))
         logger.debug(colorstring(f"Initial scores: {scores}", "blue"))
 
-        reranked_results = self.rerank_model.rerank(query_text, results, 4)
+        reranked_results = self.rerank_model.rerank(query_text, results, k // 2)
         # [{'index': 0, 'relevance_score': 0.455078125, 'document': {'text': '苹果'}}, {'index': 2, 'relevance_score': 0.33984375, 'document': {'text': '水果'}}, {'index': 1, 'relevance_score': 0.25, 'document': {'text': 'banana'}}, {'index': 4, 'relevance_score': 0.189453125, 'document': {'text': 'manzana'}}]
         logger.debug(
             colorstring(f"Reranked results: {reranked_results}", "bright_green")
@@ -217,9 +266,10 @@ class Build123dRetriever:
     def get_complete_info(
         self,
         query_text: str,
-        k: int = 10,
+        k: int = 100,
         with_docstring: bool = False,
         threshold: float = 0.8,
+        distance_metrics: Literal["l2", "cosine"] = "cosine",
     ) -> List[Dict]:
         """
         Get complete information about the queried objects in parallel.
@@ -231,38 +281,32 @@ class Build123dRetriever:
         Returns:
             List[Dict]: A list of dictionaries containing complete information about the objects.
         """
-        reranked_results, reranked_scores = self.query(query_text, k)
-        complete_info = []
+        reranked_results, reranked_scores = self.query(query_text, k, distance_metrics)
+        cprint(reranked_results, "yellow")
+        cprint(reranked_scores, "yellow")
 
-        # Function to fetch complete info for a single result
-        def fetch_info(result: Dict) -> Dict:
-            if result["type"] == "class":
-                return self.helper.get_class_info(
-                    result["name"], with_docstring=with_docstring
+        if threshold:
+            complete_info_with_score = [
+                (
+                    self.helper.get_info(result["name"], with_docstring=with_docstring),
+                    score,
                 )
-            elif result["type"] == "function":
-                return self.helper.get_function_info(
-                    result["name"], with_docstring=with_docstring
+                for result, score in zip(reranked_results, reranked_scores)
+                if score >= threshold
+            ]
+        else:
+            complete_info_with_score = [
+                (
+                    self.helper.get_info(result["name"], with_docstring=with_docstring),
+                    score,
                 )
-            elif result["type"] == "variable":
-                return {
-                    "name": result["name"],
-                    "type": result["type_info"],
-                    "value": result["value"],
-                }
-
-        complete_info_with_score = [
-            (fetch_info(result), score)
-            for result, score in zip(reranked_results, reranked_scores)
-            if score >= threshold
-        ]
-
+                for result, score in zip(reranked_results, reranked_scores)
+            ]
         return complete_info_with_score
 
 
 # Example usage
 if __name__ == "__main__":
-    setup_logging()
     parser = argparse.ArgumentParser(description="Build123d Retriever")
     parser.add_argument(
         "--force-rebuild",
@@ -275,11 +319,28 @@ if __name__ == "__main__":
         help="Run in interactive mode to ask multiple questions",
     )
     parser.add_argument(
+        "--metric",
+        type=str,
+        choices=["l2", "cosine"],
+        default="cosine",
+        help="Distance metric to use for similarity search",
+    )
+    parser.add_argument(
         "--query",
         type=str,
         help="Query text to search in the database",
     )
+    parser.add_argument(
+        "--debug",
+        action="store_true",
+        help="Enable debug mode for detailed logging",
+    )
     args = parser.parse_args()
+
+    if args.debug:
+        setup_logging(log_level="DEBUG")
+    else:
+        setup_logging(log_level="INFO")
 
     retriever_config = load_config("config.yaml", "build123d_retriever")
 
@@ -298,8 +359,8 @@ if __name__ == "__main__":
     if args.interactive:
         # Interactive mode: keep asking for queries until the user exits
         while True:
-            query_text = input("\nEnter your query (or type 'exit' to quit): ").strip()
-            if query_text.lower() == "exit":
+            query_text = input("\nEnter your query (or type 'q' to quit): ").strip()
+            if query_text.lower() in ["exit", "quit", "q"]:
                 cprint("Exiting interactive mode. Goodbye!", "bright_green")
                 break
 
@@ -309,7 +370,11 @@ if __name__ == "__main__":
 
             # Query the database
             results = retriever.get_complete_info(
-                query_text, k=10, with_docstring=False
+                query_text,
+                k=100,
+                with_docstring=True,
+                threshold=0.1,
+                distance_metrics=args.metric,
             )
             if not results:
                 cprint("No results found.", "bright_red")
@@ -320,7 +385,13 @@ if __name__ == "__main__":
     else:
         # Non-interactive mode: run a single query
         query_text = "How to create a box in build123d?"
-        results = retriever.get_complete_info(query_text, k=10, with_docstring=False)
+        results = retriever.get_complete_info(
+            query_text,
+            k=100,
+            with_docstring=True,
+            threshold=0.1,
+            distance_metrics=args.metric,
+        )
         for result, score in results:
             cprint(f"Score: {score}", "bright_yellow")
             print(result)

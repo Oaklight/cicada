@@ -64,7 +64,10 @@ class CodeDocHelper:
                 # data = {"name": parts[-1], "signature": f"{parts[-1]}{signature}"}
 
                 # `function_path` version: more verbose, but provide which module it comes from
-                data = {"name": function_path, "signature": f"{parts[-1]}{signature}"}
+                data = {
+                    "name": function_path,
+                    "signature": f"{function_path}{signature}",
+                }
                 if with_docstring:
                     data["docstring"] = inspect.getdoc(obj) or "No docstring available."
                 return data
@@ -105,28 +108,20 @@ class CodeDocHelper:
 
             data = {
                 "name": class_path,
-                "signature": f"{parts[-1]}{signature}",
+                "signature": f"{class_path}{signature}",
                 "methods": [],  # Flattened methods (as standalone functions)
                 "variables": [],
             }
             if with_docstring:
                 data["docstring"] = inspect.getdoc(cls) or "No docstring available."
 
-            # Collect methods and flatten them
+            # Collect methods and flatten them using get_function_info
             for name, member in inspect.getmembers(cls):
                 if inspect.isroutine(member) and not name.startswith("_"):
-                    sig = str(inspect.signature(member))
-                    if sig.startswith("(self, "):
-                        sig = sig.replace("(self, ", "(")
-                    method_info = {
-                        "name": f"{class_path}.{name}",  # Full path to the method
-                        "signature": f"{name}{sig}",
-                    }
-                    if with_docstring:
-                        method_info["docstring"] = (
-                            inspect.getdoc(member) or "No docstring available."
-                        )
-                    data["methods"].append(method_info)
+                    method_path = f"{class_path}.{name}"
+                    method_info = self.get_function_info(method_path, with_docstring)
+                    if "error" not in method_info:
+                        data["methods"].append(method_info)
 
             # Collect variables
             for name, member in inspect.getmembers(cls):

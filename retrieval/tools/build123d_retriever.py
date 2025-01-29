@@ -2,7 +2,7 @@ import argparse
 import logging
 import os
 import sys
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import as_completed, ThreadPoolExecutor
 from functools import partial
 from typing import Dict, List, Literal
 
@@ -33,6 +33,8 @@ class Build123dRetriever:
         reranking_model: Rerank = None,
         embedding_config: Dict = None,
         rerank_config: Dict = None,
+        k: int = 10,
+        k_rerank: int = 10,
     ):
         """
         Initialize the Build123dRetriever.
@@ -48,6 +50,8 @@ class Build123dRetriever:
         self.db_file = db_file
         self.table = table
         self.helper = CodeDocHelper()
+        self.default_k = k
+        self.default_k_rerank = k_rerank
 
         if embedding_model:
             self.embedding_model = embedding_model
@@ -229,6 +233,7 @@ class Build123dRetriever:
         self,
         query_text: str,
         k: int = 10,
+        k_rerank: int = 10,
         distance_metric: Literal["l2", "cosine"] = "cosine",
     ) -> List[Dict]:
         """
@@ -249,7 +254,7 @@ class Build123dRetriever:
         logger.debug(colorstring(f"Initial results: {results}", "blue"))
         logger.debug(colorstring(f"Initial scores: {scores}", "blue"))
 
-        reranked_results = self.rerank_model.rerank(query_text, results, k // 2)
+        reranked_results = self.rerank_model.rerank(query_text, results, k_rerank // 2)
         # [{'index': 0, 'relevance_score': 0.455078125, 'document': {'text': '苹果'}}, {'index': 2, 'relevance_score': 0.33984375, 'document': {'text': '水果'}}, {'index': 1, 'relevance_score': 0.25, 'document': {'text': 'banana'}}, {'index': 4, 'relevance_score': 0.189453125, 'document': {'text': 'manzana'}}]
         logger.debug(
             colorstring(f"Reranked results: {reranked_results}", "bright_green")
@@ -266,7 +271,8 @@ class Build123dRetriever:
     def get_complete_info(
         self,
         query_text: str,
-        k: int = 100,
+        k: int = None,
+        k_rerank: int = None,
         with_docstring: bool = False,
         threshold: float = 0.8,
         distance_metrics: Literal["l2", "cosine"] = "cosine",
@@ -281,9 +287,19 @@ class Build123dRetriever:
         Returns:
             List[Dict]: A list of dictionaries containing complete information about the objects.
         """
-        reranked_results, reranked_scores = self.query(query_text, k, distance_metrics)
-        cprint(reranked_results, "yellow")
-        cprint(reranked_scores, "yellow")
+        k = k if k else self.default_k
+        k_rerank = k_rerank if k_rerank else self.default_k_rerank
+
+        reranked_results, reranked_scores = self.query(
+            query_text,
+            k=k,
+            k_rerank=k_rerank,
+            distance_metric=distance_metrics,
+        )
+        for result, score in zip(reranked_results, reranked_scores):
+            logger.debug(
+                colorstring(f"Result: {result}, Score: {score}", "bright_yellow")
+            )  # Log each result and its score
 
         if threshold:
             complete_info_with_score = [
@@ -345,10 +361,12 @@ if __name__ == "__main__":
     retriever_config = load_config("config.yaml", "build123d_retriever")
 
     retriever = Build123dRetriever(
-        db_file=retriever_config["db_file"],
-        table=retriever_config["table"],
-        embedding_config=retriever_config["embedding_config"],
-        rerank_config=retriever_config["rerank_config"],
+        db_file=retriever_config.get("db_file", "build123d_retriever.db"),
+        table=retriever_config.get("table", "build123d_objects"),
+        embedding_config=retriever_config.get("embedding_config", {}),
+        rerank_config=retriever_config.get("rerank_config", {}),
+        k=retriever_config.get("k", 10),
+        k_rerank=retriever_config.get("k_rerank", 10),
     )
 
     # Build the database only if it doesn't exist or if forced

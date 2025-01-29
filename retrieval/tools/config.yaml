@@ -1,6 +1,8 @@
 build123d_retriever:
   db_file: "test_vec.db"
   table: "test_table"
+  k: 10
+  k_rerank: 5
   embedding_config:
     ## Siliconflow
     api_key: "sk-gpictjyjiywniufdjmdudqbidrqprcblsykmmvizeahoqbyr"

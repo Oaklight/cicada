@@ -176,5 +176,9 @@ class DesignGoal:
         Returns:
             DesignGoal: A DesignGoal object.
         """
-        data = json.loads(json_str)
+        if os.path.isfile(json_str):
+            with open(json_str, "r") as f:
+                data = json.load(f)
+        else:
+            data = json.loads(json_str)
         return cls.from_dict(data)

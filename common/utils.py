@@ -313,9 +313,10 @@ def extract_section_markdown(text: str, heading: str) -> str:
 
 def parse_json_response(response: str) -> Dict[str, Any]:
     """Parse JSON response from VLM, handling potential errors"""
-    import json
-
     try:
+        # Normalize bracket usage for JSON parsing
+        response = response.replace("{{", "{").replace("}}", "}")
+
         # Extract JSON content from response
         json_start = response.find("{")
         json_end = response.rfind("}") + 1

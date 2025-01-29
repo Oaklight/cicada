@@ -60,7 +60,7 @@ class Describer(vlm.VisionLanguageModel):
         self, design_goal: DesignGoal, user_feedback: str = None
     ) -> Tuple[Dict[str, Any], str]:
         """
-        Generate a refined design based on the user's goal and optional feedback.
+        Generate a refined design based on the user's goal.
         Returns a tuple of (parsed JSON result, raw response).
         """
         text_goal = design_goal.text
@@ -69,19 +69,22 @@ class Describer(vlm.VisionLanguageModel):
             f"Featurizing design goal: {text_goal}, with images: {ref_images}"
         )
 
-        # Prepare the prompt for featurizing the design goal
-        prompt = self.featurize_design_prompt["user_prompt_template"].format(
-            text_goal=text_goal,
-            user_feedback=f"User Feedback: {user_feedback}" if user_feedback else "",
-        )
-
         pb = PromptBuilder()
         pb.add_system_prompt(self.featurize_design_prompt["system_prompt_template"])
-        pb.add_user_prompt(prompt)
+
+        pb.add_user_prompt(f"The current design goal: '{text_goal}'.")
 
         if ref_images:
-            pb.add_text("The following is a set of reference images:")
+            pb.add_text("The following reference images are provided:")
             pb.add_images(ref_images)
+
+        if user_feedback:
+            pb.add_text(
+                "The user has provided the following feedback, please revise the current design against the feedback:"
+            )
+            pb.add_text(user_feedback)
+
+        pb.add_user_prompt(self.featurize_design_prompt["user_prompt_template"])
 
         # Query the VLM with images and prompt
         response = self.query_with_promptbuilder(pb)
@@ -137,6 +140,58 @@ class Describer(vlm.VisionLanguageModel):
 
         return json_result, response
 
+    def _analyze_text_goal_against_images(
+        self, text_goal: str, ref_images: list
+    ) -> bool:
+        """
+        Analyze the text goal against reference images and ask for confirmation if there's a conflict.
+        Returns True if the user confirms to proceed, False otherwise.
+        """
+        logging.debug(f"Analyzing text goal against reference images: {text_goal}")
+
+        # Prepare a prompt to analyze the text goal against images
+        analysis_prompt = (
+            "The user has provided the following text goal:\n"
+            f"{text_goal}\n\n"
+            "The following reference images are also provided:\n"
+            f"{ref_images}\n\n"
+            "Your task is to analyze whether the text goal aligns with the reference images. "
+            "If there is a conflict, highlight it and ask for user confirmation.\n\n"
+            "Return the analysis in JSON format."
+        )
+
+        pb = PromptBuilder()
+        pb.add_system_prompt(self.featurize_design_prompt["system_prompt_template"])
+        pb.add_user_prompt(analysis_prompt)
+
+        # Query the VLM with the analysis prompt
+        response = self.query_with_promptbuilder(pb)
+        analysis_result = parse_json_response(response)
+
+        # If there's a conflict, ask for user confirmation
+        if analysis_result.get("conflict_detected", False):
+            print(
+                colorstring(
+                    "\nConflict detected between text goal and reference images.",
+                    "bright_red",
+                )
+            )
+            confirmation = questionary.confirm(
+                "The system detected a conflict between your text goal and reference images. Do you want to proceed with the current text goal?",
+                style=custom_style,
+            ).ask()
+
+            if not confirmation:
+                print(
+                    colorstring(
+                        "Please revise your text goal or reference images and try again.",
+                        "bright_yellow",
+                    )
+                )
+                return False
+
+        return True
+
     def design_feedback_loop(
         self,
         design: DesignGoal,
@@ -166,6 +221,13 @@ class Describer(vlm.VisionLanguageModel):
         logger.info(f"Starting iteration {iteration}/{max_iterations}")
         try:
             logging.debug(f"Current Design: {design.text}")
+
+            # At the start of the first iteration, check for conflicts between text goal and reference images
+            if iteration == 1 and design.images:
+                if not self._analyze_text_goal_against_images(
+                    design.text, design.images
+                ):
+                    sys.exit(0)
 
             # Generate VLM response and parse the JSON result
             updated_design_result, response = (
@@ -202,21 +264,12 @@ class Describer(vlm.VisionLanguageModel):
                     )
                 )
 
-            # Dynamic choices based on the current state
-            choices = []
-
-            # Always allow the user to provide feedback
-            choices.append({"name": "Provide Feedback", "value": "feedback"})
-
-            # Allow confirmation after the first iteration or if the system is confident
-            if iteration == 1 or not updated_design_result.get(
-                "needs_human_validation", True
-            ):
-                choices.append({"name": "Confirm", "value": "confirm"})
-
-            # Allow exiting at any time
-            choices.append({"name": "Exit", "value": "exit"})
-
+            # Always allow the user to provide feedback            # Define static choices once
+            choices = [
+                {"name": "Provide Feedback", "value": "feedback"},
+                {"name": "Confirm", "value": "confirm"},
+                {"name": "Exit", "value": "exit"},
+            ]
             # Multi-choice prompt with dynamic choices
             action = questionary.select(
                 "What would you like to do?",

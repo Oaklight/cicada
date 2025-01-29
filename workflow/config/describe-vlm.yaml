@@ -1,15 +1,12 @@
 ## OpenAI
 api_key: "sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc"
 api_base_url: "https://oneapi.service.oaklight.cn/v1"
-# model_name: "Qwen/Qwen2-VL-72B-Instruct"
-# model_name: "gpt-4o-mini"
-model_name: "yi-vision-v2"
-# model_kwargs: # Optional additional model parameters
+model_name: "gpt-4o-mini"
 
-# ## SiliconFlow
-# api_key: "sk-gpictjyjiywniufdjmdudqbidrqprcblsykmmvizeahoqbyr"
-# api_base_url: "https://api.siliconflow.com/v1" # Optional custom API base URL
-# model_name: "Qwen/Qwen2-VL-72B-Instruct"
+# # ## glm-4v
+# api_key: "sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc"
+# api_base_url: "https://oneapi.service.oaklight.cn/v1"
+# model_name: "yi-vision-v2"
 
 model_kwargs:
   stream: true

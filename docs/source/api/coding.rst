@@ -36,6 +36,14 @@ coding.code\_generator module
    :undoc-members:
    :show-inheritance:
 
+coding.coder module
+-------------------
+
+.. automodule:: coding.coder
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 coding.web\_reader module
 -------------------------
 

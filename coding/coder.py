@@ -9,9 +9,7 @@ _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
 from common.basics import DesignGoal
-from common.utils import colorstring, load_config, load_prompts, setup_logging
-
-from coding import code_executor
+from common.utils import colorstring, cprint, load_config, load_prompts, setup_logging
 
 from coding.code_cache import CodeCache
 from coding.code_executor import CodeExecutor
@@ -29,6 +27,7 @@ class Coder:
         org_id,
         prompt_templates,
         code_master_config: dict = None,
+        max_coding_iterations: int = 10,
         **model_kwargs,
     ):
         # Initialize components
@@ -60,7 +59,7 @@ class Coder:
         self.code_executor = code_executor
         self.code_cache = code_cache
         self.code_master = code_master
-        self.max_coding_iterations = 10
+        self.max_coding_iterations = max_coding_iterations
 
     def generate_executable_code(
         self,
@@ -74,13 +73,14 @@ class Coder:
         coding_plan = self.code_generator.plan_code(
             design_goal, feedbacks=feedbacks, previous_plan=coding_plan
         )
-        logger.info(f"Coding plan:\n{coding_plan}")
+        cprint(f"Coding plan:\n{coding_plan}", "bright_blue")
 
         use_master = False
         # Iterate to generate executable code
         for i in range(self.max_coding_iterations):
-            logger.info(
-                f"[code generation] Iteration {i + 1}/{self.max_coding_iterations}"
+            cprint(
+                f"[code generation] Iteration {i + 1}/{self.max_coding_iterations}",
+                "magenta",
             )
             if i >= 2 / 3 * self.max_coding_iterations:
                 use_master = True
@@ -102,7 +102,7 @@ class Coder:
             is_valid, errors = self.code_executor.validate_code(generated_code)
             if not is_valid:
                 feedbacks = errors
-                logger.warning(f"Code is not valid:\n{errors}")
+                cprint(f"Code is not valid:\n{errors}", "bright_yellow")
                 continue
 
             # Execute
@@ -112,16 +112,17 @@ class Coder:
 
             if not is_runnable:
                 feedbacks = results
-                logger.warning(f"Code is not runnable:\n{results}")
+                cprint(f"Code is not runnable:\n{results}", "bright_yellow")
                 continue
 
             # return the code if it is valid and executable
-            logger.info(f"Executable code generated:\n{generated_code}")
+            cprint(f"Executable code generated:\n{generated_code}", "bright_green")
             return generated_code, coding_plan
 
         # If we reach here, it means we failed to generate valid and executable code after max_coding_iterations iterations.
-        logger.warning(
-            f"[code generation] Maximum iterations ({self.max_coding_iterations}) reached without generating valid and executable code."
+        cprint(
+            f"[code generation] Maximum iterations ({self.max_coding_iterations}) reached without generating valid and executable code.",
+            "bright_red",
         )
         return None, None
 
@@ -174,7 +175,7 @@ def parse_args():
     )
     parser.add_argument(
         "--prompts",
-        default="prompts",
+        default="prompts.yaml",
         help="Path to the prompts YAML folder",
     )
     parser.add_argument(
@@ -191,7 +192,7 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
+def _main():
     args = parse_args()
     setup_logging()
 
@@ -213,13 +214,12 @@ def main():
         coder_config.get("org_id"),
         prompts,
         code_master_config=master_code_llm_config,
+        max_coding_iterations=coder_config.get("max_coding_iterations", 10),
         **coder_config.get("model_kwargs", {}),
     )
 
     # Create a design goal
-    with open(args.design_task, "r") as f:
-        design_task = json.load(f)
-        design_goal = DesignGoal.from_dict(design_task)
+    design_goal = DesignGoal.from_json(args.design_goal)
 
     # Generate executable code
     best_code, best_coding_plan = coder.generate_executable_code(design_goal)
@@ -238,4 +238,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    _main()

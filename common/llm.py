@@ -67,95 +67,82 @@ class LanguageModel(ABC):
         """
         stream = self.stream  # Use stream from configuration
 
+        # Prepare messages
+        messages = [{"role": "user", "content": prompt}]
+        if system_prompt:
+            messages = [{"role": "system", "content": system_prompt}] + messages
+
+        # Handle different models
         if self.model_name == "gpto1preview":
-            full_prompt = prompt
-            if system_prompt:
-                full_prompt = f"{system_prompt}\n\n{prompt}"
+            full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
             response = self.client.completions.create(
                 model=self.model_name,
                 prompt=full_prompt,
                 stream=stream,
                 **self.model_kwargs,
             )
-            if stream:
-                complete_response = ""
-                for chunk in response:
+            return self._handle_response(response, stream, is_gpto1preview=True)
+        else:
+            response = self.client.chat.completions.create(
+                model=self.model_name,
+                messages=messages,
+                stream=stream,
+                **self.model_kwargs,
+            )
+            return self._handle_response(
+                response,
+                stream,
+                is_deepseek=self.model_name in ["deepseek-r1", "deepseek-reasoner"],
+            )
+
+    def _handle_response(
+        self, response, stream, is_gpto1preview=False, is_deepseek=False
+    ):
+        """
+        Handle the response from the model, handling both streaming and non-streaming cases.
+
+        Args:
+            response: The response object from the model.
+            stream (bool): Whether the response is streamed.
+            is_gpto1preview (bool): Whether the model is gpto1preview.
+            is_deepseek (bool): Whether the model is a Deepseek model.
+
+        Returns:
+            str: The complete response from the model.
+        """
+        if stream:
+            complete_response = ""
+            for chunk in response:
+                if is_gpto1preview:
                     chunk_text = chunk.choices[0].text
                     cprint(chunk_text, "white", end="", flush=True)
                     complete_response += chunk_text
-                print()  # Add a newline after the response
-                return complete_response.strip()
-            else:
-                return response.choices[0].text.strip()
-        elif self.model_name in ["deepseek-r1", "deepseek-reasoner"]:
-            messages = [
-                {"role": "user", "content": prompt},
-            ]
-
-            if system_prompt:
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                ] + messages
-
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                stream=stream,
-                **self.model_kwargs,
-            )
-
-            if stream:
-                complete_response = ""
-                for chunk in response:
+                else:
                     chunk_content = chunk.choices[0].delta.content
-                    reasoning_content = getattr(
-                        chunk.choices[0].delta, "reasoning_content", None
-                    )
                     if chunk_content:
                         cprint(chunk_content, "white", end="", flush=True)
                         complete_response += chunk_content
-                    if reasoning_content:
-                        cprint(reasoning_content, "cyan", end="", flush=True)
-                        complete_response += reasoning_content
-                print()  # Add a newline after the response
-                return complete_response.strip()
+                    if is_deepseek:
+                        reasoning_content = getattr(
+                            chunk.choices[0].delta, "reasoning_content", None
+                        )
+                        if reasoning_content:
+                            cprint(reasoning_content, "cyan", end="", flush=True)
+                            complete_response += reasoning_content
+            print()  # Add a newline after the response
+            return complete_response.strip()
+        else:
+            if is_gpto1preview:
+                return response.choices[0].text.strip()
             else:
                 response_content = response.choices[0].message.content
-                reasoning_content = getattr(
-                    response.choices[0].message, "reasoning_content", None
-                )
-                if reasoning_content:
-                    return f"[Reasoning]: {reasoning_content}\n\n[Response]: {response_content}".strip()
-                else:
-                    return response_content.strip()
-        else:
-            messages = [
-                {"role": "user", "content": prompt},
-            ]
-
-            if system_prompt:
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                ] + messages
-
-            response = self.client.chat.completions.create(
-                model=self.model_name,
-                messages=messages,
-                stream=stream,
-                **self.model_kwargs,
-            )
-
-            if stream:
-                complete_response = ""
-                for chunk in response:
-                    chunk_content = chunk.choices[0].delta.content
-                    if chunk_content:
-                        cprint(chunk_content, "white", end="", flush=True)
-                        complete_response += chunk_content
-                print()  # Add a newline after the response
-                return complete_response.strip()
-            else:
-                return response.choices[0].message.content.strip()
+                if is_deepseek:
+                    reasoning_content = getattr(
+                        response.choices[0].message, "reasoning_content", None
+                    )
+                    if reasoning_content:
+                        return f"[Reasoning]: {reasoning_content}\n\n[Response]: {response_content}".strip()
+                return response_content.strip()
 
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(3)

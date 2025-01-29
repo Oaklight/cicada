@@ -16,6 +16,7 @@ sys.path.extend([_current_dir, _parent_dir])
 from coding.code_cache import CodeCache
 from coding.code_executor import CodeExecutor
 from coding.code_generator import CodeGenerator
+from coding.coder import Coder
 from common.basics import DesignGoal
 from common.utils import (
     colorstring,
@@ -37,24 +38,18 @@ class CodeExecutionLoop:
     def __init__(
         self,
         describer: Describer,
-        code_generator: CodeGenerator,
-        code_executor: CodeExecutor,
-        code_cache: CodeCache,
+        coder: Coder,
         visual_feedback: VisualFeedback,
         feedback_judge: FeedbackJudge,
-        code_master: CodeGenerator = None,
         max_design_iterations=10,
         max_coding_iterations=5,
     ):
-        self.code_generator = code_generator
-        self.code_executor = code_executor
+        self.describer = describer
+        self.coder = coder
         self.visual_feedback = visual_feedback
         self.feedback_judge = feedback_judge
-        self.code_cache = code_cache
-        self.describer = describer
         self.max_design_iterations = max_design_iterations
         self.max_coding_iterations = max_coding_iterations
-        self.code_master = code_master
 
     def run(
         self,
@@ -89,13 +84,12 @@ class CodeExecutionLoop:
 
         # Step 2: Proceed with the code generation and execution loop using the refined design goal
         while iteration < max_design_iterations:
-            # Create iteration-specific directory
             iteration_dir = os.path.join(output_dir, f"iteration_{iteration + 1}")
             os.makedirs(iteration_dir, exist_ok=True)
 
-            # generate_executable_code
+            # Generate executable code using the Coder class
             logger.info("START [generate_executable_code]")
-            generated_code, coding_plan = self._generate_executable_code(
+            generated_code, coding_plan = self.coder.generate_executable_code(
                 refined_design_goal,
                 feedbacks=best_feedbacks,
                 generated_code=best_code,
@@ -104,36 +98,29 @@ class CodeExecutionLoop:
             logger.info("DONE [generate_executable_code]")
             if generated_code is None:
                 logger.error(
-                    colorstring(
-                        f"Iteration {iteration + 1} - No executable code generated.",
-                        "red",
-                    )
+                    f"Iteration {iteration + 1} - No executable code generated."
                 )
                 iteration += 1
                 continue
 
             # Save generated code
-            self.code_generator.save_code_to_file(
+            self.coder.code_generator.save_code_to_file(
                 generated_code, os.path.join(iteration_dir, "code.py")
             )
 
             # render_from_code
             logger.info("START [render_from_code]")
-            is_success, messages, render_dir = self._render_from_code(
+            is_success, messages, render_dir = self.coder.render_from_code(
                 generated_code, iteration_dir, format="stl"
             )
             logger.info("DONE [render_from_code]")
             if not is_success:
                 logger.error(
-                    colorstring(
-                        f"Iteration {iteration + 1} - Rendering failed: {messages}",
-                        "red",
-                    )
+                    f"Iteration {iteration + 1} - Rendering failed: {messages}"
                 )
                 iteration += 1
                 continue
             else:
-                # Preview the mesh interactively after successful render
                 human_feedback = self._preview_mesh(render_dir)
 
             # get_visual_feedback
@@ -386,104 +373,6 @@ class CodeExecutionLoop:
 
         return feedback
 
-    def _generate_executable_code(
-        self,
-        design_goal: DesignGoal,
-        feedbacks: str = None,
-        generated_code: str = None,
-        coding_plan: dict = None,
-    ) -> tuple[str, dict] | None:
-        """
-        Generates executable code based on the provided design goal.
-
-        Args:
-            design_goal (DesignGoal): The design goal containing the text description and optional images.
-            feedbacks (str, optional): Feedback from the previous iteration. Defaults to None.
-            generated_code (str, optional): The code generated in the previous iteration. Defaults to None.
-            coding_plan (dict, optional): The coding plan generated in the previous iteration. Defaults to None.
-
-        Returns:
-            tuple[str, dict] | None: A tuple containing the generated code and a dictionary of coding_plan.
-        """
-        # Generate plan
-        if self.code_master:
-            coding_plan = self.code_master.plan_code(
-                design_goal,
-                feedbacks=feedbacks,
-                previous_plan=coding_plan,
-            )
-        else:
-            coding_plan = self.code_generator.plan_code(
-                design_goal,
-                feedbacks=feedbacks,
-                previous_plan=coding_plan,
-            )
-        logger.info(colorstring(f"Coding plan:\n{coding_plan}", "white"))
-
-        use_master = False
-        # Iterate to generate executable code
-        for i in range(self.max_coding_iterations):
-            logger.info(
-                f"[code generation] Iteration {i + 1}/{self.max_coding_iterations}"
-            )
-            if i >= 2 / 3 * self.max_coding_iterations:
-                use_master = True
-
-            # Generate or fix code
-            generator = (
-                self.code_master
-                if use_master and self.code_master
-                else self.code_generator
-            )
-            generated_code = generator.generate_or_fix_code(
-                design_goal,
-                coding_plan,
-                existing_code=generated_code,
-                feedbacks=feedbacks,
-            )
-
-            # Validate
-            is_valid, errors = self.code_executor.validate_code(generated_code)
-            if not is_valid:
-                feedbacks = errors
-                logger.warning(colorstring(f"Code is not valid:\n{errors}", "yellow"))
-                continue
-
-            # Execute
-            is_runnable, results = self.code_executor.execute_code(
-                generated_code, test_run=True
-            )
-
-            if not is_runnable:
-                feedbacks = results
-                logger.warning(
-                    colorstring(f"Code is not runnable:\n{results}", "yellow")
-                )
-                continue
-
-            logger.info(
-                colorstring(
-                    f"Executable code generated:\n{generated_code}", "bright_blue"
-                )
-            )
-
-            return generated_code, coding_plan
-
-        # If we reach here, the maximum number of iterations was exceeded
-        logger.warning(
-            colorstring(
-                f"[code generation] Maximum iterations ({self.max_coding_iterations}) reached without generating valid and executable code.",
-                "red",
-            )
-        )
-        return (None, None)
-
-    def _mark_iteration_as_runnable(self, iteration_id):
-        self.code_cache.update_iteration(iteration_id, is_runnable=True)
-        logger.info(
-            colorstring(f"Marked iteration {iteration_id} as runnable.", "bright_blue")
-        )
-
     def _save_design_goal(self, design_goal: DesignGoal, file_path: str):
         """
         Save the design goal (text and reference images) as a JSON file.
@@ -568,29 +457,23 @@ def init_models(config_path: str, prompts_path: str):
         **describer_config.get("model_kwargs", {}),
     )
 
-    # ===== coding agents =====
-    code_llm_config = load_config(config_path, "code-llm")
-    code_generator = CodeGenerator(
-        code_llm_config["api_key"],
-        code_llm_config.get("api_base_url"),
-        code_llm_config.get("model_name"),
-        code_llm_config.get("org_id"),
-        load_prompts(prompts_path, "code-llm"),
-        **code_llm_config.get("model_kwargs", {}),
-    )
+    # ===== coder agent =====
+    coder_config = load_config(config_path, "code-llm")
 
-    master_code_llm_config = load_config(config_path, "master-code-llm")
-    code_master = (
-        CodeGenerator(
-            master_code_llm_config["api_key"],
-            master_code_llm_config.get("api_base_url"),
-            master_code_llm_config.get("model_name"),
-            master_code_llm_config.get("org_id"),
-            load_prompts(prompts_path, "code-llm"),
-            **master_code_llm_config.get("model_kwargs", {}),
-        )
-        if master_code_llm_config
-        else None
+    try:
+        master_code_llm_config = load_config(config_path, "master-code-llm")
+    except FileNotFoundError as e:
+        master_code_llm_config = None
+        logger.warning(f"Master code LLM configuration not found: {e}")
+
+    coder = Coder(
+        coder_config.get("api_key"),
+        coder_config.get("api_base_url"),
+        coder_config.get("model_name"),
+        coder_config.get("org_id"),
+        load_prompts(prompts_path, "code-llm"),
+        code_master_config=master_code_llm_config,
+        **coder_config.get("model_kwargs", {}),
     )
 
     # ===== visual feedback =====
@@ -615,7 +498,7 @@ def init_models(config_path: str, prompts_path: str):
         **feedback_judge_config.get("model_kwargs", {}),
     )
 
-    return describer, code_generator, code_master, visual_feedback, feedback_judge
+    return describer, coder, visual_feedback, feedback_judge
 
 
 def main():
@@ -626,17 +509,14 @@ def main():
     args = parse_args()
 
     # Initialize models
-    describer, code_generator, code_master, visual_feedback, feedback_judge = (
-        init_models(args.config, args.prompts)
+    describer, coder, visual_feedback, feedback_judge = init_models(
+        args.config, args.prompts
     )
 
     # ===== code execution loop =====
     code_execution_loop = CodeExecutionLoop(
         describer=describer,
-        code_generator=code_generator,
-        code_executor=CodeExecutor(),
-        code_cache=CodeCache(db_file="code-generator.db"),
-        code_master=code_master,
+        coder=coder,
         visual_feedback=visual_feedback,
         feedback_judge=feedback_judge,
     )

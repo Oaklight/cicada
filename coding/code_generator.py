@@ -274,7 +274,102 @@ export_{format}(to_export=result, file_path="{file_path}")
         return patched_code, target_output_dir
 
 
-if __name__ == "__main__":
+def test_code_generator(code_generator, design_goal, output_dir):
+    """
+    Performs end-to-end testing of the CodeGenerator class functionalities.
+    """
+    # Test 1: Generate code from a description
+    plan = code_generator.plan_code(design_goal)
+
+    if plan:
+        print("Code Plan:")
+        print(plan["plan"])
+        print("\nAPI Elements Involved:")
+        print(plan["elements"])
+    else:
+        print("Failed to generate code plan.")
+        sys.exit(1)
+
+    generated_code = code_generator.generate_code(design_goal, plan=plan["plan"])
+
+    if generated_code:
+        print("\nGenerated Code:")
+        print(generated_code)
+        code_generator.save_code_to_file(
+            generated_code, filename=os.path.join(output_dir, "generated_code.py")
+        )
+    else:
+        print("Failed to generate code.")
+        sys.exit(1)
+
+    # Test 2: Fix code based on feedback
+    feedbacks = [
+        "The hole should be centered along the height of the container.",
+        "Ensure the hole has a radius of 5 units.",
+    ]
+
+    # Fix the code based on feedback
+    fixed_code = code_generator.fix_code(generated_code, design_goal, feedbacks)
+
+    if fixed_code:
+        print("\nFixed Code:")
+        print(fixed_code)
+        code_generator.save_code_to_file(
+            fixed_code, filename=os.path.join(output_dir, "fixed_code.py")
+        )
+    else:
+        print("Failed to fix the code.")
+
+    # Test 3: Test generate_or_fix_code for generating new code
+    print("\nTesting generate_or_fix_code for generating new code:")
+    new_code = code_generator.generate_or_fix_code(
+        design_goal,
+        plan=plan["plan"],
+    )
+
+    if new_code:
+        print("\nGenerated Code (via generate_or_fix_code):")
+        print(new_code)
+        code_generator.save_code_to_file(
+            new_code, filename=os.path.join(output_dir, "new_code.py")
+        )
+    else:
+        print("Failed to generate code via generate_or_fix_code.")
+
+    # Test 4: Test generate_or_fix_code for fixing existing code
+    print("\nTesting generate_or_fix_code for fixing existing code:")
+    fixed_code_via_generate_or_fix = code_generator.generate_or_fix_code(
+        design_goal,
+        existing_code=generated_code,
+        feedbacks=feedbacks,
+    )
+
+    if fixed_code_via_generate_or_fix:
+        print("\nFixed Code (via generate_or_fix_code):")
+        print(fixed_code_via_generate_or_fix)
+        code_generator.save_code_to_file(
+            fixed_code_via_generate_or_fix,
+            filename=os.path.join(output_dir, "fixed_code_via_generate_or_fix.py"),
+        )
+    else:
+        print("Failed to fix code via generate_or_fix_code.")
+
+    # Step 5: Patch code to export with export functionality
+    if fixed_code_via_generate_or_fix:
+        patched_code, file_path = code_generator.patch_code_to_export(
+            fixed_code_via_generate_or_fix, format="stl"
+        )
+        print("\nPatched Code with Export Functionality:")
+        print(patched_code)
+        code_generator.save_code_to_file(
+            patched_code, filename=os.path.join(output_dir, "patched_code.py")
+        )
+        print(f"Export path: {file_path}")
+    else:
+        print("No valid code to patch and export.")
+
+
+def _main():
     parser = argparse.ArgumentParser(description="Assistive Large Language Model")
     parser.add_argument(
         "--config", default="config.yaml", help="Path to the configuration YAML file"
@@ -307,97 +402,13 @@ if __name__ == "__main__":
         **code_llm_config.get("model_kwargs", {}),
     )
 
-    # Test 1: Generate code from a description
+    # Define design goal for testing
     description = "Create a cylindrical container with a height of 50 units and a radius of 20 units, with a smaller cylindrical hole of radius 5 units drilled through its center along the height."
     design_goal = DesignGoal(description)
 
-    # Step 1: Plan the code
-    plan = code_generator.plan_code(design_goal)
+    # Run the tests
+    test_code_generator(code_generator, design_goal, args.output_dir)
 
-    if plan:
-        print("Code Plan:")
-        print(plan["plan"])
-        print("\nAPI Elements Involved:")
-        print(plan["elements"])
-    else:
-        print("Failed to generate code plan.")
-        sys.exit(1)
 
-    # Step 2: Generate code based on the plan
-    generated_code = code_generator.generate_code(design_goal, plan=plan["plan"])
-
-    if generated_code:
-        print("\nGenerated Code:")
-        print(generated_code)
-        code_generator.save_code_to_file(
-            generated_code, filename=os.path.join(args.output_dir, "generated_code.py")
-        )
-    else:
-        print("Failed to generate code.")
-        sys.exit(1)
-
-    # Test 2: Fix code based on feedback
-    feedbacks = [
-        "The hole should be centered along the height of the container.",
-        "Ensure the hole has a radius of 5 units.",
-    ]
-
-    # Step 3: Fix the code based on feedback
-    fixed_code = code_generator.fix_code(generated_code, design_goal, feedbacks)
-
-    if fixed_code:
-        print("\nFixed Code:")
-        print(fixed_code)
-        code_generator.save_code_to_file(
-            fixed_code, filename=os.path.join(args.output_dir, "fixed_code.py")
-        )
-    else:
-        print("Failed to fix the code.")
-
-    # Test 3: Test generate_or_fix_code for generating new code
-    print("\nTesting generate_or_fix_code for generating new code:")
-    new_code = code_generator.generate_or_fix_code(
-        design_goal,
-        plan=plan["plan"],
-    )
-
-    if new_code:
-        print("\nGenerated Code (via generate_or_fix_code):")
-        print(new_code)
-        code_generator.save_code_to_file(
-            new_code, filename=os.path.join(args.output_dir, "new_code.py")
-        )
-    else:
-        print("Failed to generate code via generate_or_fix_code.")
-
-    # Test 4: Test generate_or_fix_code for fixing existing code
-    print("\nTesting generate_or_fix_code for fixing existing code:")
-    fixed_code_via_generate_or_fix = code_generator.generate_or_fix_code(
-        design_goal,
-        existing_code=generated_code,
-        feedbacks=feedbacks,
-    )
-
-    if fixed_code_via_generate_or_fix:
-        print("\nFixed Code (via generate_or_fix_code):")
-        print(fixed_code_via_generate_or_fix)
-        code_generator.save_code_to_file(
-            fixed_code_via_generate_or_fix,
-            filename=os.path.join(args.output_dir, "fixed_code_via_generate_or_fix.py"),
-        )
-    else:
-        print("Failed to fix code via generate_or_fix_code.")
-
-    # Step 5: Patch code to export with export functionality
-    if fixed_code_via_generate_or_fix:
-        patched_code, file_path = code_generator.patch_code_to_export(
-            fixed_code_via_generate_or_fix, format="stl"
-        )
-        print("\nPatched Code with Export Functionality:")
-        print(patched_code)
-        code_generator.save_code_to_file(
-            patched_code, filename=os.path.join(args.output_dir, "patched_code.py")
-        )
-        print(f"Export path: {file_path}")
-    else:
-        print("No valid code to patch and export.")
+if __name__ == "__main__":
+    _main()

@@ -1,4 +1,5 @@
 import argparse
+import json
 import logging
 import os
 import signal
@@ -338,6 +339,13 @@ def _main():
         default=None,
         help="Paths to reference images for the design",
     )
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        default="refined_design_goal.json",
+        help="Path to the output JSON file",
+    )
     args = parser.parse_args()
 
     describe_vlm_config = load_config(args.config, "describe-vlm")
@@ -356,9 +364,17 @@ def _main():
 
     # Run the feedback loop process
     try:
-        final_design = vlm.design_feedback_loop(design_goal)
+        refined_design = vlm.design_feedback_loop(design_goal)
         logger.info("Design process completed successfully")
-        logger.info(colorstring(f"Final Design:\n{final_design}", "white"))
+        logger.info(colorstring(f"Refined Design:\n{refined_design}", "white"))
+
+        if args.output:
+            # make outdir
+            os.makedirs(os.path.dirname(args.output), exist_ok=True)
+            # save refined design to output file
+            with open(args.output, "w") as f:
+                json.dump(refined_design.to_dict(), f, indent=4)
+            logger.info(f"Refined design saved to {args.output}")
 
     except KeyboardInterrupt:
         logger.warning("Process interrupted by user")

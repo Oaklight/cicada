@@ -325,7 +325,7 @@ def _main():
         "--config", default="config.yaml", help="Path to the configuration YAML file"
     )
     parser.add_argument(
-        "--prompts", default="prompts.yaml", help="Path to the prompts YAML file"
+        "--prompts", default="prompts/", help="Path to the prompts YAML file"
     )
     parser.add_argument(
         "text_goal",

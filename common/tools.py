@@ -1,6 +1,7 @@
 # common/tools.py
 import inspect
 import json
+from json import tool
 from typing import Any, Callable, Dict, List, Optional
 
 from pydantic import BaseModel
@@ -24,6 +25,15 @@ class ToolRegistry:
 
     def __init__(self):
         self._tools: Dict[str, Tool] = {}
+
+    def __len__(self):
+        return len(self._tools)
+
+    def __contains__(self, name: str) -> bool:
+        """
+        Check if a tool with the given name is registered.
+        """
+        return name in self._tools
 
     def register(self, func: Callable, description: Optional[str] = None):
         """
@@ -243,3 +253,5 @@ if __name__ == "__main__":
     # Call the 'doc_helper' function
     print("\nCalling 'doc_helper':")
     print(tool_registry["doc_helper"]("build123d.Box", with_docstring=False))
+
+    print(len(tool_registry))

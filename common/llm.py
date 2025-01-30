@@ -84,7 +84,7 @@ class LanguageModel(ABC):
         else:
             # Add tools to the request if provided and model supports it
             kwargs = self.model_kwargs.copy()
-            if tools:
+            if tools and len(tools) > 0:
                 kwargs["tools"] = tools.get_tools_json()
                 kwargs["tool_choice"] = "auto"  # Automatically choose the tool to call
 
@@ -99,6 +99,7 @@ class LanguageModel(ABC):
                 stream,
                 is_deepseek=self.model_name in ["deepseek-r1", "deepseek-reasoner"],
                 tools=tools,
+                messages=messages,  # Pass the initial messages
             )
 
     def _handle_response(
@@ -108,6 +109,7 @@ class LanguageModel(ABC):
         is_gpto1preview=False,
         is_deepseek=False,
         tools: ToolRegistry = None,
+        messages=None,  # Add messages parameter
     ):
         """
         Handle the response from the model, including function calling and streaming.
@@ -118,6 +120,7 @@ class LanguageModel(ABC):
             is_gpto1preview (bool): Whether the model is gpto1preview.
             is_deepseek (bool): Whether the model is a Deepseek model.
             tools (ToolRegistry, optional): A registry of tools for function calling.
+            messages (list, optional): The message history.
 
         Returns:
             str: The complete response from the model, including any function call results.
@@ -160,11 +163,11 @@ class LanguageModel(ABC):
                                 tool_calls[index]["function"][
                                     "arguments"
                                 ] += tool_call.function.arguments
+
             print()  # Add a newline after the response
 
             # Execute tool calls if any
             if tool_calls:
-                cprint("Executing tool calls...", "yellow")
                 tool_responses = []
                 for index, tool_call in tool_calls.items():
                     function_name = tool_call["function"]["name"]
@@ -177,10 +180,37 @@ class LanguageModel(ABC):
                         function_name, function_args, tools
                     )
                     tool_responses.append(function_response)
-                if tool_responses:
-                    complete_response += "\n\n[Function Call Results]:\n" + "\n".join(
-                        tool_responses
+
+                # Append function call results to the message history
+                if messages is not None:
+                    messages.append({"role": "assistant", "content": complete_response})
+                    for index, tool_call in tool_calls.items():
+                        messages.append(
+                            {
+                                "role": "tool",
+                                "content": tool_responses[index],
+                                "tool_call_id": tool_call["id"],
+                            }
+                        )
+
+                    # Make a second request with the updated message history
+                    second_response = self.client.chat.completions.create(
+                        model=self.model_name,
+                        messages=messages,
+                        stream=stream,
+                        **self.model_kwargs,
                     )
+
+                    # Stream the second response
+                    second_complete_response = ""
+                    for chunk in second_response:
+                        delta = chunk.choices[0].delta
+                        if delta.content:
+                            cprint(delta.content, "white", end="", flush=True)
+                            second_complete_response += delta.content
+                    print()  # Add a newline after the response
+
+                    return second_complete_response.strip()
 
             return complete_response.strip()
         else:
@@ -208,6 +238,33 @@ class LanguageModel(ABC):
                             "\n\n[Function Call Results]:\n" + "\n".join(tool_responses)
                         )
 
+                    # Add the function call results back to the message history
+                    if messages is not None:
+                        messages.append(message)
+                        for tool_call, tool_response in zip(tool_calls, tool_responses):
+                            messages.append(
+                                {
+                                    "role": "tool",
+                                    "content": tool_response,
+                                    "tool_call_id": tool_call.id,
+                                }
+                            )
+
+                        # Make a second call to the model with the updated message history
+                        second_response = self.client.chat.completions.create(
+                            model=self.model_name,
+                            messages=messages,
+                            stream=stream,
+                            **self.model_kwargs,
+                        )
+                        return self._handle_response(
+                            second_response,
+                            stream,
+                            is_deepseek=is_deepseek,
+                            tools=tools,
+                            messages=messages,
+                        )
+
                 if is_deepseek:
                     reasoning_content = getattr(message, "reasoning_content", None)
                     if reasoning_content:
@@ -230,7 +287,7 @@ class LanguageModel(ABC):
             return f"Error: No tools provided to execute function '{function_name}'."
 
         # Retrieve the callable function from the ToolRegistry
-        function_to_call = tools.get_callable(function_name)
+        function_to_call = tools[function_name]  # or tools.get_callable(function_name)
         if not function_to_call:
             return f"Error: Function '{function_name}' not found in the ToolRegistry."
 
@@ -303,26 +360,14 @@ if __name__ == "__main__":
     # Register tools
     from common.tools import tool_registry
 
-    def get_weather(latitude, longitude):
-        import requests
-
-        response = requests.get(
-            f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
-        )
-        data = response.json()
-        return data["current"]["temperature_2m"]
-
-    tool_registry.register(
-        get_weather,
-        description="Get current temperature for provided coordinates in Celsius.",
-    )
-    cprint(tool_registry, "magenta")
-
     # Query the model
     response = llm.query("What's the weather in San Francisco?", tools=tool_registry)
-    print(response)
 
-    # doc helper test
+    if not llm.stream:
+        print(response)
+    print("=" * 80)
+
+    # ======== doc helper test ========
     import os
     import sys
 
@@ -341,4 +386,5 @@ if __name__ == "__main__":
         """,
         tools=tool_registry,
     )
-    print(response)
+    if not llm.stream:
+        print(response)

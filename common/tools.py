@@ -1,7 +1,7 @@
 # common/tools.py
 import inspect
 import json
-from typing import Any, Callable, Dict, List
+from typing import Any, Callable, Dict, List, Optional
 
 from pydantic import BaseModel
 
@@ -25,7 +25,7 @@ class ToolRegistry:
     def __init__(self):
         self._tools: Dict[str, Tool] = {}
 
-    def register(self, func: Callable, description: str = None):
+    def register(self, func: Callable, description: Optional[str] = None):
         """
         Register a function as a tool.
 
@@ -52,46 +52,78 @@ class ToolRegistry:
 
     def _generate_parameters_schema(self, func: Callable) -> Dict[str, Any]:
         """
-        Generate a JSON schema for the function's parameters.
+        Generate a JSON Schema-compliant schema for the function's parameters.
 
         Args:
             func (Callable): The function to generate the schema for.
 
         Returns:
-            Dict[str, Any]: The JSON schema for the function's parameters.
+            Dict[str, Any]: The JSON Schema for the function's parameters.
         """
         signature = inspect.signature(func)
-        parameters = {}
+        properties = {}
+        required = []
 
         for name, param in signature.parameters.items():
             if name == "self":
                 continue  # Skip 'self' for methods
+
+            # Map Python types to JSON Schema types
             param_type = (
-                str(param.annotation)
+                self._map_python_type_to_json_schema(param.annotation)
                 if param.annotation != inspect.Parameter.empty
-                else "str"
+                else "string"
             )
-            parameters[name] = {
+
+            # Add the parameter to the properties
+            properties[name] = {
                 "type": param_type,
                 "description": f"The {name} parameter.",
             }
 
+            # Check if the parameter is required
+            if param.default == inspect.Parameter.empty:
+                required.append(name)
+
         return {
             "type": "object",
-            "properties": parameters,
-            "required": [
-                name
-                for name, param in signature.parameters.items()
-                if param.default == inspect.Parameter.empty
-            ],
+            "properties": properties,
+            "required": required,
+            "additionalProperties": False,  # Enforce strict parameter validation
         }
+
+    def _map_python_type_to_json_schema(self, python_type: Any) -> str:
+        """
+        Map Python types to JSON Schema types.
+
+        Args:
+            python_type (Any): The Python type to map.
+
+        Returns:
+            str: The corresponding JSON Schema type.
+        """
+        type_mapping = {
+            "str": "string",
+            "int": "integer",
+            "float": "number",
+            "bool": "boolean",
+            "list": "array",
+            "dict": "object",
+        }
+
+        # Handle cases where the type is a class (e.g., `int`, `str`)
+        if hasattr(python_type, "__name__"):
+            return type_mapping.get(python_type.__name__, "string")
+
+        # Default to "string" if the type is not recognized
+        return "string"
 
     def get_tools_json(self) -> List[Dict[str, Any]]:
         """
-        Get the JSON representation of all registered tools.
+        Get the JSON representation of all registered tools, following JSON Schema.
 
         Returns:
-            List[Dict[str, Any]]: A list of tools in JSON format.
+            List[Dict[str, Any]]: A list of tools in JSON format, compliant with JSON Schema.
         """
         return [
             {
@@ -149,6 +181,12 @@ tool_registry = ToolRegistry()
 # Example usage
 if __name__ == "__main__":
     # Register a function
+    def add(a: int, b: int) -> int:
+        """Add two numbers."""
+        return a + b
+
+    tool_registry.register(add)
+
     def get_weather(location: str) -> str:
         """Get the current weather for a given location."""
         return f"Weather in {location}: Sunny, 25°C"
@@ -163,16 +201,16 @@ if __name__ == "__main__":
     tool_registry.register(get_news)
 
     # Get the JSON representation of all tools
-    tools_json = tool_registry.get_tools_json()
+    print("Tools JSON:")
     print(tool_registry)
 
     # Get a callable function by name
-    # weather_function = tool_registry.get_callable("get_weather")
-    # if weather_function:
-    #     print(weather_function("San Francisco"))
+    print("\nCalling 'get_weather':")
     print(tool_registry["get_weather"]("San Francisco"))
 
-    import os, sys
+    # Import and register another function
+    import os
+    import sys
 
     _current_dir = os.path.dirname(os.path.abspath(__file__))
     _parent_dir = os.path.dirname(_current_dir)
@@ -190,7 +228,9 @@ if __name__ == "__main__":
     tool_registry.register(doc_helper)
 
     # Get the JSON representation of all tools again
-    tools_json = tool_registry.get_tools_json()
-    print(json.dumps(tools_json, indent=2))
+    print("\nUpdated Tools JSON:")
+    print(json.dumps(tool_registry.get_tools_json(), indent=2))
 
-    print(tool_registry["doc_helper"]("build123d.Box", with_docstring=True))
+    # Call the 'doc_helper' function
+    print("\nCalling 'doc_helper':")
+    print(tool_registry["doc_helper"]("build123d.Box", with_docstring=False))

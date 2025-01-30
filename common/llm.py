@@ -13,6 +13,7 @@ _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
 from common.basics import PromptBuilder
+from common.tools import ToolRegistry
 from common.utils import colorstring, cprint, load_config, setup_logging
 
 logger = logging.getLogger(__name__)
@@ -54,16 +55,17 @@ class LanguageModel(ABC):
         ),  # Log before retrying
         reraise=True,
     )
-    def query(self, prompt, system_prompt=None):
+    def query(self, prompt, system_prompt=None, tools: ToolRegistry = None):
         """
-        Query the language model with a prompt and optionally a system prompt.
+        Query the language model with a prompt, optionally a system prompt, and tools for function calling.
 
         Args:
             prompt (str): The user prompt to send to the model.
             system_prompt (str, optional): The system prompt to guide the model's behavior.
+            tools (ToolRegistry, optional): A registry of tools for function calling.
 
         Returns:
-            str: The model's response.
+            str: The model's response, including any function call results.
         """
         stream = self.stream  # Use stream from configuration
 
@@ -74,6 +76,7 @@ class LanguageModel(ABC):
 
         # Handle different models
         if self.model_name == "gpto1preview":
+            # gpto1preview does not support function calling
             full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
             response = self.client.completions.create(
                 model=self.model_name,
@@ -83,66 +86,159 @@ class LanguageModel(ABC):
             )
             return self._handle_response(response, stream, is_gpto1preview=True)
         else:
+            # Add tools to the request if provided and model supports it
+            kwargs = self.model_kwargs.copy()
+            if tools:
+                kwargs["tools"] = tools.get_tools_json()
+                kwargs["tool_choice"] = "auto"  # Automatically choose the tool to call
+
             response = self.client.chat.completions.create(
                 model=self.model_name,
                 messages=messages,
                 stream=stream,
-                **self.model_kwargs,
+                **kwargs,
             )
             return self._handle_response(
                 response,
                 stream,
                 is_deepseek=self.model_name in ["deepseek-r1", "deepseek-reasoner"],
+                tools=tools,
             )
 
     def _handle_response(
-        self, response, stream, is_gpto1preview=False, is_deepseek=False
+        self,
+        response,
+        stream,
+        is_gpto1preview=False,
+        is_deepseek=False,
+        tools: ToolRegistry = None,
     ):
         """
-        Handle the response from the model, handling both streaming and non-streaming cases.
+        Handle the response from the model, including function calling and streaming.
 
         Args:
             response: The response object from the model.
             stream (bool): Whether the response is streamed.
             is_gpto1preview (bool): Whether the model is gpto1preview.
             is_deepseek (bool): Whether the model is a Deepseek model.
+            tools (list, optional): A list of tools (functions) that the model can call.
 
         Returns:
-            str: The complete response from the model.
+            str: The complete response from the model, including any function call results.
         """
         if stream:
             complete_response = ""
+            tool_calls = {}  # To store tool call chunks
             for chunk in response:
                 if is_gpto1preview:
                     chunk_text = chunk.choices[0].text
                     cprint(chunk_text, "white", end="", flush=True)
                     complete_response += chunk_text
                 else:
-                    chunk_content = chunk.choices[0].delta.content
-                    if chunk_content:
-                        cprint(chunk_content, "white", end="", flush=True)
-                        complete_response += chunk_content
+                    delta = chunk.choices[0].delta
+                    if delta.content:
+                        cprint(delta.content, "white", end="", flush=True)
+                        complete_response += delta.content
                     if is_deepseek:
-                        reasoning_content = getattr(
-                            chunk.choices[0].delta, "reasoning_content", None
-                        )
+                        reasoning_content = getattr(delta, "reasoning_content", None)
                         if reasoning_content:
                             cprint(reasoning_content, "cyan", end="", flush=True)
                             complete_response += reasoning_content
+                    if tools and delta.tool_calls:
+                        # Handle tool calls in streaming mode
+                        for tool_call in delta.tool_calls:
+                            index = tool_call.index
+                            if index not in tool_calls:
+                                tool_calls[index] = {
+                                    "id": "",
+                                    "type": "function",
+                                    "function": {"name": "", "arguments": ""},
+                                }
+                            if tool_call.id:
+                                tool_calls[index]["id"] += tool_call.id
+                            if tool_call.function.name:
+                                tool_calls[index]["function"][
+                                    "name"
+                                ] += tool_call.function.name
+                            if tool_call.function.arguments:
+                                tool_calls[index]["function"][
+                                    "arguments"
+                                ] += tool_call.function.arguments
             print()  # Add a newline after the response
+
+            # Execute tool calls if any
+            if tool_calls:
+                cprint("Executing tool calls...", "yellow")
+                cprint(tool_calls, "bright_yellow")
+                tool_responses = []
+                for index, tool_call in tool_calls.items():
+                    function_name = tool_call["function"]["name"]
+                    function_args = tool_call["function"]["arguments"]
+                    cprint(
+                        f"Executing {function_name} with args {function_args}...",
+                        "yellow",
+                    )
+                    function_response = self._execute_function_call(
+                        function_name, function_args, tools
+                    )
+                    tool_responses.append(function_response)
+                if tool_responses:
+                    complete_response += "\n\n[Function Call Results]:\n" + "\n".join(
+                        tool_responses
+                    )
+
             return complete_response.strip()
         else:
             if is_gpto1preview:
                 return response.choices[0].text.strip()
             else:
-                response_content = response.choices[0].message.content
+                message = response.choices[0].message
+                response_content = message.content
+
+                # Handle function calling (only for models that support it)
+                if tools and hasattr(message, "tool_calls") and message.tool_calls:
+                    tool_calls = message.tool_calls
+                    tool_responses = []
+                    for tool_call in tool_calls:
+                        function_name = tool_call.function.name
+                        function_args = tool_call.function.arguments
+                        function_response = self._execute_function_call(
+                            function_name, function_args, tools
+                        )
+                        tool_responses.append(function_response)
+
+                    # Append function call results to the response
+                    if tool_responses:
+                        response_content += (
+                            "\n\n[Function Call Results]:\n" + "\n".join(tool_responses)
+                        )
+
                 if is_deepseek:
-                    reasoning_content = getattr(
-                        response.choices[0].message, "reasoning_content", None
-                    )
+                    reasoning_content = getattr(message, "reasoning_content", None)
                     if reasoning_content:
                         return f"[Reasoning]: {reasoning_content}\n\n[Response]: {response_content}".strip()
                 return response_content.strip()
+
+    def _execute_function_call(self, function_name, function_args, tools):
+
+        if not tools:
+            return f"Error: No tools provided to execute function '{function_name}'."
+
+        # Find the function in the tools list
+        for tool in tools:
+            if tool["function"]["name"] == function_name:
+                try:
+                    # Parse the arguments
+                    import json
+
+                    args_dict = json.loads(function_args)
+
+                    result = function_name(**args_dict)
+                    return f"{function_name}({function_args}) -> {result}"
+                except Exception as e:
+                    return f"Error executing function '{function_name}': {str(e)}"
+
+        return f"Error: Function '{function_name}' not found in tools."
 
     @tenacity.retry(
         stop=tenacity.stop_after_attempt(3)
@@ -194,6 +290,17 @@ class LanguageModel(ABC):
             return response.choices[0].message.content.strip()
 
 
+import requests
+
+
+def get_weather(latitude, longitude):
+    response = requests.get(
+        f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
+    )
+    data = response.json()
+    return data["current"]["temperature_2m"]
+
+
 if __name__ == "__main__":
     """
     Main entry point for the script.
@@ -220,3 +327,29 @@ if __name__ == "__main__":
     response = llm.query("How are you doing today?")
     if not llm.stream:
         logger.info(colorstring(response, "white"))
+
+    tools = [
+        {
+            "type": "function",
+            "function": {
+                "name": "get_weather",
+                "description": "Get current temperature for provided coordinates in celsius.",
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "latitude": {"type": "number"},
+                        "longitude": {"type": "number"},
+                    },
+                    "required": ["latitude", "longitude"],
+                    "additionalProperties": False,
+                },
+                "strict": True,
+            },
+        }
+    ]
+
+    response = llm.query(
+        "What's the weather in San Francisco?",
+        tools=tools,
+    )
+    print(response)

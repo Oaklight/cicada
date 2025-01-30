@@ -7,7 +7,8 @@ system_prompt_code_generation: |
     ```python
     {code here}
     ```
-  - **Code Quality:** Ensure the code is clean, efficient, and adheres to Build123d library conventions.
+  - **Code Quality:** Ensure the code is clean, efficient, and adheres to Build123d library conventions. Use `from build123d import *` plus any other necessary imports.
+  - **Variable Naming:** Use descriptive variable names to enhance readability.
   - **Comments:** Include inline comments in the code to explain key steps or logic.
   - **Save Statement:** Every result should end with a `result=<the_object>` statement, where `<the_object>` is the variable name(s) of the object(s) being generated.
   - **No Display Calls:** Do not call `show` or any related API for display, as they are not available in non-interactive mode.

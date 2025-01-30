@@ -10,6 +10,7 @@ sys.path.extend([_parent_dir, _grandparent_dir])
 
 from common.rerank import Rerank
 from common.utils import setup_logging
+
 from retrieval.core.basics import Document
 
 
@@ -90,7 +91,7 @@ if __name__ == "__main__":
     # Initialize the SiliconFlow BGE-Reranker model
     rerank_model = SiliconFlowRerank(
         api_key="sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc",
-        # api_base_url="https://oneapi.service.oaklight.cn/v1",
+        # api_base_url="http://localhost:33000/v1",
         api_base_url="http://localhost:9998/v1",
         model_name="jina-reranker-v2",
     )

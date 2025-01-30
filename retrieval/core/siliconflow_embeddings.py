@@ -11,6 +11,7 @@ sys.path.extend([_parent_dir, _grandparent_dir])
 from typing import List, Union
 
 from common.embed import Embed
+
 from retrieval.core.basics import Document, Embeddings
 
 
@@ -106,7 +107,7 @@ if __name__ == "__main__":
     # Initialize the SiliconFlow BGE-M3 embedding model
     embedding_model = SiliconFlowEmbeddings(
         api_key="sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc",
-        api_base_url="https://oneapi.service.oaklight.cn/v1",
+        api_base_url="http://localhost:33000/v1",
         model_name="BAAI/bge-m3",
     )
 

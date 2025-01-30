@@ -215,15 +215,7 @@ if __name__ == "__main__":
     _current_dir = os.path.dirname(os.path.abspath(__file__))
     _parent_dir = os.path.dirname(_current_dir)
     sys.path.extend([_current_dir, _parent_dir])
-    from coding.code_dochelper import CodeDocHelper
-
-    def doc_helper(import_path, with_docstring: bool = False):
-        helper = CodeDocHelper()
-        info = helper.get_info(import_path, with_docstring=with_docstring)
-        markdown_formatted_str = helper.dict_to_markdown(
-            info, show_docstring=with_docstring
-        )
-        return markdown_formatted_str
+    from coding.code_dochelper import doc_helper
 
     tool_registry.register(doc_helper)
 

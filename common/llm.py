@@ -332,32 +332,23 @@ if __name__ == "__main__":
     response = llm.query("What's the weather in San Francisco?", tools=tool_registry)
     print(response)
 
-    response = llm.query("How are you doing today?")
-    if not llm.stream:
-        logger.info(colorstring(response, "white"))
+    # doc helper test
+    import os
+    import sys
 
-    tools = [
-        {
-            "type": "function",
-            "function": {
-                "name": "get_weather",
-                "description": "Get current temperature for provided coordinates in celsius.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "latitude": {"type": "number"},
-                        "longitude": {"type": "number"},
-                    },
-                    "required": ["latitude", "longitude"],
-                    "additionalProperties": False,
-                },
-                "strict": True,
-            },
-        }
-    ]
+    _current_dir = os.path.dirname(os.path.abspath(__file__))
+    _parent_dir = os.path.dirname(_current_dir)
+    sys.path.extend([_current_dir, _parent_dir])
+    from coding.code_dochelper import doc_helper
 
+    tool_registry.register(doc_helper)
     response = llm.query(
-        "What's the weather in San Francisco?",
-        tools=tools,
+        """
+        got following error, which doc should I look up? Remember always include top level import path `build123d`, such as `build123d.Box` for `Box` class. 
+        
+
+        Traceback (most recent call last):\n  File "/tmp/tmpivf6sajf/script.py", line 20, in <module>\n    with PolarLocations(radius=25, count=4, angle=360):  # Corrected: Removed `stop_angle` and used `angle`\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: PolarLocations.__init__() got an unexpected keyword argument \'angle\'
+        """,
+        tools=tool_registry,
     )
     print(response)

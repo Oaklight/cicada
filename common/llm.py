@@ -344,27 +344,37 @@ class LanguageModel(ABC):
         Query the LanguageModel using a PromptBuilder object.
 
         Args:
-            pb: The PromptBuilder object containing the prompt and tools.
+            pb: The PromptBuilder object containing the prompt.
 
         Returns:
             str: Generated response from the model.
         """
+        messages = pb.messages
+
         if self.model_name in ["argo:gpt-o1-preview", "gpto1preview"]:
             raise NotImplementedError("gpto1preview does not support PromptBuilder")
 
-        # Extract the user prompt, system prompt, and tools from the PromptBuilder
-        user_prompt = ""
-        system_prompt = None
-        tools: ToolRegistry = pb.get_tools()
+        # Use stream from configuration
+        stream = self.stream
 
-        for message in pb.messages:
-            if message["role"] == "user":
-                user_prompt = message["content"]
-            elif message["role"] == "system":
-                system_prompt = message["content"]
+        response = self.client.chat.completions.create(
+            model=self.model_name,
+            messages=messages,
+            stream=stream,
+            **self.model_kwargs,
+        )
 
-        # Call the query method with extracted prompts and tools
-        return self.query(prompt=user_prompt, system_prompt=system_prompt, tools=tools)
+        if stream:
+            complete_response = ""
+            for chunk in response:
+                chunk_content = chunk.choices[0].delta.content
+                if chunk_content:
+                    cprint(chunk_content, "white", end="", flush=True)
+                    complete_response += chunk_content
+            print()  # Add a newline after the response
+            return complete_response.strip()
+        else:
+            return response.choices[0].message.content.strip()
 
 
 if __name__ == "__main__":

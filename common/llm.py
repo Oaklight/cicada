@@ -84,9 +84,12 @@ class LanguageModel(ABC):
         else:
             # Add tools to the request if provided and model supports it
             kwargs = self.model_kwargs.copy()
-            if tools and len(tools) > 0:
-                kwargs["tools"] = tools.get_tools_json()
-                kwargs["tool_choice"] = "auto"  # Automatically choose the tool to call
+            if tools:
+                if len(tools) > 0:
+                    kwargs["tools"] = tools.get_tools_json()
+                    kwargs["tool_choice"] = (
+                        "auto"  # Automatically choose the tool to call
+                    )
 
             response = self.client.chat.completions.create(
                 model=self.model_name,
@@ -385,11 +388,11 @@ if __name__ == "__main__":
     # Register tools
     from common.tools import tool_registry
 
-    # Query the model
-    response = llm.query("What's the weather in San Francisco?", tools=tool_registry)
+    # # Query the model
+    # response = llm.query("What's the weather in San Francisco?", tools=tool_registry)
 
-    if not llm.stream:
-        print(response)
+    # if not llm.stream:
+    #     print(response)
     print("=" * 80)
 
     # ======== doc helper test ========
@@ -403,13 +406,13 @@ if __name__ == "__main__":
 
     tool_registry.register(doc_helper)
     response = llm.query(
-        """
-        got following error, which doc should I look up? Remember always include top level import path `build123d`, such as `build123d.Box` for `Box` class. 
-        
+        """Got the following error feedbacks:              
 
-        Traceback (most recent call last):\n  File "/tmp/tmpivf6sajf/script.py", line 20, in <module>\n    with PolarLocations(radius=25, count=4, angle=360):  # Corrected: Removed `stop_angle` and used `angle`\n         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: PolarLocations.__init__() got an unexpected keyword argument \'angle\'
+        Traceback (most recent call last):\n  File "/tmp/tmpgw4eo_ew/script.py", line 7, in <module>\n    tabletop_sketch = Circle(radius=50)\n                      ^^^^^^^^^^^^^^^^^\n  File "/home/pding/mambaforge/envs/codecad/lib/python3.11/site-packages/build123d/objects_sketch.py", line 121, in __init__\n    validate_inputs(context, self)\n  File "/home/pding/mambaforge/envs/codecad/lib/python3.11/site-packages/build123d/build_common.py", line 793, in validate_inputs\n    context.validate_inputs(validating_class, objects)\n  File "/home/pding/mambaforge/envs/codecad/lib/python3.11/site-packages/build123d/build_common.py", line 731, in validate_inputs\n    raise RuntimeError(\nRuntimeError: BuildPart doesn\'t have a Circle object or operation (Circle applies to [\'BuildSketch\']) 
+
+        Which documentation or sections should I look up to address these issues?  Remember always include top level import path `build123d`, such as `build123d.Box` for `Box` class. 
         """,
         tools=tool_registry,
     )
-    if not llm.stream:
-        print(response)
+    # if not llm.stream:
+    print(response)

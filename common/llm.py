@@ -168,6 +168,7 @@ class LanguageModel(ABC):
 
             # Execute tool calls if any
             if tool_calls:
+                cprint("Executing tool calls...", "yellow")
                 tool_responses = []
                 for index, tool_call in tool_calls.items():
                     function_name = tool_call["function"]["name"]
@@ -218,7 +219,9 @@ class LanguageModel(ABC):
                 return response.choices[0].text.strip()
             else:
                 message = response.choices[0].message
-                response_content = message.content
+                response_content = (
+                    message.content or ""
+                )  # Initialize as empty string if None
 
                 # Handle function calling (only for models that support it)
                 if tools and hasattr(message, "tool_calls") and message.tool_calls:
@@ -227,6 +230,10 @@ class LanguageModel(ABC):
                     for tool_call in tool_calls:
                         function_name = tool_call.function.name
                         function_args = tool_call.function.arguments
+                        cprint(
+                            f"Executing {function_name} with args {function_args}...",
+                            "yellow",
+                        )
                         function_response = self._execute_function_call(
                             function_name, function_args, tools
                         )

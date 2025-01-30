@@ -114,8 +114,8 @@ def _main():
     """
     args = parse_args()
 
-    config = load_config(args["config"], "visual_feedback")
-    prompt_templates = load_prompts(args["prompts"], "visual_feedback")
+    config = load_config(args.config, "visual_feedback")
+    prompt_templates = load_prompts(args.prompts, "visual_feedback")
 
     # Initialize the VisualFeedback
     visual_feedback = VisualFeedback(
@@ -128,15 +128,15 @@ def _main():
     )
 
     # Parse the design goal
-    design_goal = parse_design_goal(args["design_goal"])
+    design_goal = parse_design_goal(args.design_goal)
 
     # Generate feedback
     feedback = visual_feedback.generate_feedback_paragraph(
-        design_goal, args["reference_images"], args["rendered_images"]
+        design_goal, args.reference_images, args.rendered_images
     )
 
     # Print the feedback
-    cprint(feedback, "white")
+    cprint(feedback, "cyan")
 
 
 if __name__ == "__main__":

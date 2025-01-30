@@ -12,7 +12,6 @@ _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
-
 from coding.code_cache import CodeCache
 from coding.code_executor import CodeExecutor
 from coding.code_generator import CodeGenerator
@@ -142,8 +141,8 @@ class CodeExecutionLoop:
             with open(os.path.join(iteration_dir, "visual_feedback.txt"), "w") as f:
                 f.write(visual_feedback)
 
-            # Check if the current feedback is better than the best feedback so far
-            logger.info("START [check_feedback]")
+            # Update best feedback and code based on feedback evaluation
+            logger.info("START [update_best_feedback_and_code]")
             if best_feedbacks is None:
                 best_code = generated_code
                 best_feedbacks = visual_feedback
@@ -153,20 +152,6 @@ class CodeExecutionLoop:
                         "cyan",
                     )
                 )
-            elif self.feedback_judge.is_feedback_better(
-                visual_feedback, best_feedbacks, refined_design_goal.text
-            ):
-                best_code = generated_code
-                best_feedbacks = visual_feedback
-                best_coding_plan = coding_plan
-
-                logger.info(
-                    colorstring(
-                        f"Iteration {iteration + 1} - Improved feedback received",
-                        "cyan",
-                    )
-                )
-            logger.info("DONE [check_feedback]")
 
             # Check if the design goal has been achieved
             logger.info("START [check_design_goal]")
@@ -220,8 +205,6 @@ class CodeExecutionLoop:
 
         return refined_design_goal
 
-    # The rest of the methods remain unchanged...
-
     def _get_visual_feedback(
         self,
         design_goal: DesignGoal,
@@ -260,63 +243,6 @@ class CodeExecutionLoop:
         logger.info(colorstring(f"Visual feedback: {visual_feedback}", "white"))
 
         return True, visual_feedback
-
-    def _render_from_code(
-        self,
-        code: str,
-        output_dir: str = "./results",
-        format: Literal["stl", "step"] = "stl",
-    ) -> tuple[bool, str, str]:
-        """
-        Patches the provided code with an export function, executes the code, and saves the output.
-
-        This method takes the generated code, patches it to include an export function based on the specified format,
-        and then executes the patched code to generate the output files. The output files are saved in the specified
-        output directory. Both the original and patched versions of the code are saved for reference.
-
-        Args:
-            code (str): The code to be executed.
-            output_dir (str): The path to save the output files. Defaults to "./results".
-            format (Literal["stl", "step"]): The format of the output files. Defaults to "stl".
-
-        Returns:
-            tuple[bool, str, str]: A tuple containing:
-                - A boolean indicating whether the code execution was successful.
-                - A message or error from the execution process.
-                - The path to the directory where the output files are saved.
-        """
-        # Ensure the output directory exists
-        os.makedirs(output_dir, exist_ok=True)
-
-        # Patch the code with export function
-        # code_with_export, _ = self.code_generator.patch_code_to_export(
-        #     code=code, format=format, target_output_dir= os.path.abspath(output_dir)
-        # )
-        code_with_export, _ = self.code_generator.patch_code_to_export(
-            code=code, format=format
-        )
-
-        # Save both code versions
-        self.code_generator.save_code_to_file(code, os.path.join(output_dir, "code.py"))
-        self.code_generator.save_code_to_file(
-            code_with_export, os.path.join(output_dir, "code_with_export.py")
-        )
-
-        # Execute the code
-        is_valid, messages = self.code_executor.execute_and_save(
-            code_with_export, output_dir
-        )
-
-        if not is_valid:
-            logger.error(
-                colorstring(f"Code is not valid during export: {messages}", "red")
-            )
-        else:
-            logger.info(
-                colorstring(f"Code is valid during export: {messages}", "bright_blue")
-            )
-
-        return is_valid, messages, output_dir
 
     def _preview_mesh(self, render_dir: str) -> str | None:
         """
@@ -361,7 +287,6 @@ class CodeExecutionLoop:
         if feedback:
             logger.info(f"Human feedback received: {feedback}")
             # Process the feedback as needed
-            # For example, you can save it to a file or use it in further processing
             feedback_file_path = os.path.join(render_dir, "human_feedback.txt")
             with open(feedback_file_path, "w") as f:
                 f.write(feedback)
@@ -441,8 +366,7 @@ def init_models(config_path: str, prompts_path: str):
     Returns:
         tuple: A tuple containing the initialized components:
             - describer: Describer instance
-            - code_generator: CodeGenerator instance
-            - code_master: CodeGenerator instance (optional)
+            - coder: Coder instance
             - visual_feedback: VisualFeedback instance
             - feedback_judge: FeedbackJudge instance
     """

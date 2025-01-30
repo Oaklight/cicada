@@ -184,7 +184,25 @@ class LanguageModel(ABC):
 
                 # Append function call results to the message history
                 if messages is not None:
-                    messages.append({"role": "assistant", "content": complete_response})
+                    # Add the assistant's message with tool_calls
+                    assistant_message = {
+                        "role": "assistant",
+                        "content": complete_response,
+                        "tool_calls": [
+                            {
+                                "id": tool_call["id"],
+                                "type": "function",
+                                "function": {
+                                    "name": tool_call["function"]["name"],
+                                    "arguments": tool_call["function"]["arguments"],
+                                },
+                            }
+                            for tool_call in tool_calls.values()
+                        ],
+                    }
+                    messages.append(assistant_message)
+
+                    # Add the tool responses
                     for index, tool_call in tool_calls.items():
                         messages.append(
                             {

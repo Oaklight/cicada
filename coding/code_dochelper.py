@@ -17,15 +17,11 @@ logger = logging.getLogger(__name__)
 
 
 class CodeDocHelper:
-    def __init__(self, fuzzy_threshold=80):
+    def __init__(self):
         """
-        Initialize the CodeDocHelper with fuzzy matching threshold.
-
-        Parameters:
-        fuzzy_threshold (int): The minimum similarity score (0-100) for fuzzy matching.
+        Initialize the CodeDocHelper
         """
-        self.fuzzy_threshold = fuzzy_threshold
-        # Load cache from file if it exists
+        pass
 
     def get_function_info(self, function_path, with_docstring=False):
         """
@@ -345,6 +341,18 @@ class CodeDocHelper:
             return markdown_output
         else:
             return "# Unknown\nInvalid data format."
+
+
+def doc_helper(import_path, with_docstring: bool = False):
+    """
+    Query module, class, function, or method information and return it in Markdown format.
+    """
+    _helper = CodeDocHelper()
+    info = _helper.get_info(import_path, with_docstring=with_docstring)
+    markdown_formatted_str = _helper.dict_to_markdown(
+        info, show_docstring=with_docstring
+    )
+    return markdown_formatted_str
 
 
 def _main():

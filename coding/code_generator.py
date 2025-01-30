@@ -14,6 +14,7 @@ sys.path.extend([_current_dir, _parent_dir])
 
 from common import llm
 from common.basics import DesignGoal
+from common.tools import tool_registry
 from common.utils import (
     colorstring,
     cprint,
@@ -22,6 +23,8 @@ from common.utils import (
     load_prompts,
     setup_logging,
 )
+
+from coding.code_dochelper import doc_helper
 
 logger = logging.getLogger(__name__)
 
@@ -83,10 +86,12 @@ class CodeGenerator(llm.LanguageModel):
         """
         if existing_code:
             # Fix existing code
+            cprint("Fixing existing code...", "cyan")
             generated_code = self.fix_code(existing_code, design_goal, feedbacks)
             logger.info(colorstring(f"Fixed code:\n{generated_code}", "white"))
         else:
             # Generate new code
+            cprint("Generating new code...", "cyan")
             generated_code = self.generate_code(design_goal, plan=plan)
             logger.info(colorstring(f"Generated code:\n{generated_code}", "white"))
 
@@ -136,7 +141,7 @@ class CodeGenerator(llm.LanguageModel):
         self, code: str, design_goal: DesignGoal, feedbacks: List[str] | None
     ) -> str:
         """
-        Fixes the code based on feedback, focusing purely on geometric information.
+        Fixes the code using error feedback, leveraging dochelper to query documentation insights if necessary.
         """
         description = design_goal.text
         decomposition = design_goal.extra.get("decomposition", {})
@@ -144,7 +149,30 @@ class CodeGenerator(llm.LanguageModel):
         if isinstance(feedbacks, list):
             feedbacks = "\n".join(feedbacks)
 
-        prompt = (
+        # First, query dochelper for insights into the error
+        doc_query_prompt = (
+            f"Got the following error feedbacks:\n{feedbacks}\n"
+            "Which documentation or sections should I look up to address these issues? "
+            "Remember to include the top-level import path `build123d`, such as `build123d.Box` for the `Box` class."
+        )
+
+        try:
+            cprint("Querying dochelper for documentation insights...", "cyan")
+            # Ensure the dochelper tool is registered
+            tool_registry.register(doc_helper)
+
+            # Query the LLM with dochelper tool for documentation insights
+            doc_response = self.query(doc_query_prompt, tools=tool_registry)
+
+            # Extract helpful documentation info from the response
+            documentation_insights = doc_response.strip()
+
+        except Exception as e:
+            logger.error(f"Dochelper API call failed: {e}")
+            documentation_insights = "No additional documentation insights were found."
+
+        # Now fix the code using the documentation insights
+        fix_prompt = (
             f"The following code has errors:\n```python\n{code}\n```\n"
             f"The original description was:\n{description}\n\n"
             f"Decomposition Details:\n"
@@ -152,15 +180,21 @@ class CodeGenerator(llm.LanguageModel):
             f"- Assembly Steps: {decomposition.get('assembly_plan', [])}\n"
             f"- Uncertainties: {decomposition.get('uncertainty_reasons', [])}\n\n"
             f"Error feedbacks are:\n{feedbacks}\n\n"
+            f"Based on the following documentation insights:\n{documentation_insights}\n\n"
             "Please fix the code and ensure it meets the original description. "
             "The corrected code should be enclosed within triple backticks:\n```python\n...```"
         )
 
         try:
-            fixed_code = self.query(prompt, self.system_prompt_code_generation)
+            # Attempt to fix the code with enriched prompt
+            fixed_code = self.query(
+                fix_prompt, self.system_prompt_code_generation, tools=tool_registry
+            )
+
             return self._extract_code_from_response(fixed_code)
+
         except Exception as e:
-            logger.error(f"API call failed: {e}")
+            logger.error(f"Code fixing API call failed: {e}")
             return None
 
     def plan_code(

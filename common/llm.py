@@ -28,7 +28,6 @@ class LanguageModel(ABC):
         org_id,
         **model_kwargs,
     ):
-        # ... (rest of the __init__ method remains the same)
         self.api_key = api_key
         self.api_base_url = api_base_url
         self.model_name = model_name
@@ -44,15 +43,12 @@ class LanguageModel(ABC):
         )
 
     @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3)
-        | tenacity.stop_after_delay(30),  # Stop after 3 attempts or 30 seconds
+        stop=tenacity.stop_after_attempt(3) | tenacity.stop_after_delay(30),
         wait=tenacity.wait_random_exponential(multiplier=1, min=2, max=10),
         retry=tenacity.retry_if_exception_type(
             (openai.APIError, httpx.ReadTimeout, httpx.ConnectTimeout)
-        ),  # Retry on API errors or network timeouts
-        before_sleep=tenacity.before_sleep_log(
-            logger, logging.WARNING
-        ),  # Log before retrying
+        ),
+        before_sleep=tenacity.before_sleep_log(logger, logging.WARNING),
         reraise=True,
     )
     def query(self, prompt, system_prompt=None, tools: ToolRegistry = None):
@@ -121,7 +117,7 @@ class LanguageModel(ABC):
             stream (bool): Whether the response is streamed.
             is_gpto1preview (bool): Whether the model is gpto1preview.
             is_deepseek (bool): Whether the model is a Deepseek model.
-            tools (list, optional): A list of tools (functions) that the model can call.
+            tools (ToolRegistry, optional): A registry of tools for function calling.
 
         Returns:
             str: The complete response from the model, including any function call results.
@@ -169,7 +165,6 @@ class LanguageModel(ABC):
             # Execute tool calls if any
             if tool_calls:
                 cprint("Executing tool calls...", "yellow")
-                cprint(tool_calls, "bright_yellow")
                 tool_responses = []
                 for index, tool_call in tool_calls.items():
                     function_name = tool_call["function"]["name"]
@@ -219,37 +214,44 @@ class LanguageModel(ABC):
                         return f"[Reasoning]: {reasoning_content}\n\n[Response]: {response_content}".strip()
                 return response_content.strip()
 
-    def _execute_function_call(self, function_name, function_args, tools):
+    def _execute_function_call(self, function_name, function_args, tools: ToolRegistry):
+        """
+        Execute a function call based on the provided function name and arguments.
 
+        Args:
+            function_name (str): The name of the function to call.
+            function_args (str): The arguments for the function (as a JSON string).
+            tools (ToolRegistry): A registry of tools for function calling.
+
+        Returns:
+            str: The result of the function call.
+        """
         if not tools:
             return f"Error: No tools provided to execute function '{function_name}'."
 
-        # Find the function in the tools list
-        for tool in tools:
-            if tool["function"]["name"] == function_name:
-                try:
-                    # Parse the arguments
-                    import json
+        # Retrieve the callable function from the ToolRegistry
+        function_to_call = tools.get_callable(function_name)
+        if not function_to_call:
+            return f"Error: Function '{function_name}' not found in the ToolRegistry."
 
-                    args_dict = json.loads(function_args)
+        try:
+            # Parse the arguments
+            import json
 
-                    result = function_name(**args_dict)
-                    return f"{function_name}({function_args}) -> {result}"
-                except Exception as e:
-                    return f"Error executing function '{function_name}': {str(e)}"
-
-        return f"Error: Function '{function_name}' not found in tools."
+            args_dict = json.loads(function_args)
+            # Execute the function
+            result = function_to_call(**args_dict)
+            return f"{function_name}({function_args}) -> {result}"
+        except Exception as e:
+            return f"Error executing function '{function_name}': {str(e)}"
 
     @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3)
-        | tenacity.stop_after_delay(30),  # Stop after 3 attempts or 30 seconds
+        stop=tenacity.stop_after_attempt(3) | tenacity.stop_after_delay(30),
         wait=tenacity.wait_random_exponential(multiplier=1, min=2, max=10),
         retry=tenacity.retry_if_exception_type(
             (openai.APIError, httpx.ReadTimeout, httpx.ConnectTimeout)
-        ),  # Retry on API errors or network timeouts
-        before_sleep=tenacity.before_sleep_log(
-            logger, logging.WARNING
-        ),  # Log before retrying
+        ),
+        before_sleep=tenacity.before_sleep_log(logger, logging.WARNING),
         reraise=True,
     )
     def query_with_promptbuilder(self, pb: PromptBuilder) -> str:
@@ -290,23 +292,7 @@ class LanguageModel(ABC):
             return response.choices[0].message.content.strip()
 
 
-import requests
-
-
-def get_weather(latitude, longitude):
-    response = requests.get(
-        f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
-    )
-    data = response.json()
-    return data["current"]["temperature_2m"]
-
-
 if __name__ == "__main__":
-    """
-    Main entry point for the script.
-
-    Parses command-line arguments, loads configuration, and queries the language model.
-    """
     parser = argparse.ArgumentParser(description="Language Model")
     parser.add_argument(
         "--config", default="config.yaml", help="Path to the configuration YAML file"
@@ -323,6 +309,28 @@ if __name__ == "__main__":
         llm_config.get("org_id"),
         **llm_config.get("model_kwargs", {}),
     )
+
+    # Register tools
+    from common.tools import tool_registry
+
+    def get_weather(latitude, longitude):
+        import requests
+
+        response = requests.get(
+            f"https://api.open-meteo.com/v1/forecast?latitude={latitude}&longitude={longitude}&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m"
+        )
+        data = response.json()
+        return data["current"]["temperature_2m"]
+
+    tool_registry.register(
+        get_weather,
+        description="Get current temperature for provided coordinates in Celsius.",
+    )
+    cprint(tool_registry, "magenta")
+
+    # Query the model
+    response = llm.query("What's the weather in San Francisco?", tools=tool_registry)
+    print(response)
 
     response = llm.query("How are you doing today?")
     if not llm.stream:

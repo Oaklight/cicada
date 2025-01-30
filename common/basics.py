@@ -7,6 +7,7 @@ _current_dir = os.path.dirname(os.path.abspath(__file__))
 _parent_dir = os.path.dirname(_current_dir)
 sys.path.extend([_current_dir, _parent_dir])
 
+from common.tools import ToolRegistry
 from common.utils import get_image_paths, image_to_base64
 
 
@@ -25,6 +26,7 @@ class PromptBuilder:
     def __init__(self):
         """Initialize the PromptBuilder with an empty list of messages."""
         self.messages = []
+        self.tools = None  # Add an attribute to hold tools
 
     def add_system_prompt(self, content):
         """Add a system prompt to the messages.
@@ -81,6 +83,28 @@ class PromptBuilder:
             content (str): The text content of the user message.
         """
         self.messages.append({"role": "user", "content": content})
+
+    def add_tools(self, tools: ToolRegistry, keep_existing: bool = False):
+        """Add tools to the PromptBuilder.
+
+        This method allows adding a registry of tools to the prompt. If tools already exist,
+        they can be merged with the new ones based on the `keep_existing` flag. If `keep_existing` is True, existing tools with conflicting names will be preserved. Otherwise, they will be overwritten.
+
+        Args:
+            tools (ToolRegistry): The registry of tools to be used with the prompt.
+        """
+        if self.tools:  # If tools already exist, merge them with the new ones
+            self.tools.merge(tools, keep_existing=keep_existing)
+        else:
+            self.tools = tools
+
+    def get_tools(self):
+        """Get the tools set for the prompt.
+
+        Returns:
+            ToolRegistry: The registry of tools if any have been set.
+        """
+        return self.tools
 
 
 class DesignGoal:

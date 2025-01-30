@@ -50,6 +50,23 @@ class ToolRegistry:
         # Add the tool to the registry
         self._tools[name] = tool
 
+    def merge(self, other: "ToolRegistry", keep_existing: bool = False):
+        """
+        Merge tools from another ToolRegistry into this one.
+
+        Args:
+            other (ToolRegistry): The other ToolRegistry to merge into this one.
+        """
+        if not isinstance(other, ToolRegistry):
+            raise TypeError("Can only merge with another ToolRegistry instance.")
+
+        if keep_existing:
+            for name, tool in other._tools.items():
+                if name not in self._tools:
+                    self._tools[name] = tool
+        else:
+            self._tools.update(other._tools)
+
     def _generate_parameters_schema(self, func: Callable) -> Dict[str, Any]:
         """
         Generate a JSON Schema-compliant schema for the function's parameters.

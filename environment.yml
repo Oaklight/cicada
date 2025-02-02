@@ -1,4 +1,4 @@
-name: codecad
+name: cicada
 channels:
   - conda-forge
 dependencies:

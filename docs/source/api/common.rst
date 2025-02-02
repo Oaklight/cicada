@@ -36,6 +36,14 @@ common.rerank module
    :undoc-members:
    :show-inheritance:
 
+common.tools module
+-------------------
+
+.. automodule:: common.tools
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 common.utils module
 -------------------
 

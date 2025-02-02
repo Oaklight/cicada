@@ -1,98 +1,187 @@
-# CodeCad-RAG
+# CICADA：协作智能 CAD 自动化设计代理
 
-[中文](./README_zh.md) | [English](./README.md)
+[English](./README.md) | [中文](./README_zh.md)
+
+欢迎使用 **CICADA**，即协作智能 CAD 自动化设计代理。CICADA 是一个先进的框架，旨在通过智能自动化和协作来简化和增强 CAD 设计流程。本仓库包含支持 CICADA 的核心模块和工具，使其能够无缝集成到 CAD 工作流程中。
+
+📖 **文档**: 详细的文档和教程，请访问 [CICADA 文档](https://cicada.lab.oaklight.cn)。
+
+---
 
 ## 仓库结构
 
-仓库包含以下主要目录和文件：
+仓库主要包含以下模块：
 
-* `data`：数据目录，包含点云数据和模型数据。
-* `env_install.sh`：环境安装脚本。
-* `requirements.txt`：项目依赖库列表。
-* `geometry_pipeline`：包含将3D模型转换为点云的脚本。
-* `MiniGPT-3D`：点云描述组件
-* `tools`：包含辅助脚本。
+- **common**: 框架的核心工具和共享功能。
+- **geometry_pipeline**: 用于处理和转换 3D 模型的工具，包括点云生成和快照。
+- **describe**: 生成和管理 3D 模型描述性元数据的组件。
+- **coding**: CAD 自动化的代码生成、执行和调试工具。
+- **feedbacks**: 分析和提供设计迭代反馈的模块。
+- **retrieval**: 检索和管理文档、模型数据及设计资源的工具。
+- **workflow**: 协调 CICADA 自动化工作流和代理管理。
 
-## 如何设置环境
+---
 
-### 下载代码库以及子组件
+## 环境设置
+
+### 前提条件
+
+在设置 CICADA 之前，请确保已安装以下软件：
+
+- **Python 3.9+**
+- **Git**（用于克隆仓库和管理子模块）
+- **Conda** 或 **pip**（用于依赖管理）
+
+### 安装步骤
+
+#### 1. 克隆仓库
 
 ```bash
-git clone https://github.com/Oaklight/codecad-rag.git
-cd codecad-rag
+git clone https://github.com/Oaklight/cicada.git
+cd cicada
 git submodule update --init --recursive
 ```
 
-### 安装依赖库
+#### 2. 安装依赖
 
-* 选项1：安装conda虚拟环境：
+**选项 1: 使用 Conda（推荐）**
 
 ```bash
 conda env create -f environment.yml
-conda activate codecad
+conda activate cicada
 ```
 
-* 选项2：使用pip，安装requirements.txt中的依赖库：
+**选项 2: 使用 pip**
 
 ```bash
-# 创建虚拟环境codecad
-python -m venv codecad
-# 激活虚拟环境
-source codecad/bin/activate
-# 安装依赖库
+python -m venv cicada
+source cicada/bin/activate
 pip install -r requirements.txt
 ```
 
-### 设置其他相关环境
+#### 3. 更新 API 密钥
 
-* 设置 MiniGPT-3D 环境
+提供的 API 密钥在配置文件中已过期。请更新 `config.yaml` 或每个模块中的 `config/*.yaml` 文件中的 `api_key` 和 `api_base_url`。
 
-```bash
-cd MiniGPT-3D
+---
 
-# 优先使用mamba，如果未安装，则使用conda
-mamba env create -f environment.yml
-# conda env create -f environment.yml
+## 主要模块及用法
 
-conda activate minigpt_3d
-bash env_install.sh
+### `geometry_pipeline`
 
-# 下载预训练模型权重，到MiniGPT-3D目录下
-# 需要git-lfs与aria2c，如果未安装，请通过conda/mamba安装
-# mamba install -c conda-forge git-lfs aria2c
-../tools/hfd.sh YuanTang96/MiniGPT-3D --tool aria2c -x 16 --exclude config.json --exclude README.md --exclude .gitattributes
-```
+- **`convert.py`**: 将 3D 模型（STEP, OBJ, STL）转换为点云数据（PLY）或其他格式。
 
-## 具体组件
+  ```bash
+  python geometry_pipeline/convert.py --step_file <path_to_step_file> --convert_step2obj
+  ```
 
-### geometry_pipeline/convert.py
+  **选项**:  
+  `--convert_step2obj`, `--convert_obj2pc`, `--convert_step2stl`, `--convert_obj2stl`, `--convert_stl2obj`, `--convert_stl2pc`, `--reaxis_gravity`
 
-`convert.py` 脚本用于将3D模型转换为点云数据。提供了step -> obj (mesh) -> ply (point cloud) 的转换功能。该组件包含其他支持函数等。该脚本可作为独立脚本使用，也可以作为其他脚本的一部分。
+- **`snapshots.py`**: 从多个角度生成 3D 模型的预览快照。
+  ```bash
+  python geometry_pipeline/snapshots.py --step_file <path_to_step_file> --snapshots
+  ```
+  **选项**:  
+  `--obj_file`, `--step_file`, `--stl_file`, `-o OUTPUT_DIR`, `-r RESOLUTION`, `-d DIRECTION`, `-p`, `--reaxis_gravity`
 
-```bash
-usage: convert.py [-h] (--step_file STEP_FILE | --obj_file OBJ_FILE)
+### `describe`
 
-options:
-  -h, --help            show this help message and exit
-  --step_file STEP_FILE
-  --obj_file OBJ_FILE
-```
+- **`describer_v2.py`**: 使用先进的语言模型生成 3D 模型的描述性元数据。
+  ```bash
+  python describe/describer_v2.py "描述 3D 模型" --config <path_to_config> --prompts <path_to_prompts>
+  ```
+  **选项**:  
+  `--config CONFIG`, `--prompts PROMPTS`, `-img REF_IMAGES`, `-o OUTPUT`
 
-### geometry_pipeline/snapshots.py
+### `coding`
 
-`snapshots.py` 脚本用于生成3D模型的预览快照。支持交互式预览和保存快照。该脚本可作为独立脚本使用，也可以作为其他脚本的一部分。在交互模式下，用户可通过拖动鼠标来旋转模型；在保存模式下，用户可指定快照的名称和保存路径，每一份mesh会保存14个视角的快照。
+- **`coder.py`**: 根据设计目标生成 CAD 脚本。
+  ```bash
+  python coding/coder.py "设计一个机械零件" --config <path_to_config> --prompts <path_to_prompts>
+  ```
+  **选项**:  
+  `--config CONFIG`, `--master_config_path MASTER_CONFIG_PATH`, `--prompts PROMPTS`, `-o OUTPUT_DIR`
 
-```bash
-usage: snapshots.py [-h] (--obj_file OBJ_FILE | --step_file STEP_FILE) [-o OUT_PATH] [-r RESOLUTION RESOLUTION]
-                    [-d DIRECTION] (-p | -s)
+### `feedbacks`
 
-options:
-  -h, --help            show this help message and exit
-  --obj_file OBJ_FILE
-  --step_file STEP_FILE
-  -o OUT_PATH, --out_path OUT_PATH
-  -r RESOLUTION RESOLUTION, --resolution RESOLUTION RESOLUTION
-  -d DIRECTION, --direction DIRECTION
-  -p, --preview
-  -s, --snapshots
-```
+- **`visual_feedback.py`**: 分析设计渲染图像是否符合设计目标。
+  ```bash
+  python feedbacks/visual_feedback.py --design_goal "设计一个机械零件" --rendered_images <path_to_images>
+  ```
+  **选项**:  
+  `--config CONFIG`, `--prompts PROMPTS`, `--reference_images REFERENCE_IMAGES`, `--rendered_images RENDERED_IMAGES`
+
+### `retrieval`
+
+- **`tools/build123d_retriever.py`**: 检索和管理 CAD 工具和库的文档。
+
+  ```bash
+  python retrieval/tools/build123d_retriever.py [--force-rebuild] [--interactive] [--metric {l2,cosine}] [--query QUERY] [--debug]
+  ```
+
+  **选项**:  
+  `--force-rebuild`: 强制重建数据库。  
+  `--interactive`: 以交互模式运行，允许多次提问。  
+  `--metric {l2,cosine}`: 用于相似性搜索的距离度量。  
+  `--query QUERY`: 在数据库中搜索的查询文本。  
+  `--debug`: 启用调试模式以获取详细日志。
+
+  **示例**:  
+  交互模式：
+
+  ```bash
+  python retrieval/tools/build123d_retriever.py --interactive
+  ```
+
+  单次查询：
+
+  ```bash
+  python retrieval/tools/build123d_retriever.py --query "如何拉伸形状？"
+  ```
+
+### `workflow`
+
+- **`codecad_agent.py`**: 协调 CAD 设计的自动化工作流。
+
+  ```bash
+  python workflow/codecad_agent.py "设计一个机械零件" --config <path_to_config> --prompts <path_to_prompts>
+  ```
+
+  **选项**:  
+  `--config CONFIG`: 配置文件路径。  
+  `--prompts PROMPTS`: 提示文件路径。  
+  `-img REF_IMAGES`: 参考图像路径（可选）。  
+  `-o OUTPUT_DIR`: 输出文件保存目录（可选）。
+
+  **示例**:
+
+  ```bash
+  python workflow/codecad_agent.py "设计一个机械零件" --config workflow/config/code-llm.yaml --prompts workflow/prompts/code-llm.yaml -o output/
+  ```
+
+---
+
+## 贡献
+
+我们欢迎社区贡献！如果您想为 CICADA 做出贡献，请按照以下步骤操作：
+
+1. Fork 本仓库。
+2. 为您的功能或修复创建一个新分支。
+3. 提交一个包含详细描述的 pull request。
+
+---
+
+## 许可证
+
+CICADA 采用 **MIT 许可证**。有关详细信息，请参阅 [LICENSE](./LICENSE) 文件。
+
+---
+
+## 联系我们
+
+如有问题、反馈或支持请求，请通过 [GitHub Issues](https://github.com/Oaklight/cicada/issues) 提交，或通过 **[dingpeng]@@uchicago[dot]edu** 联系我们。
+
+---
+
+**CICADA** — 用智能自动化革新 CAD 设计。 🚀

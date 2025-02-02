@@ -34,6 +34,7 @@ class CodeGenerator(llm.LanguageModel):
         model_name,
         org_id,
         prompt_templates,
+        cheat_sheet: str = None,
         **model_kwargs,
     ):
         super().__init__(
@@ -50,6 +51,10 @@ class CodeGenerator(llm.LanguageModel):
         self.system_prompt_code_planning = prompt_templates.get(
             "system_prompt_code_planning", ""
         )
+        if cheat_sheet:
+            self.system_prompt_code_planning = self.system_prompt_code_planning.format(
+                cheat_sheet_content=cheat_sheet
+            )
 
     def _extract_code_from_response(self, response):
         """
@@ -105,8 +110,8 @@ class CodeGenerator(llm.LanguageModel):
                 f"Description:\n{description}\n\n"
                 f"Decomposition Details:\n"
                 f"- Parts: {decomposition.get('parts', [])}\n"
-                f"- Assembly Steps: {decomposition.get('assembly_plan', [])}\n"
-                f"- Uncertainties: {decomposition.get('uncertainty_reasons', [])}\n\n"
+                # f"- Assembly Steps: {decomposition.get('assembly_plan', [])}\n"
+                # f"- Uncertainties: {decomposition.get('uncertainty_reasons', [])}\n\n"
                 f"Plan:\n{plan}\n\n"
                 "The code should be enclosed within triple backticks:\n```python\n...```"
             )
@@ -115,8 +120,8 @@ class CodeGenerator(llm.LanguageModel):
                 f"Generate a build123d script based on the following description:\n{description}\n\n"
                 f"Decomposition Details:\n"
                 f"- Parts: {decomposition.get('parts', [])}\n"
-                f"- Assembly Steps: {decomposition.get('assembly_plan', [])}\n"
-                f"- Uncertainties: {decomposition.get('uncertainty_reasons', [])}\n\n"
+                # f"- Assembly Steps: {decomposition.get('assembly_plan', [])}\n"
+                # f"- Uncertainties: {decomposition.get('uncertainty_reasons', [])}\n\n"
                 "The code should be enclosed within triple backticks:\n```python\n...```"
             )
 
@@ -217,12 +222,6 @@ class CodeGenerator(llm.LanguageModel):
         except Exception as e:
             logger.error(f"API call failed: {e}")
             return None
-            return {
-                "plan": plan,
-                "elements": elements,
-                "considerations": considerations,  # 新增考虑事项部分
-                "considerations": considerations,  # New considerations section
-            }
         except Exception as e:
             logger.error(f"API call failed: {e}")
             return None

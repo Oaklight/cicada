@@ -12,7 +12,7 @@ sys.path.extend([_parent_dir, _grandparent_dir])
 
 from coding.code_dochelper import CodeDocHelper
 from common import llm
-from common.utils import load_config, load_prompts, setup_logging
+from common.utils import load_config, load_plaintext, load_prompts, setup_logging
 
 logger = logging.getLogger(__name__)
 
@@ -135,12 +135,8 @@ class Build123dRetriever:
         Returns:
             str: Content of the cheat sheet.
         """
-        try:
-            with open(cheat_sheet_file, "r") as f:
-                self.cheat_sheet_content = f.read()
-        except FileNotFoundError:
-            logger.error(f"Cheat sheet file not found: {cheat_sheet_file}")
-            self.cheat_sheet_content = ""
+
+        return load_plaintext(cheat_sheet_file)
 
     def query(self, query: str, k: int = 5) -> List[Dict]:
         """

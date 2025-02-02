@@ -2,7 +2,10 @@
 api_key: "sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc"
 api_base_url: "https://oneapi.service.oaklight.cn/v1" # Optional custom API base URL
 # model_name: "argo:gpt-o1-preview"
-model_name: "deepseek-r1"
+model_name: "deepseek-v3"
 
 model_kwargs:
   stream: true
+
+# cheat_sheet_file: "../coding/cheat_sheet.md"
+cheat_sheet_file: "../coding/cheat_sheet_full.md"

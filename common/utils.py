@@ -88,6 +88,25 @@ def load_prompts(prompts_path: str, which_model: str) -> dict:
     return prompt_templates
 
 
+def load_plaintext(plaintext_file: str) -> str:
+    """
+    Load the content of the cheat sheet from the specified file.
+
+    Args:
+        plaintext_file (str): Path to the cheat sheet file.
+
+    Returns:
+        str: Content of the cheat sheet.
+    """
+    try:
+        with open(plaintext_file, "r") as f:
+            plaintext_content = f.read()
+    except FileNotFoundError:
+        logger.error(f"Cheat sheet file not found: {plaintext_file}")
+        plaintext_content = ""
+    return plaintext_content
+
+
 def colorstring(
     message: Any,  # Accept any type of input
     color: Optional[str] = "green",

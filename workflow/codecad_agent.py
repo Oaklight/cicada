@@ -22,6 +22,7 @@ from common.utils import (
     cprint,
     find_files_with_extensions,
     load_config,
+    load_plaintext,
     load_prompts,
     setup_logging,
 )
@@ -29,6 +30,7 @@ from describe.describer_v2 import Describer
 from feedbacks.feedback_judge import FeedbackJudge
 from feedbacks.visual_feedback import VisualFeedback
 from geometry_pipeline.snapshots import generate_snapshots, preview_mesh_interactively
+from retrieval.tools.build123d_retriever_v2 import Build123dRetriever
 
 logger = logging.getLogger(__name__)
 
@@ -42,9 +44,10 @@ class CodeExecutionLoop:
         code_cache: CodeCache,
         visual_feedback: VisualFeedback,
         feedback_judge: FeedbackJudge,
+        build123d_retriever: Build123dRetriever,
         code_master: CodeGenerator = None,
-        max_design_iterations=10,
-        max_coding_iterations=5,
+        max_design_iterations=5,
+        max_coding_iterations=10,
     ):
         self.code_generator = code_generator
         self.code_executor = code_executor
@@ -55,6 +58,7 @@ class CodeExecutionLoop:
         self.max_design_iterations = max_design_iterations
         self.max_coding_iterations = max_coding_iterations
         self.code_master = code_master
+        self.build123d_retriever = build123d_retriever
 
     def run(
         self,
@@ -386,6 +390,30 @@ class CodeExecutionLoop:
 
         return feedback
 
+    # def _enhance_coding_plan(self, coding_plan: dict) -> dict:
+    #     """
+    #     使用Retriever优化代码计划中的API元素
+    #     """
+    #     enhanced_elements = []
+
+    #     # pool and deduplicate elements
+    #     elements_pool = set(coding_plan.get("elements", []))
+    #     for element in elements_pool:
+    #         # 对每个元素进行检索
+    #         result = self.build123d_retriever.query(element, k=1)
+
+    #         if result:
+    #             # 提取第一个有效结果
+    #             enhanced_elements.extend(result)
+    #         else:
+    #             enhanced_elements.append(element)  # 保留原始描述
+
+    #     return {
+    #         **coding_plan,
+    #         "elements": enhanced_elements,
+    #         "original_elements": coding_plan["elements"],  # 保留原始信息
+    #     }
+
     def _generate_executable_code(
         self,
         design_goal: DesignGoal,
@@ -406,19 +434,35 @@ class CodeExecutionLoop:
             tuple[str, dict] | None: A tuple containing the generated code and a dictionary of coding_plan.
         """
         # Generate plan
-        if self.code_master:
-            coding_plan = self.code_master.plan_code(
-                design_goal,
-                feedbacks=feedbacks,
-                previous_plan=coding_plan,
-            )
-        else:
-            coding_plan = self.code_generator.plan_code(
-                design_goal,
-                feedbacks=feedbacks,
-                previous_plan=coding_plan,
-            )
+        # if self.code_master:
+        #     coding_plan = self.code_master.plan_code(
+        #         design_goal,
+        #         feedbacks=feedbacks,
+        #         previous_plan=coding_plan,
+        #     )
+        # else:
+        coding_plan = self.code_generator.plan_code(
+            design_goal,
+            feedbacks=feedbacks,
+            previous_plan=coding_plan,
+        )
         logger.info(colorstring(f"Coding plan:\n{coding_plan}", "white"))
+
+        # # 新增：检索并增强代码计划
+        # if coding_plan and "elements" in coding_plan:
+        #     enhanced_plan = self._enhance_coding_plan(coding_plan)
+        # else:
+        #     enhanced_plan = coding_plan
+
+        # cprint(f"Enhanced Coding Plan:\n{enhanced_plan}", "bright_blue")
+
+        # # 后续使用enhanced_plan生成代码
+        # generated_code = generator.generate_or_fix_code(
+        #     design_goal,
+        #     enhanced_plan,  # 使用增强后的计划
+        #     existing_code=generated_code,
+        #     feedbacks=feedbacks,
+        # )
 
         use_master = False
         # Iterate to generate executable code
@@ -576,6 +620,7 @@ def init_models(config_path: str, prompts_path: str):
         code_llm_config.get("model_name"),
         code_llm_config.get("org_id"),
         load_prompts(prompts_path, "code-llm"),
+        # cheat_sheet=load_plaintext(code_llm_config.get("cheat_sheet_file", "")),
         **code_llm_config.get("model_kwargs", {}),
     )
 
@@ -587,6 +632,9 @@ def init_models(config_path: str, prompts_path: str):
             master_code_llm_config.get("model_name"),
             master_code_llm_config.get("org_id"),
             load_prompts(prompts_path, "code-llm"),
+            cheat_sheet=load_plaintext(
+                master_code_llm_config.get("cheat_sheet_file", "")
+            ),
             **master_code_llm_config.get("model_kwargs", {}),
         )
         if master_code_llm_config
@@ -615,7 +663,20 @@ def init_models(config_path: str, prompts_path: str):
         **feedback_judge_config.get("model_kwargs", {}),
     )
 
-    return describer, code_generator, code_master, visual_feedback, feedback_judge
+    # ===== build123d retriever =====
+    retriever_config = load_config(config_path, "build123d_retriever_v2")
+    build123d_retriever = Build123dRetriever(
+        retriever_config, load_prompts(prompts_path, "build123d_retriever_v2")
+    )
+
+    return (
+        describer,
+        code_generator,
+        code_master,
+        visual_feedback,
+        feedback_judge,
+        build123d_retriever,
+    )
 
 
 def main():
@@ -626,9 +687,14 @@ def main():
     args = parse_args()
 
     # Initialize models
-    describer, code_generator, code_master, visual_feedback, feedback_judge = (
-        init_models(args.config, args.prompts)
-    )
+    (
+        describer,
+        code_generator,
+        code_master,
+        visual_feedback,
+        feedback_judge,
+        build123d_retriever,
+    ) = init_models(args.config, args.prompts)
 
     # ===== code execution loop =====
     code_execution_loop = CodeExecutionLoop(
@@ -639,6 +705,7 @@ def main():
         code_master=code_master,
         visual_feedback=visual_feedback,
         feedback_judge=feedback_judge,
+        build123d_retriever=build123d_retriever,
     )
 
     # Create the design goal

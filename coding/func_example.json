@@ -1,0 +1,4 @@
+{
+    "name": "build123d.Box.bounding_box",
+    "signature": "build123d.Box.bounding_box(self, tolerance: 'float' = None, optimal: 'bool' = True) -> 'BoundBox'"
+}

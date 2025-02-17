@@ -289,10 +289,10 @@ class LanguageModel(ABC):
                             messages=messages,
                         )
 
-                if is_deepseek:
-                    reasoning_content = getattr(message, "reasoning_content", None)
-                    if reasoning_content:
-                        return f"[Reasoning]: {reasoning_content}\n\n[Response]: {response_content}".strip()
+                reasoning_content = getattr(message, "reasoning_content", None)
+                if reasoning_content:
+                    return f"[Reasoning]: {reasoning_content}\n\n[Response]: {response_content}".strip()
+
                 return response_content.strip()
 
     def _execute_function_call(self, function_name, function_args, tools: ToolRegistry):
@@ -360,17 +360,7 @@ class LanguageModel(ABC):
             **self.model_kwargs,
         )
 
-        if stream:
-            complete_response = ""
-            for chunk in response:
-                chunk_content = chunk.choices[0].delta.content
-                if chunk_content:
-                    cprint(chunk_content, "white", end="", flush=True)
-                    complete_response += chunk_content
-            print()  # Add a newline after the response
-            return complete_response.strip()
-        else:
-            return response.choices[0].message.content.strip()
+        return self._handle_response(response, stream)
 
 
 if __name__ == "__main__":

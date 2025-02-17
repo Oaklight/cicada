@@ -100,7 +100,6 @@ class LanguageModel(ABC):
             return self._handle_response(
                 response,
                 stream,
-                is_deepseek=self.model_name in ["deepseek-r1", "deepseek-reasoner"],
                 tools=tools,
                 messages=messages,  # Pass the initial messages
             )
@@ -110,7 +109,6 @@ class LanguageModel(ABC):
         response,
         stream,
         is_gpto1preview=False,
-        is_deepseek=False,
         tools: ToolRegistry = None,
         messages=None,  # Add messages parameter
     ):
@@ -121,7 +119,6 @@ class LanguageModel(ABC):
             response: The response object from the model.
             stream (bool): Whether the response is streamed.
             is_gpto1preview (bool): Whether the model is gpto1preview.
-            is_deepseek (bool): Whether the model is a Deepseek model.
             tools (ToolRegistry, optional): A registry of tools for function calling.
             messages (list, optional): The message history.
 
@@ -141,11 +138,11 @@ class LanguageModel(ABC):
                     if delta.content:
                         cprint(delta.content, "white", end="", flush=True)
                         complete_response += delta.content
-                    if is_deepseek:
-                        reasoning_content = getattr(delta, "reasoning_content", None)
-                        if reasoning_content:
-                            cprint(reasoning_content, "cyan", end="", flush=True)
-                            complete_response += reasoning_content
+                    # auto handle deepseek-like reasoning_content
+                    reasoning_content = getattr(delta, "reasoning_content", None)
+                    if reasoning_content:
+                        cprint(reasoning_content, "cyan", end="", flush=True)
+                        complete_response += reasoning_content
                     if tools and delta.tool_calls:
                         # Handle tool calls in streaming mode
                         for tool_call in delta.tool_calls:
@@ -288,7 +285,6 @@ class LanguageModel(ABC):
                         return self._handle_response(
                             second_response,
                             stream,
-                            is_deepseek=is_deepseek,
                             tools=tools,
                             messages=messages,
                         )

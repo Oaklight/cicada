@@ -189,4 +189,20 @@ For questions, feedback, or support, please post via [GitHub Issues](https://git
 
 ---
 
+## Citation
+
+If you use Cicada in your research, please consider citing:
+
+```bibtex
+@software{Cicada,
+  author = {Peng Ding},
+  title = {Cicada: Collaborative Intelligent CAD Automation Design Agent},
+  month = {January},
+  year = {2025},
+  url = {https://github.com/Oaklight/cicada}
+}
+```
+
+---
+
 **CICADA** — Revolutionizing CAD Design with Intelligent Automation. 🚀

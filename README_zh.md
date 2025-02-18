@@ -189,4 +189,20 @@ CICADA 采用 **MIT 许可证**。有关详细信息，请参阅 [LICENSE](./LIC
 
 ---
 
+## 引用
+
+如果您在研究中使用了 Cicada，请考虑引用以下内容：
+
+```bibtex
+@software{Cicada,
+  author = {Peng Ding},
+  title = {Cicada: Collaborative Intelligent CAD Automation Design Agent},
+  month = {January},
+  year = {2025},
+  url = {https://github.com/Oaklight/cicada}
+}
+```
+
+---
+
 **CICADA** — 用智能自动化革新 CAD 设计。 🚀

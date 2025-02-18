@@ -7,11 +7,12 @@ logging.basicConfig(level=logging.INFO)
 import os
 import sys
 
-from cicada.coding.code_dochelper import doc_helper
 from cicada.common import llm
 from cicada.common.basics import DesignGoal
 from cicada.common.tools import tool_registry
 from cicada.common.utils import colorstring, cprint, extract_section_markdown
+
+from cicada.tools.code_dochelper import doc_helper
 
 logger = logging.getLogger(__name__)
 

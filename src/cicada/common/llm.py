@@ -391,13 +391,8 @@ if __name__ == "__main__":
     print("=" * 80)
 
     # ======== doc helper test ========
-    import os
-    import sys
 
-    _current_dir = os.path.dirname(os.path.abspath(__file__))
-    _parent_dir = os.path.dirname(_current_dir)
-    sys.path.extend([_current_dir, _parent_dir])
-    from cicada.coding.code_dochelper import doc_helper
+    from cicada.tools.code_dochelper import doc_helper
 
     tool_registry.register(doc_helper)
     response = llm.query(

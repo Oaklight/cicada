@@ -206,6 +206,8 @@ tool_registry = ToolRegistry()
 
 # Example usage
 if __name__ == "__main__":
+    from cicada.tools.code_dochelper import doc_helper
+
     # Register a function
     def add(a: int, b: int) -> int:
         """Add two numbers."""
@@ -235,13 +237,6 @@ if __name__ == "__main__":
     print(tool_registry["get_weather"]("San Francisco"))
 
     # Import and register another function
-    import os
-    import sys
-
-    _current_dir = os.path.dirname(os.path.abspath(__file__))
-    _parent_dir = os.path.dirname(_current_dir)
-    sys.path.extend([_current_dir, _parent_dir])
-    from coding.code_dochelper import doc_helper
 
     tool_registry.register(doc_helper)
 

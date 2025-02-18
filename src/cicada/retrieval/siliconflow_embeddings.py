@@ -1,7 +1,7 @@
 from typing import List, Union
 
 from cicada.common.embed import Embed
-from cicada.retrieval.core.basics import Document, Embeddings
+from cicada.retrieval.basics import Document, Embeddings
 
 
 class SiliconFlowEmbeddings(Embeddings):
@@ -13,7 +13,7 @@ class SiliconFlowEmbeddings(Embeddings):
         api_base_url: str,
         model_name: str,
         org_id: str = None,
-        **model_kwargs
+        **model_kwargs,
     ):
         """
         Initialize the SiliconFlow BGE-M3 embedding model.
@@ -37,7 +37,7 @@ class SiliconFlowEmbeddings(Embeddings):
             api_base_url=self.api_base_url,
             model_name=self.model_name,
             org_id=self.org_id,
-            **self.model_kwargs
+            **self.model_kwargs,
         )
 
     def embed_query(self, text: str) -> List[float]:
@@ -92,12 +92,24 @@ class SiliconFlowEmbeddings(Embeddings):
 
 
 if __name__ == "__main__":
+    import argparse
 
-    # Initialize the SiliconFlow BGE-M3 embedding model
+    from cicada.common.utils import load_config
+
+    parser = argparse.ArgumentParser(description="Feedback Judge")
+    parser.add_argument(
+        "--config", default="config.yaml", help="Path to the configuration YAML file"
+    )
+    args = parser.parse_args()
+
+    embed_config = load_config(args.config, "embed")
+
     embedding_model = SiliconFlowEmbeddings(
-        api_key="sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc",
-        api_base_url="http://localhost:33000/v1",
-        model_name="BAAI/bge-m3",
+        embed_config["api_key"],
+        embed_config.get("api_base_url"),
+        embed_config.get("model_name", "text-embedding-3-small"),
+        embed_config.get("org_id"),
+        **embed_config.get("model_kwargs", {}),
     )
 
     # Generate embeddings for a list of texts

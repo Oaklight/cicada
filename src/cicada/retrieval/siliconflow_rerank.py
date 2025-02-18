@@ -1,8 +1,7 @@
 from typing import Dict, List, Union
 
 from cicada.common.rerank import Rerank
-from cicada.common.utils import setup_logging
-from cicada.retrieval.core.basics import Document
+from cicada.retrieval.basics import Document
 
 
 class SiliconFlowRerank(Rerank):
@@ -13,7 +12,7 @@ class SiliconFlowRerank(Rerank):
         api_key: str,
         api_base_url: str = "https://api.siliconflow.cn/v1",
         model_name: str = "BAAI/bge-reranker-v2-m3",
-        **model_kwargs
+        **model_kwargs,
     ):
         """
         Initialize the SiliconFlow BGE-Reranker model.
@@ -28,7 +27,7 @@ class SiliconFlowRerank(Rerank):
             api_key=api_key,
             api_base_url=api_base_url,
             model_name=model_name,
-            **model_kwargs
+            **model_kwargs,
         )
 
     def rerank(
@@ -78,13 +77,28 @@ class SiliconFlowRerank(Rerank):
 
 
 if __name__ == "__main__":
-    setup_logging(log_level="DEBUG")
-    # Initialize the SiliconFlow BGE-Reranker model
+
+    import argparse
+
+    from cicada.common.utils import load_config, setup_logging
+
+    setup_logging()
+
+    parser = argparse.ArgumentParser(description="Feedback Judge")
+    parser.add_argument(
+        "--config", default="config.yaml", help="Path to the configuration YAML file"
+    )
+    args = parser.parse_args()
+
+    rerank_config = load_config(args.config, "rerank")
+
     rerank_model = SiliconFlowRerank(
-        api_key="sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc",
-        # api_base_url="http://localhost:33000/v1",
-        api_base_url="http://localhost:9998/v1",
-        model_name="jina-reranker-v2",
+        api_key=rerank_config["api_key"],
+        api_base_url=rerank_config.get(
+            "api_base_url", "https://api.siliconflow.cn/v1/"
+        ),
+        model_name=rerank_config.get("model_name", "BAAI/bge-reranker-v2-m3"),
+        **rerank_config.get("model_kwargs", {}),
     )
 
     # Rerank a list of documents based on a query

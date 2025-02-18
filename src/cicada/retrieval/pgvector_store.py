@@ -8,7 +8,7 @@ from sqlalchemy import Column, create_engine, ForeignKey, JSON, String, UUID
 from sqlalchemy.orm import declarative_base, relationship, Session, sessionmaker
 
 from cicada.common.utils import colorstring, cprint, load_config, setup_logging
-from cicada.retrieval.core.basics import Document, Embeddings, VectorStore
+from cicada.retrieval.basics import Document, Embeddings, VectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -433,14 +433,21 @@ class PGVector(VectorStore):
             session.close()
 
 
-def _main():
-    """Test the PGVector class with SiliconFlowEmbeddings."""
+if __name__ == "__main__":
+    import argparse
+
+    from cicada.retrieval.siliconflow_embeddings import SiliconFlowEmbeddings
+    from cicada.retrieval.siliconflow_rerank import SiliconFlowRerank
+
     setup_logging()
 
-    from siliconflow_embeddings import SiliconFlowEmbeddings
-    from siliconflow_rerank import SiliconFlowRerank
+    parser = argparse.ArgumentParser(description="Feedback Judge")
+    parser.add_argument(
+        "--config", default="config.yaml", help="Path to the configuration YAML file"
+    )
+    args = parser.parse_args()
 
-    embed_config = load_config("config.yaml", "embed")
+    embed_config = load_config(args.config, "embed")
 
     embedding_model = SiliconFlowEmbeddings(
         embed_config["api_key"],
@@ -450,7 +457,7 @@ def _main():
         **embed_config.get("model_kwargs", {}),
     )
 
-    rerank_config = load_config("config.yaml", "rerank")
+    rerank_config = load_config(args.config, "rerank")
 
     rerank_model = SiliconFlowRerank(
         api_key=rerank_config["api_key"],
@@ -461,7 +468,7 @@ def _main():
         **rerank_config.get("model_kwargs", {}),
     )
 
-    pgvector_store_config = load_config("config.yaml", "pgvector_store")
+    pgvector_store_config = load_config(args.config, "pgvector_store")
     connection_string = pgvector_store_config["connection_string"]
     collection_name = pgvector_store_config["collection_name"]
     pg_vector = PGVector(
@@ -551,7 +558,3 @@ def _main():
             session.delete(collection)
             session.commit()
             cprint(f"Removed test collection: {collection_name}", "yellow")
-
-
-if __name__ == "__main__":
-    _main()

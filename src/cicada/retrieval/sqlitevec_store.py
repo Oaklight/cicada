@@ -4,8 +4,8 @@ import sqlite3
 import struct
 from typing import Dict, List, Optional, Tuple
 
-from cicada.common.utils import colorstring, cprint, load_config, setup_logging
-from cicada.retrieval.core.basics import Document, Embeddings, VectorStore
+from cicada.common.utils import colorstring
+from cicada.retrieval.basics import Document, Embeddings, VectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -511,17 +511,25 @@ class SQLiteVec(VectorStore):
         return len(self._embedding.embed_query("dummy text"))
 
 
-def _main():
+if __name__ == "__main__":
+
     """Test the SQLiteVec class with SiliconFlowEmbeddings."""
+    import argparse
+
+    from cicada.common.utils import cprint, load_config, setup_logging
+
+    from cicada.retrieval.siliconflow_embeddings import SiliconFlowEmbeddings
+    from cicada.retrieval.siliconflow_rerank import SiliconFlowRerank
+
     setup_logging()
+    parser = argparse.ArgumentParser(description="Feedback Judge")
+    parser.add_argument(
+        "--config", default="config.yaml", help="Path to the configuration YAML file"
+    )
+    args = parser.parse_args()
 
-    # Import the SiliconFlowEmbeddings class
-    from siliconflow_embeddings import SiliconFlowEmbeddings
-    from siliconflow_rerank import SiliconFlowRerank
+    embed_config = load_config(args.config, "embed")
 
-    embed_config = load_config("config.yaml", "embed")
-
-    # Initialize SiliconFlowEmbeddings
     embedding_model = SiliconFlowEmbeddings(
         embed_config["api_key"],
         embed_config.get("api_base_url"),
@@ -530,9 +538,8 @@ def _main():
         **embed_config.get("model_kwargs", {}),
     )
 
-    rerank_config = load_config("config.yaml", "rerank")
+    rerank_config = load_config(args.config, "rerank")
 
-    # Initialize SiliconFlowRerank
     rerank_model = SiliconFlowRerank(
         api_key=rerank_config["api_key"],
         api_base_url=rerank_config.get(
@@ -543,7 +550,7 @@ def _main():
     )
 
     # Initialize SQLiteVec
-    sqlitevec_store_config = load_config("config.yaml", "sqlitevec_store")
+    sqlitevec_store_config = load_config(args.config, "sqlitevec_store")
     db_file = sqlitevec_store_config["db_file"]
     table = sqlitevec_store_config["table"]
     sqlite_vec = SQLiteVec(
@@ -623,7 +630,3 @@ def _main():
     if os.path.exists(db_file):
         os.remove(db_file)
         cprint(f"Removed test database: {db_file}", "yellow")
-
-
-if __name__ == "__main__":
-    _main()

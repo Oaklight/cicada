@@ -11,15 +11,7 @@ coding.code\_cache module
    :members:
    :undoc-members:
    :show-inheritance:
-
-coding.code\_dochelper module
------------------------------
-
-.. automodule:: coding.code_dochelper
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
+   
 coding.code\_executor module
 ----------------------------
 
@@ -40,14 +32,6 @@ coding.coder module
 -------------------
 
 .. automodule:: coding.coder
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-coding.web\_reader module
--------------------------
-
-.. automodule:: coding.web_reader
    :members:
    :undoc-members:
    :show-inheritance:

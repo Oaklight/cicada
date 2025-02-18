@@ -11,6 +11,6 @@ geometry_pipeline
 describe
 retrieval
 coding
-feedbacks
+feedback
 workflow
 ```

@@ -26,7 +26,7 @@ CICADA is organized into the following key modules:
 - **geometry_pipeline**: Tools for processing and converting 3D models.
 - **describe**: Components for generating descriptive metadata for 3D models.
 - **coding**: Code generation, execution, and debugging tools for CAD automation.
-- **feedbacks**: Modules for analyzing and providing feedback on design iterations.
+- **feedback**: Modules for analyzing and providing feedback on design iterations.
 - **retrieval**: Tools for retrieving and managing documentation and design resources.
 - **workflow**: Orchestration of CICADA's automation workflows.
 

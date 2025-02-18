@@ -14,7 +14,7 @@ Before you start contributing, ensure you have the following installed:
 - **Git** (for version control)
 - **Conda** or **pip** (for dependency management)
 
-Follow the [Installation Guide](./usage.md#installation-steps) to set up the CICADA environment.
+Follow the [Installation Steps (For Developers)](./usage.md#installation-steps-for-developers) to set up the CICADA environment.
 
 ### 2. **Fork the Repository**
 

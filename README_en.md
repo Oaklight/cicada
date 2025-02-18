@@ -1,6 +1,24 @@
-# Usage
+# CICADA: Collaborative Intelligent CAD Automation Design Agent
 
-This page explains how to set up and use the **CICADA** framework.
+[中文](./README_zh.md) | [English](./README_en.md)
+
+Welcome to **CICADA**, the Collaborative Intelligent CAD Automation Design Agent. CICADA is a cutting-edge framework designed to streamline and enhance the CAD design process through intelligent automation and collaboration. This repository contains the core modules and utilities that power CICADA, enabling seamless integration with CAD workflows.
+
+📖 **Documentation**: For detailed documentation and tutorials, visit [CICADA Documentation](https://cicada.lab.oaklight.cn).
+
+---
+
+## Repository Structure
+
+The repository is organized into the following main modules:
+
+- **common**: Core utilities and shared functionalities across the framework.
+- **geometry_pipeline**: Tools for processing and converting 3D models, including point cloud generation and snapshots.
+- **describe**: Components for generating and managing descriptive metadata for 3D models.
+- **coding**: Code generation, execution, and debugging tools for CAD automation.
+- **feedbacks**: Modules for analyzing and providing feedback on design iterations.
+- **retrieval**: Tools for retrieving and management of documentation, model data, and design resources.
+- **workflow**: Orchestration of CICADA's automation workflows and agent management.
 
 ---
 
@@ -10,7 +28,7 @@ This page explains how to set up and use the **CICADA** framework.
 
 Before setting up CICADA, ensure you have the following installed:
 
-- **Python 3.11+**
+- **Python 3.9+**
 - **Conda** or **pip** (for dependency management)
 
 ### Installation Steps (Quick Start)
@@ -48,7 +66,7 @@ pip install -r requirements.txt
 
 #### 3. Update API Keys
 
-The provided API keys in the config files are deprecated. Update the `api_key` and `api_base_url` in `config.yaml` or `config/*.yaml` in each module.
+The provided API keys in the config files are deprecated. Update the `api_key` and `api_base_url` in `config.yaml` or `config/*.yaml` in each module:
 
 ---
 
@@ -146,3 +164,29 @@ The provided API keys in the config files are deprecated. Update the `api_key` a
   ```bash
   python workflow/codecad_agent.py "Design a mechanical part" --config workflow/config/code-llm.yaml --prompts workflow/prompts/code-llm.yaml -o output/
   ```
+
+---
+
+## Contributing
+
+We welcome contributions from the community! If you'd like to contribute to CICADA, please follow these steps:
+
+1. Fork the repository.
+2. Create a new branch for your feature or bugfix.
+3. Submit a pull request with a detailed description of your changes.
+
+---
+
+## License
+
+CICADA is licensed under the **MIT License**. For more details, see the [LICENSE](./LICENSE) file.
+
+---
+
+## Contact
+
+For questions, feedback, or support, please post via [GitHub Issues](https://github.com/Oaklight/cicada/issues) or contact us at **[dingpeng]@@uchicago[dot]edu**.
+
+---
+
+**CICADA** — Revolutionizing CAD Design with Intelligent Automation. 🚀

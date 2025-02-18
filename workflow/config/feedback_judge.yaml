@@ -1,8 +1,0 @@
-## OpenAI
-api_key: "sk-EFhZxTqkXfedmKP_p9uUwDWJqIMvY0LGSClJ56RpZM7yO4Byvwb7vuRHpXc"
-api_base_url: "http://localhost:33000/v1"
-model_name: "yi-lightning"
-# model_name: "deepseek-r1"
-
-model_kwargs:
-  stream: true

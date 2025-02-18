@@ -1,6 +1,6 @@
 # CICADA：协作智能 CAD 自动化设计代理
 
-[English](./README.md) | [中文](./README_zh.md)
+[English](./README_en.md) | [中文](./README_zh.md)
 
 欢迎使用 **CICADA**，即协作智能 CAD 自动化设计代理。CICADA 是一个先进的框架，旨在通过智能自动化和协作来简化和增强 CAD 设计流程。本仓库包含支持 CICADA 的核心模块和工具，使其能够无缝集成到 CAD 工作流程中。
 
@@ -28,18 +28,23 @@
 
 在设置 CICADA 之前，请确保已安装以下软件：
 
-- **Python 3.9+**
-- **Git**（用于克隆仓库和管理子模块）
+- **Python 3.11+**
 - **Conda** 或 **pip**（用于依赖管理）
 
-### 安装步骤
+### 安装步骤（快速开始）
+
+```bash
+# 启动你的venv或者conda环境
+pip install cicada-agent
+```
+
+### 安装步骤（开发者）
 
 #### 1. 克隆仓库
 
 ```bash
 git clone https://github.com/Oaklight/cicada.git
 cd cicada
-git submodule update --init --recursive
 ```
 
 #### 2. 安装依赖

@@ -1,0 +1,60 @@
+{
+    "text": "Create a rectangular table with a length of 120 units and a width of 60 units. The height should be 75 units for stability and comfort.",
+    "images": null,
+    "extra": {
+        "decomposition": {
+            "parts": [
+                {
+                    "part_name": "Table Top",
+                    "dimensions": {
+                        "length": 120,
+                        "width": 60
+                    },
+                    "number": 1
+                },
+                {
+                    "part_name": "Legs",
+                    "dimensions": {
+                        "height": 75,
+                        "width": 10
+                    },
+                    "number": 4
+                }
+            ],
+            "parts_steps": [
+                {
+                    "part_name": "Table Top",
+                    "construction_methods": [
+                        "extrude"
+                    ],
+                    "cad_operations": [
+                        "extrude length: 60 units",
+                        "offset width: 30 units"
+                    ],
+                    "considerations": "Ensure the table top is flat and even."
+                },
+                {
+                    "part_name": "Legs",
+                    "construction_methods": [
+                        "revolve"
+                    ],
+                    "cad_operations": [
+                        "revolve height: 75 units",
+                        "offset width: 10 units"
+                    ],
+                    "considerations": "Ensure the legs are symmetrical and evenly spaced."
+                }
+            ],
+            "assembly_plan": [
+                "Create the table top by extruding a rectangle with a length of 120 units and a width of 60 units.",
+                "Create the legs by revolving a rectangle with a height of 75 units and a width of 10 units.",
+                "Attach the four legs to the table top at equal intervals, ensuring they are perpendicular to the table top.",
+                "Consider adding support structures if needed for added stability."
+            ],
+            "uncertainty_reasons": [
+                "No images provided, so exact dimensions and features cannot be confirmed.",
+                "Assumptions made about the material properties and finish."
+            ]
+        }
+    }
+}

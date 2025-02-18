@@ -1,20 +1,9 @@
-import argparse
-import json
 import logging
-from typing import Any, Dict, List
+from typing import List
 
 from cicada.common import vlm
 from cicada.common.basics import PromptBuilder
-from cicada.common.utils import (
-    colorstring,
-    cprint,
-    get_image_paths,
-    image_to_base64,
-    load_config,
-    load_prompts,
-    parse_design_goal,
-    setup_logging,
-)
+from cicada.common.utils import get_image_paths, image_to_base64
 
 logger = logging.getLogger(__name__)
 
@@ -169,13 +158,23 @@ class VisualQA(vlm.VisionLanguageModel):
         return {"questions": questions, "answers": answers}
 
 
-def parse_args() -> Dict[str, Any]:
-    """
-    Parse command line arguments.
+if __name__ == "__main__":
+    import argparse
+    import json
 
-    Returns:
-        Dict[str, Any]: Parsed arguments.
-    """
+    from cicada.common.utils import (
+        colorstring,
+        cprint,
+        get_image_paths,
+        image_to_base64,
+        load_config,
+        load_prompts,
+        parse_design_goal,
+        setup_logging,
+    )
+
+    setup_logging()
+
     parser = argparse.ArgumentParser(description="Visual QA Model")
     parser.add_argument(
         "--config", default="config.yaml", help="Path to the configuration YAML file"
@@ -203,14 +202,7 @@ def parse_args() -> Dict[str, Any]:
     parser.add_argument(
         "--num_questions", type=int, default=5, help="Number of questions to generate"
     )
-    return vars(parser.parse_args())
-
-
-def _main():
-    """
-    Main function to run the Visual QA Model based on command line arguments.
-    """
-    args = parse_args()
+    args = vars(parser.parse_args())
 
     config = load_config(args["config"], "visual_qa")
     prompt_templates = load_prompts(args["prompts"], "visual_qa")
@@ -264,8 +256,3 @@ def _main():
 
     else:
         raise ValueError("Invalid mode selected.")
-
-
-if __name__ == "__main__":
-    setup_logging()
-    _main()

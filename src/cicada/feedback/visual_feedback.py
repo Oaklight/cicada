@@ -4,13 +4,7 @@ from typing import Any, Dict, List
 
 from cicada.common import vlm
 from cicada.common.basics import PromptBuilder
-from cicada.common.utils import (
-    cprint,
-    load_config,
-    load_prompts,
-    parse_design_goal,
-    setup_logging,
-)
+
 
 logger = logging.getLogger(__name__)
 
@@ -101,10 +95,15 @@ def parse_args() -> Dict[str, Any]:
     return parser.parse_args()
 
 
-def _main():
-    """
-    Main function to run the Visual Feedback Model based on command line arguments.
-    """
+if __name__ == "__main__":
+    from cicada.common.utils import (
+        cprint,
+        load_config,
+        load_prompts,
+        parse_design_goal,
+        setup_logging,
+    )
+
     args = parse_args()
 
     config = load_config(args.config, "visual_feedback")
@@ -130,7 +129,3 @@ def _main():
 
     # Print the feedback
     cprint(feedback, "cyan")
-
-
-if __name__ == "__main__":
-    _main()

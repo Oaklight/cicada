@@ -3,7 +3,7 @@ from .common import *
 from .geometry_pipeline import *
 from .describe import *
 from .coding import *
-from .feedbacks import *
+from .feedback import *
 from .retrieval import *
 from .workflow import *
 

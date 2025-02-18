@@ -1,16 +1,11 @@
 import argparse
 import logging
+import re
 from typing import Any, Dict, Tuple
 
 from cicada.common import vlm
 from cicada.common.basics import PromptBuilder
-from cicada.common.utils import (
-    colorstring,
-    load_config,
-    load_prompts,
-    parse_design_goal,
-    setup_logging,
-)
+from cicada.common.utils import colorstring, cprint
 
 logger = logging.getLogger(__name__)
 
@@ -45,7 +40,7 @@ class FeedbackJudge(vlm.VisionLanguageModel):
         :return: A tuple containing a boolean indicating if the goal is achieved and a score between 0 and 1.
         """
         feedback_hits = self._extract_hits(feedback)
-
+        cprint(f"Feedback Hits:\n{feedback_hits}", "magenta")
         # Construct the prompt
         prompt = self.prompt_templates["is_design_goal_achieved"][
             "prompt_template"
@@ -78,15 +73,10 @@ class FeedbackJudge(vlm.VisionLanguageModel):
         :param feedback: The feedback to parse.
         :return: The Hits section of the feedback, formatted as a string.
         """
-        import re
 
-        # Extract contents between <result> tags and then locate the ## Hits section
-        result_match = re.search(
-            r"<result>([\s\S]+?)</result>", feedback, re.IGNORECASE
-        )
-        if result_match:
+        if feedback:
             hits_match = re.search(
-                r"##\s*Hits\s*([\s\S]+?)(?:##|$)", result_match.group(1), re.IGNORECASE
+                r"##\s*Hits:\s*([\s\S]+?)(?:##|$)", feedback, re.IGNORECASE
             )
             return hits_match.group(1).strip() if hits_match else ""
         return ""
@@ -100,7 +90,6 @@ class FeedbackJudge(vlm.VisionLanguageModel):
         :param key: The key to extract.
         :return: The value associated with the key, stripped of Markdown formatting.
         """
-        import re
 
         match = re.search(rf"{key}:\s*(.*)", response, re.IGNORECASE)
         if match:
@@ -137,10 +126,14 @@ def parse_args() -> Dict[str, Any]:
     return vars(parser.parse_args())
 
 
-def _main():
-    """
-    Standalong test function for FeedbackJudge.
-    """
+if __name__ == "__main__":
+    from cicada.common.utils import (
+        load_config,
+        load_prompts,
+        parse_design_goal,
+        setup_logging,
+    )
+
     args = parse_args()
     setup_logging()
 
@@ -168,7 +161,3 @@ def _main():
     # Evaluate if the design goal is achieved in the feedback
     is_achieved, score = feedback_judge.is_design_goal_achieved(feedback, design_goal)
     print(f"Is design goal achieved? {is_achieved} (Score: {score})")
-
-
-if __name__ == "__main__":
-    _main()

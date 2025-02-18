@@ -18,8 +18,8 @@ from cicada.common.utils import (
     setup_logging,
 )
 from cicada.describe.describer_v2 import Describer
-from cicada.feedbacks.feedback_judge import FeedbackJudge
-from cicada.feedbacks.visual_feedback import VisualFeedback
+from cicada.feedback.feedback_judge import FeedbackJudge
+from cicada.feedback.visual_feedback import VisualFeedback
 from cicada.geometry_pipeline.snapshots import (
     generate_snapshots,
     preview_mesh_interactively,

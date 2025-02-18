@@ -1,7 +1,4 @@
-import argparse
-import json
 import logging
-import os
 import signal
 import sys
 from typing import Any, Dict, Tuple
@@ -11,13 +8,8 @@ from questionary import Style
 
 from cicada.common import vlm
 from cicada.common.basics import DesignGoal, PromptBuilder
-from cicada.common.utils import (
-    colorstring,
-    load_config,
-    load_prompts,
-    parse_json_response,
-    setup_logging,
-)
+from cicada.common.utils import colorstring, parse_json_response
+
 
 logger = logging.getLogger(__name__)
 
@@ -314,7 +306,20 @@ class Describer(vlm.VisionLanguageModel):
         return updated_design
 
 
-def _main():
+if __name__ == "__main__":
+    import argparse
+    import json
+    import os
+
+    from cicada.common.utils import (
+        colorstring,
+        load_config,
+        load_prompts,
+        setup_logging,
+    )
+
+    setup_logging()
+
     parser = argparse.ArgumentParser(description="Vision Language Model")
     parser.add_argument(
         "--config", default="config.yaml", help="Path to the configuration YAML file"
@@ -338,7 +343,7 @@ def _main():
         "-o",
         "--output",
         type=str,
-        default="refined_design_goal.json",
+        default="/tmp/cicada/refined_design_goal.json",
         help="Path to the output JSON file",
     )
     args = parser.parse_args()
@@ -377,9 +382,3 @@ def _main():
     except Exception as e:
         logger.error(f"Design process failed: {e}")
         sys.exit(1)
-
-
-if __name__ == "__main__":
-    setup_logging()
-
-    _main()

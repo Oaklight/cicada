@@ -1,4 +1,3 @@
-import argparse
 import io
 import logging
 import os
@@ -11,10 +10,8 @@ from PIL import Image, ImageDraw, ImageEnhance, ImageFont
 from tqdm import tqdm
 from trimesh.viewer import SceneViewer
 
-from cicada.common.utils import colorstring
 from cicada.geometry_pipeline import angles, convert
 
-LOG_LEVEL = "DEBUG"
 
 logger = logging.getLogger(__name__)
 
@@ -357,6 +354,9 @@ def generate_snapshots(
 
 
 if __name__ == "__main__":
+
+    import argparse
+
     parser = argparse.ArgumentParser(
         description="Generate snapshots or previews of a 3D mesh from different camera orientations and distances."
     )

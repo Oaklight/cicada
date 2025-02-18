@@ -1,4 +1,3 @@
-import argparse
 import logging
 import os
 from typing import Tuple
@@ -10,7 +9,6 @@ from plyfile import PlyData, PlyElement
 # TODO: should be adaptive to the size of the mesh
 POINTCLOUD_N_POINTS = 8096 * 3
 DEFAULT_RGB = (88, 88, 88)
-LOG_LEVEL = "DEBUG"
 
 
 logger = logging.getLogger(__name__)
@@ -281,6 +279,8 @@ def stl2pc(stl_path: str, out_path: str) -> str:
 
 
 if __name__ == "__main__":
+    import argparse
+
     parser = argparse.ArgumentParser()
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--obj_file", type=str)

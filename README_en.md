@@ -29,17 +29,22 @@ The repository is organized into the following main modules:
 Before setting up CICADA, ensure you have the following installed:
 
 - **Python 3.9+**
-- **Git** (for cloning the repository and managing submodules)
 - **Conda** or **pip** (for dependency management)
 
-### Installation Steps
+### Installation Steps (Quick Start)
+
+```bash
+# activate your venv or conda env first
+pip install cicada-agent
+```
+
+### Installation Steps (For Developers)
 
 #### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/Oaklight/cicada.git
 cd cicada
-git submodule update --init --recursive
 ```
 
 #### 2. Install Dependencies

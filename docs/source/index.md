@@ -36,7 +36,7 @@ For detailed guidance on setting up and using CICADA, refer to the [Usage](./usa
 
 ## Getting Started
 
-To set up CICADA, follow the [Installation Guide](./usage.md#installation-steps) in the Usage section.
+To set up CICADA, follow the [Installation Steps (Quick Start)](./usage.md#installation-steps-quick-start) in the Usage section.
 
 ---
 

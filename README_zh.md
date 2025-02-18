@@ -28,18 +28,23 @@
 
 在设置 CICADA 之前，请确保已安装以下软件：
 
-- **Python 3.9+**
-- **Git**（用于克隆仓库和管理子模块）
+- **Python 3.11+**
 - **Conda** 或 **pip**（用于依赖管理）
 
-### 安装步骤
+### 安装步骤（快速开始）
+
+```bash
+# 启动你的venv或者conda环境
+pip install cicada-agent
+```
+
+### 安装步骤（开发者）
 
 #### 1. 克隆仓库
 
 ```bash
 git clone https://github.com/Oaklight/cicada.git
 cd cicada
-git submodule update --init --recursive
 ```
 
 #### 2. 安装依赖

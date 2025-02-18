@@ -1,8 +1,8 @@
 from setuptools import find_packages, setup
 
 setup(
-    name="cicada",
-    version="0.1.0",  # Update this as needed
+    name="cicada-agent",
+    version="0.6.0",  # Update this as needed
     author="Oaklight",
     author_email="oaklight@gmx.com",
     description="A Python package for the Cicada project",

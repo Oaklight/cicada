@@ -3,8 +3,8 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "cicada"
-version = "0.1.0"
+name = "cicada-agent"
+version = "0.6.0"
 authors = [
     { name = "Oaklight", email = "oaklight@gmx.com" }, # Updated to match setup.py
 ]

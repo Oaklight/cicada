@@ -1,0 +1,58 @@
+{
+    "text": "Create a rectangular tabletop measuring 120 units in length and 60 units in width, supported by four legs, each 70 units in height and 5 units in width. The legs should be positioned at each corner of the tabletop, ensuring a balanced weight distribution.",
+    "images": null,
+    "extra": {
+        "decomposition": {
+            "parts": [
+                {
+                    "part_name": "Tabletop",
+                    "dimensions": "120 units x 60 units x 2 units",
+                    "number": 1
+                },
+                {
+                    "part_name": "Leg",
+                    "dimensions": "5 units x 5 units x 70 units",
+                    "number": 4
+                }
+            ],
+            "parts_steps": [
+                {
+                    "part_name": "Tabletop",
+                    "construction_methods": [
+                        "extrude"
+                    ],
+                    "cad_operations": [
+                        "create rectangle sketch",
+                        "extrude rectangle"
+                    ],
+                    "considerations": "Ensure the thickness of the tabletop is appropriate for stability; use a thickness of 2 units."
+                },
+                {
+                    "part_name": "Leg",
+                    "construction_methods": [
+                        "extrude"
+                    ],
+                    "cad_operations": [
+                        "create square sketch",
+                        "extrude square"
+                    ],
+                    "considerations": "Legs are designed with a square cross-section; ensure corner fillets are added for a more aesthetically pleasing design."
+                }
+            ],
+            "assembly_plan": [
+                "1. Start by creating the tabletop: Open your CAD software and create a new project.",
+                "2. In the sketching workspace, draw a rectangle with dimensions 120 units for length and 60 units for width at 0 units height.",
+                "3. Extrude this rectangle to a thickness of 2 units to form the tabletop.",
+                "4. Next, create the leg component: Draw a square with dimensions 5 units x 5 units.",
+                "5. Extrude the square to a height of 70 units to form the first leg.",
+                "6. Create three more legs using the pattern or mirror function, ensuring that they are placed at each corner of the tabletop.",
+                "7. Position each leg 5 units in from the outer edge of the tabletop on each corner for balanced distribution.",
+                "8. Finally, ensure all parts are aligned correctly and make any necessary adjustments for height or alignment in the assembly view."
+            ],
+            "uncertainty_reasons": [
+                "Potential variations in leg thickness or design based on material choices.",
+                "Assumption of proportions for aesthetics, no specific indications about rounding or additional features."
+            ]
+        }
+    }
+}

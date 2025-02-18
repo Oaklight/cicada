@@ -1,0 +1,27 @@
+---
+title: Overview
+---
+
+<Note>
+  **Prerequisite** Before performing full text search over a table, it must
+  first be [indexed](/documentation/indexing/create_index).
+</Note>
+
+## Basic Usage
+
+`@@@` is ParadeDB's full text search operator that means "find all rows matching a full text query." The left-hand side of `@@@` accepts the field to search against, and the right-hand side accepts the query string.
+
+```sql
+SELECT description, rating, category
+FROM mock_items
+WHERE description @@@ 'shoes'
+LIMIT 5;
+```
+
+`@@@` itself **does not** perform any ordering, offsets, limits, or scoring. These operations need to be added to the overall query with `ORDER BY`, `OFFSET`, `LIMIT`, and [`paradedb.score`](/documentation/full-text/scoring).
+
+## Query Language
+
+The query string on the right-hand side of `@@@` uses a mini query language that supports [term](/documentation/full-text/term),
+[phrase](/documentation/full-text/phrase), [filtered](/documentation/full-text/filtering), and [boosted](/documentation/full-text/boosting) queries.
+It also accepts [query builder functions](/documentation/advanced) for advanced, "Elastic DSL" style queries.

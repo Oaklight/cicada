@@ -1,10 +1,9 @@
-import argparse
 import importlib
 import inspect
 import logging
 from functools import lru_cache
 
-from cicada.common.utils import colorstring, setup_logging  # For fuzzy matching
+from cicada.common.utils import colorstring
 
 logger = logging.getLogger(__name__)
 
@@ -348,16 +347,19 @@ def doc_helper(import_path, with_docstring: bool = False):
     return markdown_formatted_str
 
 
-def _main():
-    """
-    Command Line Interface for querying module, class, function, or method information.
-    """
+if __name__ == "__main__":
+
+    import argparse
+
+    from cicada.common.utils import colorstring, setup_logging  # For fuzzy matching
+
     parser = argparse.ArgumentParser(
         description="Query module, class, function, or method information."
     )
     parser.add_argument(
         "path",
         type=str,
+        default="math.sqrt",
         nargs="?",  # Makes the path argument optional (consumes one argument if provided)
         help="The full import path or keyword to query (e.g., 'Box' or 'build123d.Box').",
     )
@@ -376,7 +378,7 @@ def _main():
 
     setup_logging(
         log_level="DEBUG" if args.debug else "INFO",
-        log_file="code_dochelper.log",
+        log_file="/tmp/cicada/code_dochelper.log",
     )
 
     # Initialize the CodeDocHelper
@@ -384,8 +386,7 @@ def _main():
 
     # Get the information based on the provided path
     info = helper.get_info(args.path, with_docstring=args.docstring)
-    if args.no_output:
-        return
+
     # Convert the information to Markdown and print it
     markdown_formatted_str = helper.dict_to_markdown(
         info, show_docstring=args.docstring
@@ -398,7 +399,3 @@ def _main():
         # Save the output to a file
         with open("debug_info.md", "w") as f:
             f.write(markdown_formatted_str)
-
-
-if __name__ == "__main__":
-    _main()

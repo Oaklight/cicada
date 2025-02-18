@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 from subprocess import run, TimeoutExpired
 
-from cicada.common.utils import colorstring, cprint, setup_logging
+from cicada.common.utils import colorstring
 
 logger = logging.getLogger(__name__)
 
@@ -209,6 +209,8 @@ class CodeExecutor:
 
 
 if __name__ == "__main__":
+    from cicada.common.utils import colorstring, setup_logging
+
     setup_logging()
 
     code_executor = CodeExecutor()
@@ -285,7 +287,7 @@ a_very_long_variable_name_that_exceeds_the_limit_of_seventy_nine_characters = 1
             print(f"Syntax error detected: {error_message}")
         print("-" * 40)
 
-    with open("./code_examples/patched_code.py") as f:
+    with open("/tmp/cicada/code_examples/patched_code.py") as f:
         patched_code = f.read()
 
-    code_executor.execute_and_save(patched_code, "./stl_examples")
+    code_executor.execute_and_save(patched_code, "/tmp/cicada/stl_examples")

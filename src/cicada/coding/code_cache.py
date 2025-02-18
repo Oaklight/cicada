@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import sqlite3
 from sqlite3 import Connection
 
@@ -8,6 +9,11 @@ logger = logging.getLogger(__name__)
 
 class CodeCache:
     def __init__(self, db_file="coding.db"):
+        # Ensure the directory exists
+        db_dir = os.path.dirname(db_file)
+        if db_dir and not os.path.exists(db_dir):
+            os.makedirs(db_dir)
+
         self.db_file = db_file
         self.connection_pool = []
         self.initialize_database()
@@ -388,19 +394,13 @@ class CodeCache:
 
 # Usage example
 if __name__ == "__main__":
-    import os
-    import sys
 
-    _current_dir = os.path.dirname(os.path.abspath(__file__))
-    _parent_dir = os.path.dirname(_current_dir)
-    sys.path.extend([_current_dir, _parent_dir])
-
-    from common.utils import setup_logging
+    from cicada.common.utils import setup_logging
 
     setup_logging()
 
     # Create an instance of CodeCache
-    code_cache = CodeCache()
+    code_cache = CodeCache("/tmp/cicada/coding.db")
 
     # Insert a new session
     session_id_1 = code_cache.insert_session("First Test Session")

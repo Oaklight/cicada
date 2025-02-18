@@ -404,7 +404,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--output_dir",
-        default="/tmp/cicada/coding/code_examples",
+        default="/tmp/cicada/code_examples",
         help="Directory to save the generated code",
     )
     args = parser.parse_args()

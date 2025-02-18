@@ -1,4 +1,3 @@
-import argparse
 import logging
 import os
 from typing import List, Literal
@@ -12,14 +11,7 @@ from cicada.coding.code_dochelper import doc_helper
 from cicada.common import llm
 from cicada.common.basics import DesignGoal
 from cicada.common.tools import tool_registry
-from cicada.common.utils import (
-    colorstring,
-    cprint,
-    extract_section_markdown,
-    load_config,
-    load_prompts,
-    setup_logging,
-)
+from cicada.common.utils import colorstring, cprint, extract_section_markdown
 
 logger = logging.getLogger(__name__)
 
@@ -398,7 +390,11 @@ def test_code_generator(code_generator, design_goal, output_dir):
         print("No valid code to patch and export.")
 
 
-def _main():
+if __name__ == "__main__":
+    import argparse
+
+    from cicada.common.utils import load_config, load_prompts, setup_logging
+
     parser = argparse.ArgumentParser(description="Assistive Large Language Model")
     parser.add_argument(
         "--config", default="config.yaml", help="Path to the configuration YAML file"
@@ -408,7 +404,7 @@ def _main():
     )
     parser.add_argument(
         "--output_dir",
-        default="./code_examples",
+        default="/tmp/cicada/coding/code_examples",
         help="Directory to save the generated code",
     )
     args = parser.parse_args()
@@ -437,7 +433,3 @@ def _main():
 
     # Run the tests
     test_code_generator(code_generator, design_goal, args.output_dir)
-
-
-if __name__ == "__main__":
-    _main()

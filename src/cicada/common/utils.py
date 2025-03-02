@@ -187,6 +187,24 @@ def get_image_paths(path: str | List[str]) -> List[str]:
         raise ValueError("The input must be a string or a list of strings.")
 
 
+def is_base64_encoded(s: str) -> bool:
+    """
+    Check if a string is Base64 encoded.
+    :param s: The string to check.
+    :return: True if the string is Base64 encoded, False otherwise.
+    """
+    # Base64 encoded string length should be a multiple of 4, and only contain Base64 character set
+    if len(s) % 4 != 0 or not re.match(r"^[A-Za-z0-9+/]*={0,2}$", s):
+        return False
+
+    try:
+        # Try to decode the string
+        base64.b64decode(s, validate=True)
+        return True
+    except Exception:
+        return False
+
+
 def image_to_base64(
     image: Image.Image | str,
     quality: int = 85,

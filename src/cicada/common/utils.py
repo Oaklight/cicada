@@ -271,42 +271,44 @@ def find_files_with_extensions(
     Returns:
         Union[str, List[str], None]: A single file path, a list of file paths, or None if no files are found.
     """
-    # Ensure extensions is a list for consistent handling
-    if isinstance(extensions, str):
-        extensions = [extensions]
 
-    # List to store all matching files
-    all_matching_files = []
+    def _validate_directory_path(path: str):
+        """Validate directory path exists and is accessible"""
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Path '{path}' does not exist.")
+        if not os.path.isdir(path):
+            raise ValueError(f"Path '{path}' is not a directory.")
 
-    try:
-        # Walk through the directory
+    def _find_matching_files(directory_path: str, extensions: List[str]) -> List[str]:
+        """Find all files matching extensions in directory"""
+        matching_files = []
         for root, _, files in os.walk(directory_path):
             for file in files:
-                # Check if the file ends with any of the specified extensions
-                for ext in extensions:
-                    if file.endswith(f".{ext}"):
-                        full_path = os.path.join(root, file)
-                        if not return_all:
-                            # Return the first matching file based on priority
-                            return full_path
-                        else:
-                            # Add to the list of matching files
-                            all_matching_files.append((ext, full_path))
-    except FileNotFoundError:
-        print(f"Error: The directory '{directory_path}' does not exist.")
-        return None if not return_all else []
-    except PermissionError:
-        print(f"Error: Permission denied to access the directory '{directory_path}'.")
-        return None if not return_all else []
+                if any(file.endswith(f".{ext}") for ext in extensions):
+                    matching_files.append(os.path.join(root, file))
+        return matching_files
 
-    if return_all:
-        # Sort the matching files by extension priority
-        all_matching_files.sort(key=lambda x: extensions.index(x[0]))
-        # Return only the file paths (without the extension used for sorting)
-        return [file_path for _, file_path in all_matching_files]
-    else:
-        # Return None if no matching file is found
-        return None
+    def _sort_files_by_priority(files: List[str], extensions: List[str]) -> List[str]:
+        """Sort files by extension priority"""
+        return sorted(files, key=lambda f: extensions.index(os.path.splitext(f)[1][1:]))
+
+    try:
+        extensions = [extensions] if isinstance(extensions, str) else extensions
+        _validate_directory_path(directory_path)
+
+        matching_files = _find_matching_files(directory_path, extensions)
+
+        if not matching_files:
+            return None if not return_all else []
+
+        if return_all:
+            return _sort_files_by_priority(matching_files, extensions)
+
+        return matching_files[0]
+
+    except (FileNotFoundError, PermissionError) as e:
+        logger.error(str(e))
+        return None if not return_all else []
 
 
 def extract_section_markdown(text: str, heading: str) -> str:

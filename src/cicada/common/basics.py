@@ -3,7 +3,22 @@ import os
 from typing import Any, Dict, List, Optional
 
 from cicada.common.tools import ToolRegistry
-from cicada.common.utils import get_image_paths, image_to_base64
+from cicada.common.utils import get_image_paths, image_to_base64, is_base64_encoded
+
+
+def _create_text_content(text: str) -> dict:
+    """Create text content message"""
+    return {"type": "text", "text": text}
+
+
+def _create_image_content(image_data: str) -> dict:
+    """Create image content message from base64 encoded image string"""
+    assert is_base64_encoded(image_data), "image_data must be base64 encoded"
+
+    return {
+        "type": "image_url",
+        "image_url": {"url": f"data:image/jpeg;base64,{image_data}"},
+    }
 
 
 class PromptBuilder:
@@ -39,45 +54,79 @@ class PromptBuilder:
         """
         self.add_text(content)
 
-    def add_images(self, image_data: list[str] | str):
-        """Add images to the messages.
+    def add_images(
+        self, image_data: list[str] | str, msg_index: Optional[int] = None
+    ) -> int:
+        """Add images to the messages. If msg_index is provided, the images will be appended to the existing message at that index to form a multi-content message.
 
         Accepts a list of image paths or a single image path. Each image is converted
         to a base64-encoded string and added as a user message with image content.
 
         Args:
             image_data (list[str] | str): A list of image paths or a single image path.
+            msg_index (Optional[int]): The index of the message in the messages list. Useful when appending to an existing message.
+
+        Returns:
+            msg_index (int): The index of the message in the messages list, or -1 if no valid images were found.
         """
+
         image_files = get_image_paths(image_data)
-        for image_file in image_files:
-            b64_image = image_to_base64(image_file)
-            self._add_image_message(b64_image)
+        if not image_files:
+            return -1  # No valid images found
 
-    def _add_image_message(self, b64_image):
-        """Add a user message with an image to the messages.
+        # Convert images to base64 and create image content
+        new_content = [
+            _create_image_content(image_to_base64(image_file))
+            for image_file in image_files
+        ]
 
-        Args:
-            b64_image (str): A base64-encoded string representing the image.
-        """
-        self.messages.append(
-            {
-                "role": "user",
-                "content": [
-                    {
-                        "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{b64_image}"},
-                    }
-                ],
-            }
-        )
+        if msg_index is None:
+            self.messages.append({"role": "user", "content": new_content})
+            return len(self.messages) - 1
 
-    def add_text(self, content):
-        """Add a user message with text content to the messages.
+        existing_content = self.messages[msg_index]["content"]
+
+        if isinstance(existing_content, str):
+            # Convert single text content to a multi-content message
+            self.messages[msg_index]["content"] = [
+                _create_text_content(existing_content),
+                *new_content,
+            ]
+        elif isinstance(existing_content, list):
+            # Append to existing multi-content message
+            self.messages[msg_index]["content"].extend(new_content)
+
+        return msg_index
+
+    def add_text(self, content: str, msg_index: Optional[int] = None) -> int:
+        """Add a user message with text content to the messages. If msg_index is provided, the text will be appended to the existing message at that index to form a multi-content message.
 
         Args:
             content (str): The text content of the user message.
+            msg_index (Optional[int]): The index of the message in the messages list. Useful when appending to an existing message.
+
+        Return:
+            msg_index (int): The index of the message in the messages list.
         """
-        self.messages.append({"role": "user", "content": content})
+
+        if msg_index is None:
+            self.messages.append({"role": "user", "content": content})
+            return len(self.messages) - 1
+
+        existing_content = self.messages[msg_index]["content"]
+        new_content = _create_text_content(content)
+
+        if isinstance(existing_content, str):
+            # Convert single text content to a multi-content message
+            self.messages[msg_index]["content"] = [
+                _create_text_content(existing_content),
+                new_content,
+            ]
+        elif isinstance(existing_content, list):
+            # Append to existing multi-content message
+            self.messages[msg_index]["content"].append(new_content)
+
+        return msg_index
 
     def add_tools(self, tools: ToolRegistry, keep_existing: bool = False):
         """Add tools to the PromptBuilder.

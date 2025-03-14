@@ -37,18 +37,19 @@ class LanguageModel(ABC):
             api_key=self.api_key, base_url=self.api_base_url, organization=self.org_id
         )
 
-    def query(self, prompt, system_prompt=None, stream=False):
+    def query(self, prompt=None, system_prompt=None, stream=False, prompt_builder=None):
         """
-        支持流式和非流式的查询方法
+        支持PromptBuilder和reasoning_content的查询方法
         Args:
-            prompt (str): 用户输入
+            prompt (str, optional): 用户输入
             system_prompt (str, optional): 系统提示
             stream (bool): 是否启用流式模式
+            prompt_builder (PromptBuilder, optional): PromptBuilder实例
         Returns:
-            str: 模型生成的完整响应
+            dict: 包含完整响应和reasoning_content的结果
         """
         # 构造消息
-        messages = self._build_messages(prompt, system_prompt)
+        messages = self._build_messages(prompt, system_prompt, prompt_builder)
 
         # 调用API
         response = self._call_model_api(messages, stream)
@@ -59,12 +60,19 @@ class LanguageModel(ABC):
         else:
             return self._process_non_stream_response(response)
 
-    def _build_messages(self, prompt, system_prompt):
-        """构造消息列表"""
-        messages = [{"role": "user", "content": prompt}]
-        if system_prompt:
-            messages.insert(0, {"role": "system", "content": system_prompt})
-        return messages
+    def _build_messages(self, prompt, system_prompt, prompt_builder):
+        """支持PromptBuilder的消息构造"""
+        if prompt_builder:
+            # 优先使用PromptBuilder
+            return prompt_builder.messages
+        else:
+            # 回退到传统方式
+            messages = []
+            if system_prompt:
+                messages.append({"role": "system", "content": system_prompt})
+            if prompt:
+                messages.append({"role": "user", "content": prompt})
+            return messages
 
     def _call_model_api(self, messages, stream):
         """调用模型API，支持流式模式"""
@@ -127,10 +135,16 @@ if __name__ == "__main__":
         **llm_config.get("model_kwargs", {}),
     )
 
-    response = llm.query("Hello, how are you?")
-    print(response)
+    from cicada.common.basics import PromptBuilder
 
     # 流式模式
     print("Streaming response:")
-    stream_response = llm.query("Tell me a story", stream=True)
+    stream_response = llm.query("告诉我一个极短的笑话", stream=True)
     print("Complete stream response:", stream_response)
+
+    pb = PromptBuilder()
+    pb.add_system_prompt("You are a helpful assistant")
+    pb.add_user_prompt("Explain quantum computing")
+
+    result = llm.query(prompt_builder=pb, stream=True)
+    print("PromptBuilder response:", result["formatted_response"])

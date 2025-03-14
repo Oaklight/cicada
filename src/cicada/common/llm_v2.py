@@ -1,3 +1,4 @@
+import copy
 import json
 import logging
 from abc import ABC
@@ -9,7 +10,7 @@ import tenacity
 
 from cicada.common.basics import PromptBuilder
 from cicada.common.tools import ToolRegistry
-from cicada.common.utils import cprint
+from cicada.common.utils import cprint, recover_stream_tool_calls
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +69,7 @@ class LanguageModel(ABC):
         if stream:
             return self._process_stream_response(messages, response, tools)
         else:
-            return self._process_non_stream_response(response, tools)
+            return self._process_non_stream_response(messages, response, tools)
 
     def _build_messages(self, prompt, system_prompt, prompt_builder, messages):
         """支持PromptBuilder的消息构造"""
@@ -108,7 +109,9 @@ class LanguageModel(ABC):
         # 初始化结果
         result = {"content": message.content}
         if hasattr(message, "reasoning_content"):
-            result["reasoning_content"] = getattr(message, "reasoning_content", None)
+            reasoning_content = getattr(message, "reasoning_content", "")
+            if reasoning_content:
+                result["reasoning_content"] = reasoning_content
 
         # 处理工具调用
         if tools and hasattr(message, "tool_calls") and message.tool_calls:
@@ -134,7 +137,7 @@ class LanguageModel(ABC):
         result["formatted_response"] = self._format_response(result)
         return result
 
-    def _process_stream_response(self, response, tools=None):
+    def _process_stream_response(self, messages, response, tools=None):
         """处理流式响应，支持工具调用"""
         complete_response = ""
         reasoning_content = ""
@@ -151,28 +154,57 @@ class LanguageModel(ABC):
                     cprint(delta.content, "white", end="", flush=True)
 
                 # 收集reasoning_content
-                if hasattr(delta, "reasoning_content"):
+                if hasattr(delta, "reasoning_content") and delta.reasoning_content:
                     reasoning_content += delta.reasoning_content
                     cprint(delta.reasoning_content, "cyan", end="", flush=True)
 
                 # 收集工具调用
-                if tools and hasattr(delta, "tool_calls"):
+                if tools and hasattr(delta, "tool_calls") and delta.tool_calls:
+                    # cprint(delta.tool_calls, "bright_yellow")
+                    # Handle tool calls in streaming mode
                     for tool_call in delta.tool_calls:
-                        tool_calls[tool_call.id] = tool_call
+                        index = tool_call.index
+                        if index not in tool_calls:
+                            tool_calls[index] = {
+                                "id": "",
+                                "type": "function",
+                                "function": {"name": "", "arguments": ""},
+                            }
+                        if tool_call.id:
+                            tool_calls[index]["id"] += tool_call.id
+                        if tool_call.function.name:
+                            tool_calls[index]["function"][
+                                "name"
+                            ] += tool_call.function.name
+                        if tool_call.function.arguments:
+                            tool_calls[index]["function"][
+                                "arguments"
+                            ] += tool_call.function.arguments
+
+        result = {"content": complete_response}
+        if reasoning_content:
+            result["reasoning_content"] = reasoning_content
 
         print()  # 流式结束后换行
 
         # 执行工具调用
         if tool_calls:
-            tool_responses = self._execute_tool_calls(list(tool_calls.values()), tools)
+            tool_calls = recover_stream_tool_calls(tool_calls)
 
-        # 构造返回结果
-        result = {
-            "content": complete_response,
-            "reasoning_content": reasoning_content,
-            "tool_calls": list(tool_calls.values()),
-            "tool_responses": tool_responses,
-        }
+            tool_responses = self._execute_tool_calls(tool_calls, tools)
+
+            # 将工具结果传回LLM
+            messages.extend(
+                self._recover_tool_call_assistant_message(tool_calls, tool_responses)
+            )
+
+            # 调用模型生成最终响应
+            result = self.query(messages=messages, stream=True, tools=tools)
+
+            # move existing result into tool_chain_results
+            result["tool_responses"] = tool_responses
+            result_copy = copy.deepcopy(result)
+            result["tool_chain"] = result_copy
 
         # 格式化响应
         result["formatted_response"] = self._format_response(result)
@@ -183,7 +215,7 @@ class LanguageModel(ABC):
     ) -> Dict[str, str]:
         """执行工具调用"""
         tool_responses = {}
-        # cprint(tool_calls, "bright_yellow")
+        # cprint(tool_calls, "bright_red")
         # cprint(type(tool_calls))
         for tool_call in tool_calls:
 

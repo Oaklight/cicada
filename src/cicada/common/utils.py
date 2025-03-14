@@ -9,6 +9,10 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import yaml
 from blessed import Terminal
+from openai.types.chat.chat_completion_message_tool_call import (
+    ChatCompletionMessageToolCall,
+    Function,
+)
 from PIL import Image
 
 logger = logging.getLogger(__name__)
@@ -473,6 +477,24 @@ def setup_logging(
 
     logging.config.dictConfig(logging_config)
     logging.info("Logging configuration is set up.")
+
+
+def recover_stream_tool_calls(
+    stream_tool_calls: Dict,
+) -> List[ChatCompletionMessageToolCall]:
+    tool_calls = []
+    for index, tool_call_str in stream_tool_calls.items():
+        tool_call_instance = ChatCompletionMessageToolCall(
+            id=tool_call_str["id"],
+            type="function",
+            function=Function(
+                name=tool_call_str["function"]["name"],
+                arguments=tool_call_str["function"]["arguments"],
+            ),
+            index=index,
+        )
+        tool_calls.append(tool_call_instance)
+    return tool_calls
 
 
 if __name__ == "__main__":

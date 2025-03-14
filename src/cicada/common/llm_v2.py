@@ -43,6 +43,7 @@ class LanguageModel(ABC):
         system_prompt=None,
         stream=False,
         prompt_builder=None,
+        messages=None,
         tools=None,
     ):
         """
@@ -52,26 +53,30 @@ class LanguageModel(ABC):
             system_prompt (str, optional): 系统提示
             stream (bool): 是否启用流式模式
             prompt_builder (PromptBuilder, optional): PromptBuilder实例
+            messages (List[Dict], optional): 直接传递消息列表
             tools (ToolRegistry, optional): 工具注册表
         Returns:
             dict: 包含完整响应、reasoning_content和工具调用结果
         """
         # 构造消息
-        messages = self._build_messages(prompt, system_prompt, prompt_builder)
+        messages = self._build_messages(prompt, system_prompt, prompt_builder, messages)
 
         # 调用API
         response = self._call_model_api(messages, stream, tools)
 
         # 处理响应
         if stream:
-            return self._process_stream_response(response, tools)
+            return self._process_stream_response(messages, response, tools)
         else:
             return self._process_non_stream_response(response, tools)
 
-    def _build_messages(self, prompt, system_prompt, prompt_builder):
+    def _build_messages(self, prompt, system_prompt, prompt_builder, messages):
         """支持PromptBuilder的消息构造"""
+        if messages:
+            # 优先使用直接传递的消息列表
+            return messages
         if prompt_builder:
-            # 优先使用PromptBuilder
+            # 次优先使用PromptBuilder
             return prompt_builder.messages
         else:
             # 回退到传统方式
@@ -93,30 +98,39 @@ class LanguageModel(ABC):
             model=self.model_name, messages=messages, stream=stream, **kwargs
         )
 
-    def _process_non_stream_response(self, response, tools=None):
+    def _process_non_stream_response(self, messages, response, tools=None):
         """处理非流式响应，支持工具调用"""
         if not response.choices:
             raise ValueError("No response from the model")
-
-        choice = response.choices[0]
-        message = choice.message
-
+        # cprint(messages, "magenta")
+        message = response.choices[0].message
+        # cprint(response, "cyan")
         # 初始化结果
-        result = {
-            "content": message.content,
-            "reasoning_content": getattr(message, "reasoning_content", None),
-            "tool_calls": [],
-            "tool_responses": [],
-        }
+        result = {"content": message.content}
+        if hasattr(message, "reasoning_content"):
+            result["reasoning_content"] = getattr(message, "reasoning_content", None)
 
         # 处理工具调用
-        if tools and hasattr(message, "tool_calls"):
-            result["tool_calls"] = message.tool_calls
-            result["tool_responses"] = self._execute_tool_calls(
-                message.tool_calls, tools
+        if tools and hasattr(message, "tool_calls") and message.tool_calls:
+
+            tool_responses = self._execute_tool_calls(message.tool_calls, tools)
+
+            # 将工具结果传回LLM
+            # cprint(messages, "magenta")
+            messages.extend(
+                self._recover_tool_call_assistant_message(
+                    message.tool_calls, tool_responses
+                )
             )
 
-        # 格式化响应
+            # 调用模型生成最终响应
+            result = self.query(messages=messages, stream=False, tools=tools)
+
+            # move existing result into tool_chain_results
+            result["tool_responses"] = tool_responses
+            result_copy = copy.deepcopy(result)
+            result["tool_chain"] = result_copy
+
         result["formatted_response"] = self._format_response(result)
         return result
 
@@ -164,24 +178,63 @@ class LanguageModel(ABC):
         result["formatted_response"] = self._format_response(result)
         return result
 
-    def _execute_tool_calls(self, tool_calls, tools):
+    def _execute_tool_calls(
+        self, tool_calls: List, tools: ToolRegistry
+    ) -> Dict[str, str]:
         """执行工具调用"""
-        responses = []
-        for call in tool_calls:
+        tool_responses = {}
+        # cprint(tool_calls, "bright_yellow")
+        # cprint(type(tool_calls))
+        for tool_call in tool_calls:
+
+            tool_result = None
             try:
-                function_name = call.function.name
-                function_args = json.loads(call.function.arguments)
+                function_name = tool_call.function.name
+                function_args = json.loads(tool_call.function.arguments)
+                tool_call_id = tool_call.id
+                # cprint(type(tool_call_id), "bright_blue")
 
                 # 从注册表中获取工具
                 tool = tools.get_callable(function_name)
                 if tool:
-                    result = tool(**function_args)
-                    responses.append(f"{function_name} -> {result}")
+                    function_response = tool(**function_args)
+                    tool_result = f"{function_name} -> {function_response}"
                 else:
-                    responses.append(f"Error: Tool '{function_name}' not found")
+                    tool_result = f"Error: Tool '{function_name}' not found"
             except Exception as e:
-                responses.append(f"Error executing {function_name}: {str(e)}")
-        return responses
+                tool_result = f"Error executing {function_name}: {str(e)}"
+
+            tool_responses[tool_call_id] = tool_result
+
+        return tool_responses
+
+    def _recover_tool_call_assistant_message(self, tool_calls, tool_responses):
+        messages = []
+        for tool_call in tool_calls:
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": tool_call.id,
+                            "type": "function",
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments,
+                            },
+                        }
+                    ],
+                }
+            )
+            messages.append(
+                {
+                    "role": "tool",
+                    "content": tool_responses[tool_call.id],
+                    "tool_call_id": tool_call.id,
+                }
+            )
+        return messages
 
     def _format_response(self, result):
         """格式化完整响应"""

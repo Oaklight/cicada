@@ -2,6 +2,7 @@ import copy
 import json
 import logging
 from abc import ABC
+from dataclasses import dataclass, field
 from typing import Any, Dict, List, Optional
 
 import openai
@@ -183,30 +184,93 @@ class LanguageModel(ABC):
         # 处理工具调用
         if tools and hasattr(message, "tool_calls") and message.tool_calls:
 
-            tool_responses = self._execute_tool_calls(message.tool_calls, tools)
-            result["tool_responses"] = tool_responses
-
-            # 将工具结果传回LLM
-            messages.extend(
-                self._recover_tool_call_assistant_message(
-                    message.tool_calls, tool_responses
-                )
+            result = self.get_response_with_tools(
+                messages, message.tool_calls, tools, result, stream=False
             )
-
-            result_copy = copy.deepcopy(result)
-            # 调用模型生成最终响应
-            result = self.query(messages=messages, stream=False, tools=tools)
-
-            # move existing result into tool_chain_results
-            if "tool_chain" in result:
-                result["tool_chain"].insert(0, result_copy)
-            else:
-                result["tool_chain"] = [result_copy]
             # cprint(result, "yellow", flush=True)
 
         # 格式化响应
         result["formatted_response"] = self._format_response(result)
         return result
+
+    @dataclass
+    class StreamState:
+        content: str = ""
+        reasoning_content: str = ""
+        stream_tool_calls: Dict[int, Dict[str, Any]] = field(default_factory=dict)
+        tool_responses: List[Dict[str, Any]] = field(default_factory=list)
+
+    def _process_content_chunk(self, delta: Any, state: StreamState) -> None:
+        """Process content chunk and update state.
+
+        Args:
+            delta: Delta object from API response
+            state: StreamState instance to update
+        """
+        if delta.content:
+            state.content += delta.content
+            cprint(delta.content, "white", end="", flush=True)
+
+    def _process_reasoning_chunk(self, delta: Any, state: StreamState) -> None:
+        """Process reasoning content chunk and update state.
+
+        Args:
+            delta: Delta object from API response
+            state: StreamState instance to update
+        """
+        if hasattr(delta, "reasoning_content") and delta.reasoning_content:
+            state.reasoning_content += delta.reasoning_content
+            cprint(delta.reasoning_content, "cyan", end="", flush=True)
+
+    def _process_tool_call_chunk(
+        self, delta: Any, state: StreamState, tools: Optional[ToolRegistry] = None
+    ) -> None:
+        """Process tool call chunk and update state.
+
+        Args:
+            delta: Delta object from API response
+            state: StreamState instance to update
+            tools: Optional tool registry instance
+        """
+        if not tools or not hasattr(delta, "tool_calls") or not delta.tool_calls:
+            return
+
+        for tool_call in delta.tool_calls:
+            index = tool_call.index
+            if index not in state.stream_tool_calls:
+                state.stream_tool_calls[index] = {
+                    "id": "",
+                    "type": "function",
+                    "function": {"name": "", "arguments": ""},
+                }
+            if tool_call.id:
+                state.stream_tool_calls[index]["id"] += tool_call.id
+            if tool_call.function.name:
+                state.stream_tool_calls[index]["function"][
+                    "name"
+                ] += tool_call.function.name
+            if tool_call.function.arguments:
+                state.stream_tool_calls[index]["function"][
+                    "arguments"
+                ] += tool_call.function.arguments
+
+    def _process_stream_chunk(
+        self, chunk: Any, state: StreamState, tools: Optional[ToolRegistry] = None
+    ) -> None:
+        """Process a single streaming chunk and update state.
+
+        Args:
+            chunk: Raw API response chunk
+            state: StreamState instance to update
+            tools: Optional tool registry instance
+        """
+        if not chunk.choices:
+            return
+
+        delta = chunk.choices[0].delta
+        self._process_content_chunk(delta, state)
+        self._process_reasoning_chunk(delta, state)
+        self._process_tool_call_chunk(delta, state, tools)
 
     def _process_stream_response(
         self,
@@ -224,78 +288,32 @@ class LanguageModel(ABC):
         Returns:
             Dict[str, Any]: Processed response dictionary
         """
-        complete_response = ""
-        reasoning_content = ""
-        stream_tool_calls = {}
-        tool_responses = []
+        state = self.StreamState()
 
+        # 处理所有chunks
         for chunk in response:
-            if chunk.choices:
-                delta = chunk.choices[0].delta
+            self._process_stream_chunk(chunk, state, tools)
 
-                # 收集常规内容
-                if delta.content:
-                    complete_response += delta.content
-                    cprint(delta.content, "white", end="", flush=True)
+        if state.content or state.reasoning_content:
+            print()  # 流式结束后换行
 
-                # 收集reasoning_content
-                if hasattr(delta, "reasoning_content") and delta.reasoning_content:
-                    reasoning_content += delta.reasoning_content
-                    cprint(delta.reasoning_content, "cyan", end="", flush=True)
+        # 处理工具调用
+        if state.stream_tool_calls:
+            result = {"content": state.content}
+            if state.reasoning_content:
+                result["reasoning_content"] = state.reasoning_content
 
-                # 收集工具调用
-                if tools and hasattr(delta, "tool_calls") and delta.tool_calls:
-                    # cprint(delta.tool_calls, "bright_yellow")
-                    # Handle tool calls in streaming mode
-                    for tool_call in delta.tool_calls:
-                        index = tool_call.index
-                        if index not in stream_tool_calls:
-                            stream_tool_calls[index] = {
-                                "id": "",
-                                "type": "function",
-                                "function": {"name": "", "arguments": ""},
-                            }
-                        if tool_call.id:
-                            stream_tool_calls[index]["id"] += tool_call.id
-                        if tool_call.function.name:
-                            stream_tool_calls[index]["function"][
-                                "name"
-                            ] += tool_call.function.name
-                        if tool_call.function.arguments:
-                            stream_tool_calls[index]["function"][
-                                "arguments"
-                            ] += tool_call.function.arguments
+            if not state.stream_tool_calls:
+                return result
 
-        result = {"content": complete_response}
-        if reasoning_content:
-            result["reasoning_content"] = reasoning_content
-
-        print()  # 流式结束后换行
-
-        # 执行工具调用
-        if stream_tool_calls:
-            tool_calls = recover_stream_tool_calls(stream_tool_calls)
-            tool_responses = self._execute_tool_calls(tool_calls, tools)
-            # cprint(result, "cyan")
-            result["tool_responses"] = tool_responses
-            # cprint(tool_responses, "magenta")
-            # cprint(result, "bright_yellow")
-
-            # 将工具结果传回LLM
-            messages.extend(
-                self._recover_tool_call_assistant_message(tool_calls, tool_responses)
+            tool_calls = recover_stream_tool_calls(state.stream_tool_calls)
+            result = self.get_response_with_tools(
+                messages, tool_calls, tools, result, stream=True
             )
-
-            result_copy = copy.deepcopy(result)
-            # 调用模型生成最终响应
-            result = self.query(messages=messages, stream=True, tools=tools)
-
-            # move existing result into tool_chain_results
-            if "tool_chain" in result:
-                result["tool_chain"].insert(0, result_copy)
-            else:
-                result["tool_chain"] = [result_copy]
-            # cprint(result, "yellow", flush=True)
+        else:
+            result = {"content": state.content}
+            if state.reasoning_content:
+                result["reasoning_content"] = state.reasoning_content
 
         # 格式化响应
         result["formatted_response"] = self._format_response(result)
@@ -338,6 +356,28 @@ class LanguageModel(ABC):
             tool_responses[tool_call_id] = tool_result
 
         return tool_responses
+
+    def get_response_with_tools(
+        self, messages, tool_calls, tools, result, stream=False
+    ):
+        tool_responses = self._execute_tool_calls(tool_calls, tools)
+        result["tool_responses"] = tool_responses
+
+        # 将工具结果传回LLM
+        messages.extend(
+            self._recover_tool_call_assistant_message(tool_calls, tool_responses)
+        )
+
+        result_copy = copy.deepcopy(result)
+        # 调用模型生成最终响应
+        result = self.query(messages=messages, stream=stream, tools=tools)
+
+        # move existing result into tool_chain_results
+        if "tool_chain" in result:
+            result["tool_chain"].insert(0, result_copy)
+        else:
+            result["tool_chain"] = [result_copy]
+        return result
 
     def _recover_tool_call_assistant_message(
         self, tool_calls: List[Any], tool_responses: Dict[str, str]
@@ -458,14 +498,11 @@ if __name__ == "__main__":
     # print("Streaming response:")
     # stream_response = llm.query("告诉我一个极短的笑话", stream=True)
     # print("Complete stream response:", stream_response)
-
     # pb = PromptBuilder()
     # pb.add_system_prompt("You are a helpful assistant")
     # pb.add_user_prompt("Explain quantum computing")
-
     # result = llm.query(prompt_builder=pb, stream=True)
     # print("PromptBuilder response:", result["formatted_response"])
-
     # 创建工具注册表
     from cicada.common.tools import ToolRegistry
 
@@ -501,7 +538,7 @@ if __name__ == "__main__":
     response = llm.query(
         "What's the weather like in Shanghai, in fahrenheit?",
         tools=tool_registry,
-        # stream=True,
+        stream=True,
     )
     print(response["content"])
 

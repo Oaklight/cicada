@@ -2,11 +2,10 @@ import copy
 import json
 import logging
 from abc import ABC
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
-import httpx
 import openai
-import tenacity
+from openai.types.chat.chat_completion_message import ChatCompletionMessage
 
 from cicada.common.basics import PromptBuilder
 from cicada.common.tools import ToolRegistry
@@ -19,14 +18,26 @@ logger = logging.getLogger(__name__)
 
 
 class LanguageModel(ABC):
+    """Language model base class with tool use support.
+
+    Attributes:
+        api_key (str): API key for authentication
+        api_base_url (str): Base URL for API endpoint
+        model_name (str): Name of the language model
+        org_id (Optional[str]): Organization ID
+        model_kwargs (Dict[str, Any]): Additional model parameters
+        stream (bool): Whether to use streaming mode
+        client (openai.OpenAI): OpenAI client instance
+    """
+
     def __init__(
         self,
-        api_key,
-        api_base_url,
-        model_name,
-        org_id=None,
-        **model_kwargs,
-    ):
+        api_key: str,
+        api_base_url: str,
+        model_name: str,
+        org_id: Optional[str] = None,
+        **model_kwargs: Dict[str, Any],
+    ) -> None:
         self.api_key = api_key
         self.api_base_url = api_base_url
         self.model_name = model_name
@@ -43,24 +54,33 @@ class LanguageModel(ABC):
 
     def query(
         self,
-        prompt=None,
-        system_prompt=None,
-        stream=False,
-        prompt_builder=None,
-        messages=None,
-        tools=None,
-    ):
-        """
-        支持Tool Use的查询方法
+        prompt: Optional[str] = None,
+        system_prompt: Optional[str] = None,
+        stream: bool = False,
+        prompt_builder: Optional[PromptBuilder] = None,
+        messages: Optional[List[ChatCompletionMessage]] = None,
+        tools: Optional[ToolRegistry] = None,
+    ) -> Dict[str, Any]:
+        """Query the language model with support for tool use.
+
         Args:
-            prompt (str, optional): 用户输入
-            system_prompt (str, optional): 系统提示
-            stream (bool): 是否启用流式模式
-            prompt_builder (PromptBuilder, optional): PromptBuilder实例
-            messages (List[Dict], optional): 直接传递消息列表
-            tools (ToolRegistry, optional): 工具注册表
+            prompt (Optional[str]): User input prompt
+            system_prompt (Optional[str]): System prompt
+            stream (bool): Whether to use streaming mode
+            prompt_builder (Optional[PromptBuilder]): PromptBuilder instance
+            messages (Optional[List[ChatCompletionMessage]]): List of messages
+            tools (Optional[ToolRegistry]): Tool registry instance
+
         Returns:
-            dict: 包含完整响应、reasoning_content和工具调用结果
+            Dict[str, Any]: Dictionary containing:
+                - content: Main response content
+                - reasoning_content: Reasoning steps (if available)
+                - tool_responses: Tool execution results (if tools used)
+                - formatted_response: Formatted final response
+                - tool_chain: Chain of tool calls and responses (if tools used)
+
+        Raises:
+            ValueError: If no response is received from the model
         """
         # 构造消息
         messages = self._build_messages(prompt, system_prompt, prompt_builder, messages)
@@ -74,8 +94,24 @@ class LanguageModel(ABC):
         else:
             return self._process_non_stream_response(messages, response, tools)
 
-    def _build_messages(self, prompt, system_prompt, prompt_builder, messages):
-        """支持PromptBuilder的消息构造"""
+    def _build_messages(
+        self,
+        prompt: Optional[str],
+        system_prompt: Optional[str],
+        prompt_builder: Optional[PromptBuilder],
+        messages: Optional[List[ChatCompletionMessage]],
+    ) -> List[Dict[str, str]]:
+        """Construct messages for the API call.
+
+        Args:
+            prompt (Optional[str]): User input prompt
+            system_prompt (Optional[str]): System prompt
+            prompt_builder (Optional[PromptBuilder]): PromptBuilder instance
+            messages (Optional[List[ChatCompletionMessage]]): List of messages
+
+        Returns:
+            List[Dict[str, str]]: List of message dictionaries
+        """
         if messages:
             # 优先使用直接传递的消息列表
             return messages
@@ -91,8 +127,22 @@ class LanguageModel(ABC):
                 messages.append({"role": "user", "content": prompt})
             return messages
 
-    def _call_model_api(self, messages, stream, tools=None):
-        """调用模型API，支持工具调用"""
+    def _call_model_api(
+        self,
+        messages: List[Dict[str, str]],
+        stream: bool,
+        tools: Optional[ToolRegistry] = None,
+    ) -> Any:
+        """Call the model API with optional tool support.
+
+        Args:
+            messages (List[Dict[str, str]]): List of messages
+            stream (bool): Whether to use streaming mode
+            tools (Optional[ToolRegistry]): Tool registry instance
+
+        Returns:
+            Any: Raw response from the API
+        """
         kwargs = self.model_kwargs.copy()
         if tools:
             kwargs["tools"] = tools.get_tools_json()
@@ -102,8 +152,22 @@ class LanguageModel(ABC):
             model=self.model_name, messages=messages, stream=stream, **kwargs
         )
 
-    def _process_non_stream_response(self, messages, response, tools=None):
-        """处理非流式响应，支持工具调用"""
+    def _process_non_stream_response(
+        self,
+        messages: List[Dict[str, str]],
+        response: Any,
+        tools: Optional[ToolRegistry] = None,
+    ) -> Dict[str, Any]:
+        """Process non-streaming response with tool support.
+
+        Args:
+            messages (List[Dict[str, str]]): List of messages
+            response (Any): Raw API response
+            tools (Optional[ToolRegistry]): Tool registry instance
+
+        Returns:
+            Dict[str, Any]: Processed response dictionary
+        """
         if not response.choices:
             raise ValueError("No response from the model")
         # cprint(messages, "magenta")
@@ -144,8 +208,22 @@ class LanguageModel(ABC):
         result["formatted_response"] = self._format_response(result)
         return result
 
-    def _process_stream_response(self, messages, response, tools=None):
-        """处理流式响应，支持工具调用"""
+    def _process_stream_response(
+        self,
+        messages: List[Dict[str, str]],
+        response: Any,
+        tools: Optional[ToolRegistry] = None,
+    ) -> Dict[str, Any]:
+        """Process streaming response with tool support.
+
+        Args:
+            messages (List[Dict[str, str]]): List of messages
+            response (Any): Raw API response
+            tools (Optional[ToolRegistry]): Tool registry instance
+
+        Returns:
+            Dict[str, Any]: Processed response dictionary
+        """
         complete_response = ""
         reasoning_content = ""
         stream_tool_calls = {}
@@ -224,9 +302,17 @@ class LanguageModel(ABC):
         return result
 
     def _execute_tool_calls(
-        self, tool_calls: List, tools: ToolRegistry
+        self, tool_calls: List[Any], tools: ToolRegistry
     ) -> Dict[str, str]:
-        """执行工具调用"""
+        """Execute tool calls and return results.
+
+        Args:
+            tool_calls (List[Any]): List of tool calls
+            tools (ToolRegistry): Tool registry instance
+
+        Returns:
+            Dict[str, str]: Dictionary mapping tool call IDs to results
+        """
         tool_responses = {}
         # cprint(tool_calls, "bright_red")
         # cprint(type(tool_calls))
@@ -253,7 +339,18 @@ class LanguageModel(ABC):
 
         return tool_responses
 
-    def _recover_tool_call_assistant_message(self, tool_calls, tool_responses):
+    def _recover_tool_call_assistant_message(
+        self, tool_calls: List[Any], tool_responses: Dict[str, str]
+    ) -> List[Dict[str, Any]]:
+        """Construct assistant messages with tool call results.
+
+        Args:
+            tool_calls (List[Any]): List of tool calls
+            tool_responses (Dict[str, str]): Tool execution results
+
+        Returns:
+            List[Dict[str, Any]]: List of message dictionaries
+        """
         messages = []
         for tool_call in tool_calls:
             messages.append(
@@ -281,8 +378,15 @@ class LanguageModel(ABC):
             )
         return messages
 
-    def _format_response(self, result):
-        """格式化完整响应"""
+    def _format_response(self, result: Dict[str, Any]) -> str:
+        """Format the complete response.
+
+        Args:
+            result (Dict[str, Any]): Response dictionary
+
+        Returns:
+            str: Formatted response string
+        """
         response_parts = []
 
         if "reasoning_content" in result and result["reasoning_content"]:
@@ -294,9 +398,23 @@ class LanguageModel(ABC):
         return "\n\n".join(response_parts)
 
     def _generate_with_tool_response(
-        self, messages, tool_calls, tool_responses: Dict[str, str], stream=False
-    ):
-        """将工具结果传回LLM，生成最终响应"""
+        self,
+        messages: List[Dict[str, str]],
+        tool_calls: List[Any],
+        tool_responses: Dict[str, str],
+        stream: bool = False,
+    ) -> Dict[str, Any]:
+        """Generate final response with tool results.
+
+        Args:
+            messages (List[Dict[str, str]]): List of messages
+            tool_calls (List[Any]): List of tool calls
+            tool_responses (Dict[str, str]): Tool execution results
+            stream (bool): Whether to use streaming mode
+
+        Returns:
+            Dict[str, Any]: Final response dictionary
+        """
         # 构造包含工具结果的上下文
 
         messages.extend(
@@ -355,11 +473,27 @@ if __name__ == "__main__":
 
     # 注册工具
     @tool_registry.register
-    def get_weather(location: str):
+    def get_weather(location: str) -> str:
+        """Get weather information for a location.
+
+        Args:
+            location (str): Location to get weather for
+
+        Returns:
+            str: Weather information string
+        """
         return f"Weather in {location}: Sunny, 25°C"
 
     @tool_registry.register
-    def c_to_f(celsius: float) -> float:
+    def c_to_f(celsius: float) -> str:
+        """Convert Celsius to Fahrenheit.
+
+        Args:
+            celsius (float): Temperature in Celsius
+
+        Returns:
+            str: Formatted conversion result
+        """
         fahrenheit = (celsius * 1.8) + 32
         return f"{celsius} celsius degree == {fahrenheit} fahrenheit degree"
 

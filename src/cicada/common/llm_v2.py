@@ -84,32 +84,64 @@ class LanguageModel(ABC):
         )
 
     def _process_non_stream_response(self, response):
-        """处理非流式响应"""
+        """处理非流式响应，支持reasoning_content"""
         if not response.choices:
             raise ValueError("No response from the model")
 
-        # 获取第一条选择的响应内容
         choice = response.choices[0]
         message = choice.message
 
-        # 返回模型生成的内容
-        return message.content
+        # 构造返回结果
+        result = {
+            "content": message.content,
+            "reasoning_content": getattr(message, "reasoning_content", None),
+        }
+
+        # 如果存在reasoning_content，附加到响应中
+        if result["reasoning_content"]:
+            result["formatted_response"] = (
+                f"[Reasoning]: {result['reasoning_content']}\n\n"
+                f"[Response]: {result['content']}"
+            )
+        else:
+            result["formatted_response"] = result["content"]
+
+        return result
 
     def _process_stream_response(self, response):
-        """处理流式响应"""
+        """处理流式响应，支持reasoning_content"""
         complete_response = ""
+        reasoning_content = ""
 
         for chunk in response:
             if chunk.choices:
                 delta = chunk.choices[0].delta
+
+                # 收集常规内容
                 if delta.content:
-                    # 收集流式内容
                     complete_response += delta.content
-                    # 实时输出（可选）
-                    print(delta.content, end="", flush=True)
+                    cprint(delta.content, "white", end="", flush=True)
+
+                # 收集reasoning_content
+                if hasattr(delta, "reasoning_content") and delta.reasoning_content:
+                    reasoning_content += delta.reasoning_content
+                    cprint(delta.reasoning_content, "cyan", end="", flush=True)
 
         print()  # 流式结束后换行
-        return complete_response
+
+        # 构造返回结果
+        result = {"content": complete_response, "reasoning_content": reasoning_content}
+
+        # 格式化响应
+        if reasoning_content:
+            result["formatted_response"] = (
+                f"[Reasoning]: {reasoning_content}\n\n"
+                f"[Response]: {complete_response}"
+            )
+        else:
+            result["formatted_response"] = complete_response
+
+        return result
 
 
 # 使用示例

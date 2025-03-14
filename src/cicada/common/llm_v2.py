@@ -37,12 +37,13 @@ class LanguageModel(ABC):
             api_key=self.api_key, base_url=self.api_base_url, organization=self.org_id
         )
 
-    def query(self, prompt, system_prompt=None):
+    def query(self, prompt, system_prompt=None, stream=False):
         """
-        非流式查询的核心方法
+        支持流式和非流式的查询方法
         Args:
             prompt (str): 用户输入
             system_prompt (str, optional): 系统提示
+            stream (bool): 是否启用流式模式
         Returns:
             str: 模型生成的完整响应
         """
@@ -50,10 +51,13 @@ class LanguageModel(ABC):
         messages = self._build_messages(prompt, system_prompt)
 
         # 调用API
-        response = self._call_model_api(messages)
+        response = self._call_model_api(messages, stream)
 
         # 处理响应
-        return self._process_non_stream_response(response)
+        if stream:
+            return self._process_stream_response(response)
+        else:
+            return self._process_non_stream_response(response)
 
     def _build_messages(self, prompt, system_prompt):
         """构造消息列表"""
@@ -62,12 +66,12 @@ class LanguageModel(ABC):
             messages.insert(0, {"role": "system", "content": system_prompt})
         return messages
 
-    def _call_model_api(self, messages):
-        """调用模型API"""
+    def _call_model_api(self, messages, stream):
+        """调用模型API，支持流式模式"""
         return self.client.chat.completions.create(
             model=self.model_name,
             messages=messages,
-            stream=False,  # 明确设置为非流式
+            stream=stream,  # 动态设置流式模式
             **self.model_kwargs,
         )
 
@@ -82,6 +86,22 @@ class LanguageModel(ABC):
 
         # 返回模型生成的内容
         return message.content
+
+    def _process_stream_response(self, response):
+        """处理流式响应"""
+        complete_response = ""
+
+        for chunk in response:
+            if chunk.choices:
+                delta = chunk.choices[0].delta
+                if delta.content:
+                    # 收集流式内容
+                    complete_response += delta.content
+                    # 实时输出（可选）
+                    print(delta.content, end="", flush=True)
+
+        print()  # 流式结束后换行
+        return complete_response
 
 
 # 使用示例
@@ -109,3 +129,8 @@ if __name__ == "__main__":
 
     response = llm.query("Hello, how are you?")
     print(response)
+
+    # 流式模式
+    print("Streaming response:")
+    stream_response = llm.query("Tell me a story", stream=True)
+    print("Complete stream response:", stream_response)

@@ -117,23 +117,27 @@ class LanguageModel(ABC):
         if tools and hasattr(message, "tool_calls") and message.tool_calls:
 
             tool_responses = self._execute_tool_calls(message.tool_calls, tools)
+            result["tool_responses"] = tool_responses
 
             # 将工具结果传回LLM
-            # cprint(messages, "magenta")
             messages.extend(
                 self._recover_tool_call_assistant_message(
                     message.tool_calls, tool_responses
                 )
             )
 
+            result_copy = copy.deepcopy(result)
             # 调用模型生成最终响应
             result = self.query(messages=messages, stream=False, tools=tools)
 
             # move existing result into tool_chain_results
-            result["tool_responses"] = tool_responses
-            result_copy = copy.deepcopy(result)
-            result["tool_chain"] = result_copy
+            if "tool_chain" in result:
+                result["tool_chain"].insert(0, result_copy)
+            else:
+                result["tool_chain"] = [result_copy]
+            # cprint(result, "yellow", flush=True)
 
+        # 格式化响应
         result["formatted_response"] = self._format_response(result)
         return result
 
@@ -141,7 +145,7 @@ class LanguageModel(ABC):
         """处理流式响应，支持工具调用"""
         complete_response = ""
         reasoning_content = ""
-        tool_calls = {}
+        stream_tool_calls = {}
         tool_responses = []
 
         for chunk in response:
@@ -164,20 +168,20 @@ class LanguageModel(ABC):
                     # Handle tool calls in streaming mode
                     for tool_call in delta.tool_calls:
                         index = tool_call.index
-                        if index not in tool_calls:
-                            tool_calls[index] = {
+                        if index not in stream_tool_calls:
+                            stream_tool_calls[index] = {
                                 "id": "",
                                 "type": "function",
                                 "function": {"name": "", "arguments": ""},
                             }
                         if tool_call.id:
-                            tool_calls[index]["id"] += tool_call.id
+                            stream_tool_calls[index]["id"] += tool_call.id
                         if tool_call.function.name:
-                            tool_calls[index]["function"][
+                            stream_tool_calls[index]["function"][
                                 "name"
                             ] += tool_call.function.name
                         if tool_call.function.arguments:
-                            tool_calls[index]["function"][
+                            stream_tool_calls[index]["function"][
                                 "arguments"
                             ] += tool_call.function.arguments
 
@@ -188,23 +192,29 @@ class LanguageModel(ABC):
         print()  # 流式结束后换行
 
         # 执行工具调用
-        if tool_calls:
-            tool_calls = recover_stream_tool_calls(tool_calls)
-
+        if stream_tool_calls:
+            tool_calls = recover_stream_tool_calls(stream_tool_calls)
             tool_responses = self._execute_tool_calls(tool_calls, tools)
+            # cprint(result, "cyan")
+            result["tool_responses"] = tool_responses
+            # cprint(tool_responses, "magenta")
+            # cprint(result, "bright_yellow")
 
             # 将工具结果传回LLM
             messages.extend(
                 self._recover_tool_call_assistant_message(tool_calls, tool_responses)
             )
 
+            result_copy = copy.deepcopy(result)
             # 调用模型生成最终响应
             result = self.query(messages=messages, stream=True, tools=tools)
 
             # move existing result into tool_chain_results
-            result["tool_responses"] = tool_responses
-            result_copy = copy.deepcopy(result)
-            result["tool_chain"] = result_copy
+            if "tool_chain" in result:
+                result["tool_chain"].insert(0, result_copy)
+            else:
+                result["tool_chain"] = [result_copy]
+            # cprint(result, "yellow", flush=True)
 
         # 格式化响应
         result["formatted_response"] = self._format_response(result)
@@ -272,18 +282,30 @@ class LanguageModel(ABC):
         """格式化完整响应"""
         response_parts = []
 
-        if result["reasoning_content"]:
+        if "reasoning_content" in result and result["reasoning_content"]:
             response_parts.append(f"[Reasoning]: {result['reasoning_content']}")
 
         if result["content"]:
             response_parts.append(f"[Response]: {result['content']}")
 
-        if result["tool_responses"]:
-            response_parts.append(
-                "[Tool Results]:\n" + "\n".join(result["tool_responses"])
-            )
-
         return "\n\n".join(response_parts)
+
+    def _generate_with_tool_response(
+        self, messages, tool_calls, tool_responses: Dict[str, str], stream=False
+    ):
+        """将工具结果传回LLM，生成最终响应"""
+        # 构造包含工具结果的上下文
+
+        messages.extend(
+            self._recover_tool_call_assistant_message(tool_calls, tool_responses)
+        )
+        print(messages)
+
+        # 调用模型生成最终响应
+        final_response = self.query(messages=messages, stream=stream)
+        print(final_response)
+
+        return final_response
 
 
 # 使用示例
@@ -311,10 +333,10 @@ if __name__ == "__main__":
 
     from cicada.common.basics import PromptBuilder
 
-    # 流式模式
-    print("Streaming response:")
-    stream_response = llm.query("告诉我一个极短的笑话", stream=True)
-    print("Complete stream response:", stream_response)
+    # # 流式模式
+    # print("Streaming response:")
+    # stream_response = llm.query("告诉我一个极短的笑话", stream=True)
+    # print("Complete stream response:", stream_response)
 
     # pb = PromptBuilder()
     # pb.add_system_prompt("You are a helpful assistant")
@@ -345,3 +367,5 @@ if __name__ == "__main__":
         # stream=True,
     )
     print(response["content"])
+
+    cprint(response)

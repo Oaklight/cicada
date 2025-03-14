@@ -301,6 +301,15 @@ if __name__ == "__main__":
     def get_weather(location: str):
         return f"Weather in {location}: Sunny, 25°C"
 
+    @tool_registry.register
+    def c_to_f(celsius: float) -> float:
+        fahrenheit = (celsius * 1.8) + 32
+        return f"{celsius} celsius degree == {fahrenheit} fahrenheit degree"
+
     # 使用工具调用
-    response = llm.query("What's the weather like in Shanghai?", tools=tool_registry)
-    print(response["formatted_response"])
+    response = llm.query(
+        "What's the weather like in Shanghai, in fahrenheit?",
+        tools=tool_registry,
+        # stream=True,
+    )
+    print(response["content"])

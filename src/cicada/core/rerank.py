@@ -5,8 +5,6 @@ from typing import Dict, List
 
 import httpx
 import requests
-import tenacity
-
 from cicada.core.utils import colorstring
 
 logger = logging.getLogger(__name__)
@@ -34,18 +32,6 @@ class Rerank(ABC):
         self.model_name = model_name
         self.model_kwargs = model_kwargs
 
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3)
-        | tenacity.stop_after_delay(30),  # Stop after 3 attempts or 30 seconds
-        wait=tenacity.wait_random_exponential(multiplier=1, min=2, max=10),
-        retry=tenacity.retry_if_exception_type(
-            (httpx.ReadTimeout, httpx.ConnectTimeout)
-        ),  # Retry on API errors or network timeouts
-        before_sleep=tenacity.before_sleep_log(
-            logger, logging.WARNING
-        ),  # Log before retrying
-        reraise=True,
-    )
     def rerank(
         self,
         query: str,

@@ -2,9 +2,7 @@ import logging
 from abc import ABC
 from typing import List
 
-import httpx
 import openai
-import tenacity
 
 logger = logging.getLogger(__name__)
 
@@ -38,18 +36,6 @@ class Embed(ABC):
             api_key=self.api_key, base_url=self.api_base_url, organization=self.org_id
         )
 
-    @tenacity.retry(
-        stop=tenacity.stop_after_attempt(3)
-        | tenacity.stop_after_delay(30),  # Stop after 3 attempts or 30 seconds
-        wait=tenacity.wait_random_exponential(multiplier=1, min=2, max=10),
-        retry=tenacity.retry_if_exception_type(
-            (openai.APIError, httpx.ReadTimeout, httpx.ConnectTimeout)
-        ),  # Retry on API errors or network timeouts
-        before_sleep=tenacity.before_sleep_log(
-            logger, logging.WARNING
-        ),  # Log before retrying
-        reraise=True,
-    )
     def embed(self, texts: List[str]) -> List[List[float]]:
         """
         Generate embeddings for a list of texts using the OpenAI API.

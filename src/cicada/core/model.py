@@ -333,104 +333,28 @@ class MultiModalModel(ABC):
         result["formatted_response"] = self._format_response(result)
         return result
 
-    def _execute_tool_calls(
-        self, tool_calls: List[Any], tools: ToolRegistry
-    ) -> Dict[str, str]:
-        """Execute tool calls and return results.
-
-        Args:
-            tool_calls (List[Any]): List of tool calls
-            tools (ToolRegistry): Tool registry instance
-
-        Returns:
-            Dict[str, str]: Dictionary mapping tool call IDs to results
-        """
-        tool_responses = {}
-        # cprint(tool_calls, "bright_red")
-        # cprint(type(tool_calls))
-        for tool_call in tool_calls:
-
-            tool_result = None
-            try:
-                function_name = tool_call.function.name
-                function_args = json.loads(tool_call.function.arguments)
-                tool_call_id = tool_call.id
-                # cprint(type(tool_call_id), "bright_blue")
-
-                # 从注册表中获取工具
-                tool = tools.get_callable(function_name)
-                if tool:
-                    function_response = tool(**function_args)
-                    tool_result = f"{function_name} -> {function_response}"
-                else:
-                    tool_result = f"Error: Tool '{function_name}' not found"
-            except Exception as e:
-                tool_result = f"Error executing {function_name}: {str(e)}"
-
-            tool_responses[tool_call_id] = tool_result
-
-        return tool_responses
-
     def get_response_with_tools(
         self, messages, tool_calls, tools, result, stream=False
     ):
-        tool_responses = self._execute_tool_calls(tool_calls, tools)
+        # 使用 ToolRegistry 执行工具调用
+        tool_responses = tools.execute_tool_calls(tool_calls)
         result["tool_responses"] = tool_responses
 
-        # 将工具结果传回LLM
+        # 使用 ToolRegistry 构造工具调用结果消息
         messages.extend(
-            self._recover_tool_call_assistant_message(tool_calls, tool_responses)
+            tools.recover_tool_call_assistant_message(tool_calls, tool_responses)
         )
 
         result_copy = copy.deepcopy(result)
         # 调用模型生成最终响应
         result = self.query(messages=messages, stream=stream, tools=tools)
 
-        # move existing result into tool_chain_results
+        # 将当前结果加入工具调用链
         if "tool_chain" in result:
             result["tool_chain"].insert(0, result_copy)
         else:
             result["tool_chain"] = [result_copy]
         return result
-
-    def _recover_tool_call_assistant_message(
-        self, tool_calls: List[Any], tool_responses: Dict[str, str]
-    ) -> List[Dict[str, Any]]:
-        """Construct assistant messages with tool call results.
-
-        Args:
-            tool_calls (List[Any]): List of tool calls
-            tool_responses (Dict[str, str]): Tool execution results
-
-        Returns:
-            List[Dict[str, Any]]: List of message dictionaries
-        """
-        messages = []
-        for tool_call in tool_calls:
-            messages.append(
-                {
-                    "role": "assistant",
-                    "content": None,
-                    "tool_calls": [
-                        {
-                            "id": tool_call.id,
-                            "type": "function",
-                            "function": {
-                                "name": tool_call.function.name,
-                                "arguments": tool_call.function.arguments,
-                            },
-                        }
-                    ],
-                }
-            )
-            messages.append(
-                {
-                    "role": "tool",
-                    "content": tool_responses[tool_call.id],
-                    "tool_call_id": tool_call.id,
-                }
-            )
-        return messages
 
     def _format_response(self, result: Dict[str, Any]) -> str:
         """Format the complete response.

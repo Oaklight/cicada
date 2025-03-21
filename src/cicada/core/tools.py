@@ -200,6 +200,78 @@ class ToolRegistry:
         """
         return self.get_callable(key)
 
+    def execute_tool_calls(self, tool_calls: List[Any]) -> Dict[str, str]:
+        """
+        Execute tool calls and return results.
+
+        Args:
+            tool_calls (List[Any]): List of tool calls
+
+        Returns:
+            Dict[str, str]: Dictionary mapping tool call IDs to results
+        """
+        tool_responses = {}
+        for tool_call in tool_calls:
+            tool_result = None
+            try:
+                function_name = tool_call.function.name
+                function_args = json.loads(tool_call.function.arguments)
+                tool_call_id = tool_call.id
+
+                # Get the tool from registry
+                tool = self.get_callable(function_name)
+                if tool:
+                    function_response = tool(**function_args)
+                    tool_result = f"{function_name} -> {function_response}"
+                else:
+                    tool_result = f"Error: Tool '{function_name}' not found"
+            except Exception as e:
+                tool_result = f"Error executing {function_name}: {str(e)}"
+
+            tool_responses[tool_call_id] = tool_result
+
+        return tool_responses
+
+    def recover_tool_call_assistant_message(
+        self, tool_calls: List[Any], tool_responses: Dict[str, str]
+    ) -> List[Dict[str, Any]]:
+        """
+        Construct assistant messages with tool call results.
+
+        Args:
+            tool_calls (List[Any]): List of tool calls
+            tool_responses (Dict[str, str]): Tool execution results
+
+        Returns:
+            List[Dict[str, Any]]: List of message dictionaries
+        """
+        messages = []
+        for tool_call in tool_calls:
+            messages.append(
+                {
+                    "role": "assistant",
+                    "content": None,
+                    "tool_calls": [
+                        {
+                            "id": tool_call.id,
+                            "type": "function",
+                            "function": {
+                                "name": tool_call.function.name,
+                                "arguments": tool_call.function.arguments,
+                            },
+                        }
+                    ],
+                }
+            )
+            messages.append(
+                {
+                    "role": "tool",
+                    "content": tool_responses[tool_call.id],
+                    "tool_call_id": tool_call.id,
+                }
+            )
+        return messages
+
 
 # Create a global instance of the ToolRegistry
 tool_registry = ToolRegistry()

@@ -5,8 +5,8 @@ import os
 from cicada.coding.code_cache import CodeCache
 from cicada.coding.code_executor import CodeExecutor
 from cicada.coding.code_generator import CodeGenerator
-from cicada.common.basics import DesignGoal
-from cicada.common.utils import colorstring, cprint
+from cicada.core.basics import DesignGoal
+from cicada.core.utils import colorstring, cprint
 
 logger = logging.getLogger(__name__)
 
@@ -186,7 +186,7 @@ def parse_args():
 
 
 if __name__ == "__main__":
-    from cicada.common.utils import load_config, load_prompts, setup_logging
+    from cicada.core.utils import load_config, load_prompts, setup_logging
 
     args = parse_args()
     setup_logging()

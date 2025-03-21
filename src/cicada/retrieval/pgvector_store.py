@@ -7,7 +7,7 @@ from pgvector.sqlalchemy import Vector
 from sqlalchemy import Column, create_engine, ForeignKey, JSON, String, UUID
 from sqlalchemy.orm import declarative_base, relationship, Session, sessionmaker
 
-from cicada.common.utils import colorstring, cprint, load_config, setup_logging
+from cicada.core.utils import colorstring, cprint, load_config, setup_logging
 from cicada.retrieval.basics import Document, Embeddings, VectorStore
 
 logger = logging.getLogger(__name__)

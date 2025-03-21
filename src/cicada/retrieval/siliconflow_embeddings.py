@@ -1,6 +1,6 @@
 from typing import List, Union
 
-from cicada.common.embed import Embed
+from cicada.core.embed import Embed
 from cicada.retrieval.basics import Document, Embeddings
 
 
@@ -94,7 +94,7 @@ class SiliconFlowEmbeddings(Embeddings):
 if __name__ == "__main__":
     import argparse
 
-    from cicada.common.utils import load_config
+    from cicada.core.utils import load_config
 
     parser = argparse.ArgumentParser(description="Feedback Judge")
     parser.add_argument(

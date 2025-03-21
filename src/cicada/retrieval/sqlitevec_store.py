@@ -4,7 +4,7 @@ import sqlite3
 import struct
 from typing import Dict, List, Optional, Tuple
 
-from cicada.common.utils import colorstring
+from cicada.core.utils import colorstring
 from cicada.retrieval.basics import Document, Embeddings, VectorStore
 
 logger = logging.getLogger(__name__)
@@ -516,7 +516,7 @@ if __name__ == "__main__":
     """Test the SQLiteVec class with SiliconFlowEmbeddings."""
     import argparse
 
-    from cicada.common.utils import cprint, load_config, setup_logging
+    from cicada.core.utils import cprint, load_config, setup_logging
 
     from cicada.retrieval.siliconflow_embeddings import SiliconFlowEmbeddings
     from cicada.retrieval.siliconflow_rerank import SiliconFlowRerank

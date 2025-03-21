@@ -1,6 +1,6 @@
 from typing import Dict, List, Union
 
-from cicada.common.rerank import Rerank
+from cicada.core.rerank import Rerank
 from cicada.retrieval.basics import Document
 
 
@@ -80,7 +80,7 @@ if __name__ == "__main__":
 
     import argparse
 
-    from cicada.common.utils import load_config, setup_logging
+    from cicada.core.utils import load_config, setup_logging
 
     setup_logging()
 

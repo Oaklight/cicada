@@ -6,8 +6,8 @@ import httpx
 import openai
 import tenacity
 
-from cicada.common import llm
-from cicada.common.utils import colorstring, cprint
+from cicada.core import llm
+from cicada.core.utils import colorstring, cprint
 
 logger = logging.getLogger(__name__)
 
@@ -168,7 +168,7 @@ class VisionLanguageModel(llm.LanguageModel, ABC):
 if __name__ == "__main__":
     import argparse
 
-    from cicada.common.utils import image_to_base64, load_config, setup_logging
+    from cicada.core.utils import image_to_base64, load_config, setup_logging
 
     parser = argparse.ArgumentParser(description="Vision Language Model")
     parser.add_argument(

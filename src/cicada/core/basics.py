@@ -4,8 +4,8 @@ from typing import Any, Dict, List, Optional
 
 from deprecated import deprecated
 
-from cicada.common.tools import ToolRegistry
-from cicada.common.utils import get_image_paths, image_to_base64, is_base64_encoded
+from cicada.core.tools import ToolRegistry
+from cicada.core.utils import get_image_paths, image_to_base64, is_base64_encoded
 
 
 def _create_text_content(text: str) -> dict:

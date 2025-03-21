@@ -395,7 +395,7 @@ class CodeCache:
 # Usage example
 if __name__ == "__main__":
 
-    from cicada.common.utils import setup_logging
+    from cicada.core.utils import setup_logging
 
     setup_logging()
 

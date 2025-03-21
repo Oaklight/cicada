@@ -8,8 +8,8 @@ from typing import List, Literal
 from trimesh import load_mesh
 
 from cicada.coding.coder import Coder
-from cicada.common.basics import DesignGoal
-from cicada.common.utils import (
+from cicada.core.basics import DesignGoal
+from cicada.core.utils import (
     colorstring,
     cprint,
     find_files_with_extensions,

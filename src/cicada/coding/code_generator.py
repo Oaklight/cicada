@@ -7,10 +7,10 @@ logging.basicConfig(level=logging.INFO)
 import os
 import sys
 
-from cicada.common import llm
-from cicada.common.basics import DesignGoal
-from cicada.common.tools import tool_registry
-from cicada.common.utils import colorstring, cprint, extract_section_markdown
+from cicada.core import llm
+from cicada.core.basics import DesignGoal
+from cicada.core.tools import tool_registry
+from cicada.core.utils import colorstring, cprint, extract_section_markdown
 
 from cicada.tools.code_dochelper import doc_helper
 
@@ -394,7 +394,7 @@ def test_code_generator(code_generator, design_goal, output_dir):
 if __name__ == "__main__":
     import argparse
 
-    from cicada.common.utils import load_config, load_prompts, setup_logging
+    from cicada.core.utils import load_config, load_prompts, setup_logging
 
     parser = argparse.ArgumentParser(description="Assistive Large Language Model")
     parser.add_argument(

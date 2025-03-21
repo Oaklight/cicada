@@ -2,7 +2,7 @@ import json
 import os
 from typing import List
 
-from cicada.common.utils import load_config
+from cicada.core.utils import load_config
 
 
 def get_images_from_folder(folder_path: str) -> List[str]:

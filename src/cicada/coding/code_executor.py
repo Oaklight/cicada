@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 from subprocess import run, TimeoutExpired
 
-from cicada.common.utils import colorstring
+from cicada.core.utils import colorstring
 
 logger = logging.getLogger(__name__)
 
@@ -209,7 +209,7 @@ class CodeExecutor:
 
 
 if __name__ == "__main__":
-    from cicada.common.utils import colorstring, setup_logging
+    from cicada.core.utils import colorstring, setup_logging
 
     setup_logging()
 

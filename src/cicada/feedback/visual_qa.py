@@ -1,9 +1,9 @@
 import logging
 from typing import List
 
-from cicada.common import vlm
-from cicada.common.basics import PromptBuilder
-from cicada.common.utils import get_image_paths, image_to_base64
+from cicada.core import vlm
+from cicada.core.basics import PromptBuilder
+from cicada.core.utils import get_image_paths, image_to_base64
 
 logger = logging.getLogger(__name__)
 
@@ -162,7 +162,7 @@ if __name__ == "__main__":
     import argparse
     import json
 
-    from cicada.common.utils import (
+    from cicada.core.utils import (
         colorstring,
         cprint,
         get_image_paths,

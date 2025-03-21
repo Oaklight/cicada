@@ -3,9 +3,9 @@ import logging
 import re
 from typing import Any, Dict, Tuple
 
-from cicada.common import vlm
-from cicada.common.basics import PromptBuilder
-from cicada.common.utils import colorstring, cprint
+from cicada.core import vlm
+from cicada.core.basics import PromptBuilder
+from cicada.core.utils import colorstring, cprint
 
 logger = logging.getLogger(__name__)
 
@@ -127,7 +127,7 @@ def parse_args() -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    from cicada.common.utils import (
+    from cicada.core.utils import (
         load_config,
         load_prompts,
         parse_design_goal,

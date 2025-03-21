@@ -3,14 +3,14 @@ import logging
 import re
 from typing import Any, Dict, Tuple
 
-from cicada.core import vlm
+from cicada.core import model
 from cicada.core.basics import PromptBuilder
 from cicada.core.utils import colorstring, cprint
 
 logger = logging.getLogger(__name__)
 
 
-class FeedbackJudge(vlm.VisionLanguageModel):
+class FeedbackJudge(model.MultiModalModel):
     def __init__(
         self,
         api_key,
@@ -50,13 +50,13 @@ class FeedbackJudge(vlm.VisionLanguageModel):
         )
 
         pb = PromptBuilder()
-        pb.add_system_prompt(
+        pb.add_system_message(
             self.prompt_templates["is_design_goal_achieved"]["system_prompt"]
         )
-        pb.add_user_prompt(prompt)
+        pb.add_user_message(prompt)
 
         # Query the LLM
-        response = self.query_with_promptbuilder(pb)
+        response = self.query(prompt_builder=pb, stream=self.stream)["content"]
         logger.info(colorstring(f"Feedback Judge determines that:\n{response}", "cyan"))
 
         # Parse the Markdown-formatted response

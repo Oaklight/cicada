@@ -6,7 +6,7 @@ from typing import Any, Dict, Tuple
 import questionary
 from questionary import Style
 
-from cicada.core import vlm
+from cicada.core import model
 from cicada.core.basics import DesignGoal, PromptBuilder
 from cicada.core.utils import colorstring, parse_json_response
 
@@ -24,7 +24,7 @@ custom_style = Style(
 )
 
 
-class Describer(vlm.VisionLanguageModel):
+class Describer(model.MultiModalModel):
     def __init__(
         self,
         api_key,
@@ -58,9 +58,9 @@ class Describer(vlm.VisionLanguageModel):
         )
 
         pb = PromptBuilder()
-        pb.add_system_prompt(self.featurize_design_prompt["system_prompt_template"])
+        pb.add_system_message(self.featurize_design_prompt["system_prompt_template"])
 
-        pb.add_user_prompt(f"The current design goal: '{text_goal}'.")
+        pb.add_user_message(f"The current design goal: '{text_goal}'.")
 
         if ref_images:
             pb.add_text("The following reference images are provided:")
@@ -72,10 +72,10 @@ class Describer(vlm.VisionLanguageModel):
             )
             pb.add_text(user_feedback)
 
-        pb.add_user_prompt(self.featurize_design_prompt["user_prompt_template"])
+        pb.add_user_message(self.featurize_design_prompt["user_prompt_template"])
 
         # Query the VLM with images and prompt
-        response = self.query_with_promptbuilder(pb)
+        response = self.query(prompt_builder=pb, stream=self.stream)["content"]
 
         # Parse the JSON response
         json_result = parse_json_response(response)
@@ -113,15 +113,15 @@ class Describer(vlm.VisionLanguageModel):
 
         # Prepare the prompt for decomposing the design
         pb = PromptBuilder()
-        pb.add_system_prompt(self.reverse_engineer_prompt["system_prompt_template"])
-        pb.add_user_prompt(user_prompt)
+        pb.add_system_message(self.reverse_engineer_prompt["system_prompt_template"])
+        pb.add_user_message(user_prompt)
 
         if ref_images:
             pb.add_text("The following is a set of reference images:")
             pb.add_images(ref_images)
 
         # Query the VLM with images and prompt
-        response = self.query_with_promptbuilder(pb)
+        response = self.query(prompt_builder=pb, stream=self.stream)["content"]
 
         # Parse the JSON response
         json_result = parse_json_response(response)
@@ -149,11 +149,11 @@ class Describer(vlm.VisionLanguageModel):
         )
 
         pb = PromptBuilder()
-        pb.add_system_prompt(self.featurize_design_prompt["system_prompt_template"])
-        pb.add_user_prompt(analysis_prompt)
+        pb.add_system_message(self.featurize_design_prompt["system_prompt_template"])
+        pb.add_user_message(analysis_prompt)
 
         # Query the VLM with the analysis prompt
-        response = self.query_with_promptbuilder(pb)
+        response = self.query(prompt_builder=pb, stream=self.stream)["content"]
         analysis_result = parse_json_response(response)
 
         # If there's a conflict, ask for user confirmation

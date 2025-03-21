@@ -1,7 +1,7 @@
 import logging
 from typing import Literal
 
-import requests
+import httpx
 
 # Set up logging
 logger = logging.getLogger(__name__)
@@ -62,13 +62,13 @@ def fetch_content(
         headers["Accept"] = "application/json"
 
     try:
-        response = requests.get(api_url, headers=headers, timeout=10)
+        response = httpx.get(api_url, headers=headers, timeout=10)
         response.raise_for_status()
         content = response.text
         logger.info(
             f"Successfully fetched content from: {url} in {return_format} format"
         )
-    except requests.exceptions.RequestException as e:
+    except httpx.RequestError as e:
         content = f"error: {str(e)}"
         logger.error(f"Failed to fetch content from {url}. Error: {str(e)}")
     return content
@@ -104,5 +104,5 @@ if __name__ == "__main__":
         with_links_summary=with_links_summary,
         with_images_summary=with_images_summary,
     )
-    logger.info("Fetched Content:")
+    logger.info("\nFetched Content:\n")
     logger.info(fetched_content)

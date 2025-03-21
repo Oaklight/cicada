@@ -2,9 +2,6 @@ import json
 import os
 from typing import Any, Dict, List, Optional
 
-from deprecated import deprecated
-
-from cicada.core.tools import ToolRegistry
 from cicada.core.utils import get_image_paths, image_to_base64, is_base64_encoded
 
 
@@ -48,27 +45,7 @@ class PromptBuilder:
         """
         self.messages.append({"role": "system", "content": content})
 
-    # Alias for add_system_prompt
-    @deprecated(reason="`add_system_message` is the more favorable convention")
-    def add_system_prompt(self, content):
-        """Add a system prompt to the messages.
-
-        Args:
-            content (str): The content of the system prompt.
-        """
-        self.messages.append({"role": "system", "content": content})
-
     def add_user_message(self, content):
-        """Add a user prompt with text content to the messages.
-
-        Args:
-            content (str): The text content of the user prompt.
-        """
-        self.add_text(content)
-
-    # Alias for add_user_prompt
-    @deprecated(reason="`add_user_message` is the more favorable convention")
-    def add_user_prompt(self, content):
         """Add a user prompt with text content to the messages.
 
         Args:
@@ -149,30 +126,6 @@ class PromptBuilder:
             self.messages[msg_index]["content"].append(new_content)
 
         return msg_index
-
-    @deprecated(reason="tool should be handled outside of PromptBuilder")
-    def add_tools(self, tools: ToolRegistry, keep_existing: bool = False):
-        """Add tools to the PromptBuilder.
-
-        This method allows adding a registry of tools to the prompt. If tools already exist,
-        they can be merged with the new ones based on the `keep_existing` flag. If `keep_existing` is True, existing tools with conflicting names will be preserved. Otherwise, they will be overwritten.
-
-        Args:
-            tools (ToolRegistry): The registry of tools to be used with the prompt.
-        """
-        if self.tools:  # If tools already exist, merge them with the new ones
-            self.tools.merge(tools, keep_existing=keep_existing)
-        else:
-            self.tools = tools
-
-    @deprecated(reason="tool should be handled outside of PromptBuilder")
-    def get_tools(self):
-        """Get the tools set for the prompt.
-
-        Returns:
-            ToolRegistry: The registry of tools if any have been set.
-        """
-        return self.tools
 
 
 class DesignGoal:

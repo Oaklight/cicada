@@ -7,7 +7,7 @@ logging.basicConfig(level=logging.INFO)
 import os
 import sys
 
-from cicada.core import llm
+from cicada.core import model
 from cicada.core.basics import DesignGoal
 from cicada.core.tools import tool_registry
 from cicada.core.utils import colorstring, cprint, extract_section_markdown
@@ -17,7 +17,7 @@ from cicada.tools.code_dochelper import doc_helper
 logger = logging.getLogger(__name__)
 
 
-class CodeGenerator(llm.LanguageModel):
+class CodeGenerator(model.MultiModalModel):
     def __init__(
         self,
         api_key,
@@ -114,7 +114,11 @@ class CodeGenerator(llm.LanguageModel):
             )
 
         try:
-            generated_code = self.query(prompt, self.system_prompt_code_generation)
+            generated_code = self.query(
+                prompt=prompt,
+                system_prompt=self.system_prompt_code_generation,
+                stream=self.stream,
+            )["content"]
             return self._extract_code_from_response(generated_code)
         except Exception as e:
             logger.error(f"API call failed: {e}")
@@ -150,7 +154,11 @@ class CodeGenerator(llm.LanguageModel):
             tool_registry.register(doc_helper)
 
             # Query the LLM with dochelper tool for documentation insights
-            doc_response = self.query(doc_query_prompt, tools=tool_registry)
+            doc_response = self.query(
+                prompt=doc_query_prompt,
+                tools=tool_registry,
+                stream=self.stream,
+            )["content"]
 
             # Extract helpful documentation info from the response
             documentation_insights = doc_response.strip()
@@ -176,8 +184,11 @@ class CodeGenerator(llm.LanguageModel):
         try:
             # Attempt to fix the code with enriched prompt
             fixed_code = self.query(
-                fix_prompt, self.system_prompt_code_generation, tools=tool_registry
-            )
+                prompt=fix_prompt,
+                system_prompt=self.system_prompt_code_generation,
+                tools=tool_registry,
+                stream=self.stream,
+            )["content"]
 
             return self._extract_code_from_response(fixed_code)
 
@@ -216,7 +227,11 @@ class CodeGenerator(llm.LanguageModel):
 
         try:
             # Call the LLM to generate the plan
-            plan_response = self.query(prompt, self.system_prompt_code_planning)
+            plan_response = self.query(
+                prompt=prompt,
+                system_prompt=self.system_prompt_code_planning,
+                stream=self.stream,
+            )["content"]
 
             # Extract the plan section
             plan = extract_section_markdown(plan_response, " Plan")
@@ -239,12 +254,7 @@ class CodeGenerator(llm.LanguageModel):
         except Exception as e:
             logger.error(f"API call failed: {e}")
             return None
-            return {
-                "plan": plan,
-                "elements": elements,
-                "considerations": considerations,  # 新增考虑事项部分
-                "considerations": considerations,  # New considerations section
-            }
+
         except Exception as e:
             logger.error(f"API call failed: {e}")
             return None

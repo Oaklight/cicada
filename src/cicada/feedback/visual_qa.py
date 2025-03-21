@@ -1,7 +1,7 @@
 import logging
 from typing import List
 
-from cicada.core import vlm
+from cicada.core import model
 from cicada.core.basics import PromptBuilder
 from cicada.core.utils import get_image_paths, image_to_base64
 
@@ -24,7 +24,7 @@ def load_images(path: str) -> List[str]:
         return []
 
 
-class VisualQA(vlm.VisionLanguageModel):
+class VisualQA(model.MultiModalModel):
     def __init__(
         self,
         api_key,
@@ -74,15 +74,15 @@ class VisualQA(vlm.VisionLanguageModel):
         ].format(design_goal=design_goal, num_questions=num_questions)
 
         pb = PromptBuilder()
-        pb.add_system_prompt(
+        pb.add_system_message(
             self.visual_qa_prompts["question_generation"]["system_prompt"]
         )
-        pb.add_user_prompt(prompt)
+        pb.add_user_message(prompt)
         if reference_images:
             pb.add_text("The following is a set of reference images:")
             pb.add_images(reference_images)
 
-        response = self.query_with_promptbuilder(pb)
+        response = self.query(prompt_builder=pb, stream=self.stream)["content"]
 
         questions = [q.strip() for q in response.split("\n") if q.strip()]
         return questions
@@ -114,17 +114,17 @@ class VisualQA(vlm.VisionLanguageModel):
 
         # construct using PromptBuilder
         pb = PromptBuilder()
-        pb.add_system_prompt(
+        pb.add_system_message(
             self.visual_qa_prompts["answer_generation"]["system_prompt"]
         )
-        pb.add_user_prompt(prompt)  # Add the formatted prompt to the PromptBuilder
+        pb.add_user_message(prompt)  # Add the formatted prompt to the PromptBuilder
         if reference_images:
             pb.add_text("The followings are reference images of design goal:")
             pb.add_images(reference_images)
         pb.add_text("The following is a set of rendered object images:")
         pb.add_images(rendered_images)
 
-        response = self.query_with_promptbuilder(pb)
+        response = self.query(prompt_builder=pb, stream=self.stream)["content"]
 
         return response
 

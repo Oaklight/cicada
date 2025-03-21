@@ -2,14 +2,14 @@ import argparse
 import logging
 from typing import Any, Dict, List
 
-from cicada.core import vlm
+from cicada.core import model
 from cicada.core.basics import PromptBuilder
 
 
 logger = logging.getLogger(__name__)
 
 
-class VisualFeedback(vlm.VisionLanguageModel):
+class VisualFeedback(model.MultiModalModel):
     def __init__(
         self,
         api_key,
@@ -49,8 +49,8 @@ class VisualFeedback(vlm.VisionLanguageModel):
         )
 
         pb = PromptBuilder()
-        pb.add_system_prompt(self.visual_feedback_prompts["system_prompt_template"])
-        pb.add_user_prompt(prompt)
+        pb.add_system_message(self.visual_feedback_prompts["system_prompt_template"])
+        pb.add_user_message(prompt)
         if reference_images:
             pb.add_text("The following is a set of reference images:")
             pb.add_images(reference_images)
@@ -58,7 +58,7 @@ class VisualFeedback(vlm.VisionLanguageModel):
         pb.add_images(rendered_images)
 
         # Query the VLM with images and prompt
-        response = self.query_with_promptbuilder(pb)
+        response = self.query(prompt_builder=pb, stream=self.stream)["content"]
 
         # Extract and return the feedback paragraph
         feedback = response.strip()

@@ -513,8 +513,8 @@ if __name__ == "__main__":
     # stream_response = llm.query("告诉我一个极短的笑话", stream=True)
     # print("Complete stream response:", stream_response)
     # pb = PromptBuilder()
-    # pb.add_system_prompt("You are a helpful assistant")
-    # pb.add_user_prompt("Explain quantum computing")
+    # pb.add_system_message("You are a helpful assistant")
+    # pb.add_user_message("Explain quantum computing")
     # result = llm.query(prompt_builder=pb, stream=True)
     # print("PromptBuilder response:", result["formatted_response"])
     # 创建工具注册表

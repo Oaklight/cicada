@@ -50,7 +50,7 @@ class PromptBuilder:
 
     # Alias for add_system_prompt
     @deprecated(reason="`add_system_message` is the more favorable convention")
-    def dd_system_prompt(self, content):
+    def add_system_prompt(self, content):
         """Add a system prompt to the messages.
 
         Args:

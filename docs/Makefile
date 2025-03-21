@@ -31,8 +31,11 @@ publish: html host
 	@echo "Documentation has been generated and hosted."
 
 # Regenerate API templates before building HTML
-html: clean
-	@echo "Regenerating API templates..."
-	@./regenerate_api_template.sh
+html: clean regenerate
 	@echo "Building HTML documentation..."
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
+
+# Regenerate API templates
+regenerate:
+	@echo "Regenerating API templates..."
+	@./regenerate_api_template.sh

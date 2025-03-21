@@ -1,11 +1,11 @@
 feedback package
-=================
+================
 
 Submodules
 ----------
 
 feedback.feedback\_judge module
---------------------------------
+-------------------------------
 
 .. automodule:: feedback.feedback_judge
    :members:
@@ -13,7 +13,7 @@ feedback.feedback\_judge module
    :show-inheritance:
 
 feedback.visual\_feedback module
----------------------------------
+--------------------------------
 
 .. automodule:: feedback.visual_feedback
    :members:
@@ -21,7 +21,7 @@ feedback.visual\_feedback module
    :show-inheritance:
 
 feedback.visual\_qa module
----------------------------
+--------------------------
 
 .. automodule:: feedback.visual_qa
    :members:

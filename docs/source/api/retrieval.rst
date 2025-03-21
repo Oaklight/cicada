@@ -2,10 +2,10 @@ retrieval package
 =================
 
 Submodules
------------
+----------
 
 retrieval.basics module
-----------------------------
+-----------------------
 
 .. automodule:: retrieval.basics
    :members:
@@ -13,7 +13,7 @@ retrieval.basics module
    :show-inheritance:
 
 retrieval.pgvector\_store module
--------------------------------------
+--------------------------------
 
 .. automodule:: retrieval.pgvector_store
    :members:
@@ -21,7 +21,7 @@ retrieval.pgvector\_store module
    :show-inheritance:
 
 retrieval.siliconflow\_embeddings module
----------------------------------------------
+----------------------------------------
 
 .. automodule:: retrieval.siliconflow_embeddings
    :members:
@@ -29,7 +29,7 @@ retrieval.siliconflow\_embeddings module
    :show-inheritance:
 
 retrieval.siliconflow\_rerank module
------------------------------------------
+------------------------------------
 
 .. automodule:: retrieval.siliconflow_rerank
    :members:
@@ -37,13 +37,12 @@ retrieval.siliconflow\_rerank module
    :show-inheritance:
 
 retrieval.sqlitevec\_store module
---------------------------------------
+---------------------------------
 
 .. automodule:: retrieval.sqlitevec_store
    :members:
    :undoc-members:
    :show-inheritance:
-
 
 Module contents
 ---------------
@@ -52,5 +51,3 @@ Module contents
    :members:
    :undoc-members:
    :show-inheritance:
-
-

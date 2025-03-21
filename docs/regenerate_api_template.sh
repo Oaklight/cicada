@@ -3,8 +3,8 @@
 # Directory paths
 SOURCE_DIR="source/api"
 INDEX_FILE="source/api/index.md"
-MODULES=("common" "geometry_pipeline" "describe" "retrieval" "coding" "feedback" "tools" "workflow")
-ROOT_DIR=".."
+MODULES=("core" "geometry_pipeline" "describe" "retrieval" "coding" "feedback" "tools" "workflow")
+ROOT_DIR="../src/cicada/"
 
 # Ensure the output directory exists
 mkdir -p "$SOURCE_DIR"

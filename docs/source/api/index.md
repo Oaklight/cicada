@@ -6,7 +6,7 @@ Welcome to the API documentation for the project. Below is a list of available m
 :maxdepth: 2
 :caption: Contents:
 
-common
+core
 geometry_pipeline
 describe
 retrieval

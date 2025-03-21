@@ -7,7 +7,7 @@ import httpx
 import requests
 import tenacity
 
-from cicada.common.utils import colorstring
+from cicada.core.utils import colorstring
 
 logger = logging.getLogger(__name__)
 
@@ -92,7 +92,7 @@ class Rerank(ABC):
 if __name__ == "__main__":
     import argparse
 
-    from cicada.common.utils import colorstring, load_config, setup_logging
+    from cicada.core.utils import colorstring, load_config, setup_logging
 
     parser = argparse.ArgumentParser(description="Reranking Model")
     parser.add_argument(

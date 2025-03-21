@@ -2,8 +2,8 @@ import argparse
 import logging
 from typing import Any, Dict, List
 
-from cicada.common import vlm
-from cicada.common.basics import PromptBuilder
+from cicada.core import vlm
+from cicada.core.basics import PromptBuilder
 
 
 logger = logging.getLogger(__name__)
@@ -96,7 +96,7 @@ def parse_args() -> Dict[str, Any]:
 
 
 if __name__ == "__main__":
-    from cicada.common.utils import (
+    from cicada.core.utils import (
         cprint,
         load_config,
         load_prompts,

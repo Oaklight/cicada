@@ -5,9 +5,9 @@ import httpx
 import openai
 import tenacity
 
-from cicada.common.basics import PromptBuilder
-from cicada.common.tools import ToolRegistry
-from cicada.common.utils import cprint
+from cicada.core.basics import PromptBuilder
+from cicada.core.tools import ToolRegistry
+from cicada.core.utils import cprint
 
 logger = logging.getLogger(__name__)
 
@@ -362,7 +362,7 @@ if __name__ == "__main__":
     import os
     import sys
 
-    from cicada.common.utils import load_config, setup_logging
+    from cicada.core.utils import load_config, setup_logging
 
     parser = argparse.ArgumentParser(description="Language Model")
     parser.add_argument(
@@ -382,7 +382,7 @@ if __name__ == "__main__":
     )
 
     # Register tools
-    from cicada.common.tools import tool_registry
+    from cicada.core.tools import tool_registry
 
     # # Query the model
     # response = llm.query("What's the weather in San Francisco?", tools=tool_registry)

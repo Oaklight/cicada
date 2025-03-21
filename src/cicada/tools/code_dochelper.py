@@ -3,7 +3,7 @@ import inspect
 import logging
 from functools import lru_cache
 
-from cicada.common.utils import colorstring
+from cicada.core.utils import colorstring
 
 logger = logging.getLogger(__name__)
 
@@ -351,7 +351,7 @@ if __name__ == "__main__":
 
     import argparse
 
-    from cicada.common.utils import colorstring, setup_logging  # For fuzzy matching
+    from cicada.core.utils import colorstring, setup_logging  # For fuzzy matching
 
     parser = argparse.ArgumentParser(
         description="Query module, class, function, or method information."

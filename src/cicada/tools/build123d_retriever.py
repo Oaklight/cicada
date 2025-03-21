@@ -4,8 +4,8 @@ from concurrent.futures import as_completed, ThreadPoolExecutor
 from functools import partial
 from typing import Dict, List, Literal
 
-from cicada.common.rerank import Rerank
-from cicada.common.utils import colorstring
+from cicada.core.rerank import Rerank
+from cicada.core.utils import colorstring
 from cicada.retrieval.basics import Embeddings
 from cicada.retrieval.siliconflow_embeddings import SiliconFlowEmbeddings
 from cicada.retrieval.siliconflow_rerank import SiliconFlowRerank
@@ -320,7 +320,7 @@ if __name__ == "__main__":
 
     import argparse
 
-    from cicada.common.utils import cprint, load_config, setup_logging
+    from cicada.core.utils import cprint, load_config, setup_logging
 
     parser = argparse.ArgumentParser(description="Build123d Retriever")
     parser.add_argument(

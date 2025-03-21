@@ -6,9 +6,9 @@ from typing import Any, Dict, Tuple
 import questionary
 from questionary import Style
 
-from cicada.common import vlm
-from cicada.common.basics import DesignGoal, PromptBuilder
-from cicada.common.utils import colorstring, parse_json_response
+from cicada.core import vlm
+from cicada.core.basics import DesignGoal, PromptBuilder
+from cicada.core.utils import colorstring, parse_json_response
 
 
 logger = logging.getLogger(__name__)
@@ -311,7 +311,7 @@ if __name__ == "__main__":
     import json
     import os
 
-    from cicada.common.utils import (
+    from cicada.core.utils import (
         colorstring,
         load_config,
         load_prompts,

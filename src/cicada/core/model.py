@@ -8,9 +8,9 @@ from typing import Any, Dict, List, Optional
 import openai
 from openai.types.chat.chat_completion_message import ChatCompletionMessage
 
-from cicada.common.basics import PromptBuilder
-from cicada.common.tools import ToolRegistry
-from cicada.common.utils import cprint, recover_stream_tool_calls
+from cicada.core.basics import PromptBuilder
+from cicada.core.tools import ToolRegistry
+from cicada.core.utils import cprint, recover_stream_tool_calls
 
 # 同时抑制两个层级的日志源
 logging.getLogger("httpx").setLevel(logging.WARNING)  # 屏蔽INFO级
@@ -487,7 +487,7 @@ class MultiModalModel(ABC):
 if __name__ == "__main__":
     import argparse
 
-    from cicada.common.utils import load_config, setup_logging
+    from cicada.core.utils import load_config, setup_logging
 
     parser = argparse.ArgumentParser(description="Language Model")
     parser.add_argument(
@@ -506,7 +506,7 @@ if __name__ == "__main__":
         **llm_config.get("model_kwargs", {}),
     )
 
-    from cicada.common.basics import PromptBuilder
+    from cicada.core.basics import PromptBuilder
 
     # # 流式模式
     # print("Streaming response:")
@@ -518,7 +518,7 @@ if __name__ == "__main__":
     # result = llm.query(prompt_builder=pb, stream=True)
     # print("PromptBuilder response:", result["formatted_response"])
     # 创建工具注册表
-    from cicada.common.tools import ToolRegistry
+    from cicada.core.tools import ToolRegistry
 
     tool_registry = ToolRegistry()
 

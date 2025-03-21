@@ -72,7 +72,7 @@ if __name__ == "__main__":
 
     import argparse
 
-    from cicada.common.utils import colorstring, load_config, setup_logging
+    from cicada.core.utils import colorstring, load_config, setup_logging
 
     parser = argparse.ArgumentParser(description="Embedding Model")
     parser.add_argument(

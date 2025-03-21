@@ -18,7 +18,7 @@ logging.getLogger("httpcore").setLevel(logging.WARNING)
 logger = logging.getLogger(__name__)
 
 
-class LanguageModel(ABC):
+class MultiModalModel(ABC):
     """Language model base class with tool use support.
 
     Attributes:
@@ -112,7 +112,21 @@ class LanguageModel(ABC):
 
         Returns:
             List[Dict[str, str]]: List of message dictionaries
+
+        Raises:
+            ValueError: If more than one message form is provided.
         """
+        # 检查是否同时提供了多种消息形式
+        provided_forms = [
+            messages is not None,
+            prompt_builder is not None,
+            prompt is not None or system_prompt is not None,
+        ]
+        if sum(provided_forms) > 1:
+            raise ValueError(
+                "Only one of 'messages', 'prompt_builder', or 'prompt/system_prompt' can be provided."
+            )
+
         if messages:
             # 优先使用直接传递的消息列表
             return messages
@@ -484,7 +498,7 @@ if __name__ == "__main__":
 
     llm_config = load_config(args.config, "llm")
 
-    llm = LanguageModel(
+    llm = MultiModalModel(
         llm_config["api_key"],
         llm_config.get("api_base_url"),
         llm_config.get("model_name", "gpt-4o-mini"),

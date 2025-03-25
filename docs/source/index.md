@@ -8,8 +8,8 @@ Welcome to the documentation for **CICADA**, a cutting-edge framework designed t
 
 ```{toctree}
 :hidden:
-:maxdepth: 0
-:caption: Contents:
+<!-- :maxdepth: 0 -->
+<!-- :caption: Contents: -->
 
 self
 

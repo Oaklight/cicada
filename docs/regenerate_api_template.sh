@@ -9,11 +9,11 @@ ROOT_DIR="../src/cicada/"
 # Ensure the output directory exists
 mkdir -p "$SOURCE_DIR"
 
-# Regenerate API documentation for each module
+# Regenerate API References for each module
 for module in "${MODULES[@]}"; do
     module_dir="$ROOT_DIR/$module"
     if [[ -d "$module_dir" ]]; then
-        echo "Regenerating API documentation for $module..."
+        echo "Regenerating API References for $module..."
         sphinx-apidoc -o "$SOURCE_DIR" "$module_dir" -f
     else
         echo "Warning: Module directory $module_dir does not exist. Skipping."
@@ -28,9 +28,9 @@ fi
 # Regenerate index.md with {toctree} directive
 echo "Regenerating index.md..."
 {
-    echo "# API Documentation"
+    echo "# API References"
     echo ""
-    echo "Welcome to the API documentation for the project. Below is a list of available modules:"
+    echo "Welcome to the API references for the project. Below is a list of available modules:"
     echo ""
     echo "\`\`\`{toctree}"
     echo ":maxdepth: 2"
@@ -49,4 +49,4 @@ done
 # Close the {toctree} directive
 echo "\`\`\`" >>"$INDEX_FILE"
 
-echo "API documentation and index.md regeneration complete. Files are located in $SOURCE_DIR and $INDEX_FILE."
+echo "API References and index.md regeneration complete. Files are located in $SOURCE_DIR and $INDEX_FILE."

@@ -1,25 +1,6 @@
-name: cicada
+name: cicada-dev
 channels:
   - conda-forge
 dependencies:
   - pip=24.0
-  - python>=3.11.0
-  - pip:
-      - requests==2.32.3
-      - pyyaml==6.0.2
-      - tenacity==9.0.0
-      - cascadio==0.0.14
-      - gmsh==4.13.1
-      - plyfile==1.1
-      - trimesh==4.5.1
-      - pyglet<2
-      - pyrender==0.1.45
-      - openai==1.55.3
-      - build123d==0.8.0
-      - flake8==7.1.1
-      - psycopg2-binary==2.9.10
-      - sqlalchemy==2.0.36
-      - pgvector==0.3.6
-      - sqlite-vec==0.1.6
-      - questionary==2.1.0
-      - blessed==1.20.0
+  - python>=3.10.0

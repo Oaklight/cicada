@@ -5,14 +5,14 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "cicada-agent"
 version = "0.7.0"
-authors = [{name = "Oaklight", email = "oaklight@gmx.com"}]
+authors = [{ name = "Oaklight", email = "oaklight@gmx.com" }]
 description = "A Python package for the Cicada project"
 readme = "README_en.md"
 requires-python = ">=3.10"
 license = { text = "MIT License" }
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent"
+    "Operating System :: OS Independent",
 ]
 dependencies = [
     "openai>=1.6.8",
@@ -25,7 +25,7 @@ dependencies = [
     "sqlite-vec>=0.1.6",
     "pgvector>=0.4.0",
     "sqlalchemy>=2.0.36",
-    "questionary==2.1.0"
+    "questionary==2.1.0",
 ]
 
 [project.optional-dependencies]
@@ -35,7 +35,27 @@ codecad = [
     "trimesh==4.5.1",
     "pyglet<2",
     "pyrender==0.1.45",
-    "build123d==0.8.0"
+    "build123d==0.8.0",
+]
+
+all = [
+    "openai>=1.6.8",
+    "pydantic>=2.10.6",
+    "httpx>=0.28.1",
+    "pyyaml>=6.0.2",
+    "blessed>=1.20.0",
+    "pillow>=11.1.0",
+    "toolregistry>=0.2.0",
+    "sqlite-vec>=0.1.6",
+    "pgvector>=0.4.0",
+    "sqlalchemy>=2.0.36",
+    "questionary==2.1.0",
+    "gmsh>=4.13.1",
+    "plyfile==1.1",
+    "trimesh==4.5.1",
+    "pyglet<2",
+    "pyrender==0.1.45",
+    "build123d==0.8.0",
 ]
 
 [tool.setuptools.packages.find]

@@ -1,0 +1,93 @@
+is_feedback_better:
+  prompt_template: |
+    You are evaluating two iterations of a design based on their feedback. The feedback describes how well each iteration aligns with the design goal. Compare the **Hits** section of the feedback for the current iteration (New Feedback) with the feedback for the previous iteration (Old Feedback) and determine if the current iteration represents an improvement over the previous iteration in terms of alignment with the design goal.
+
+    **Design Goal:**
+    {design_goal}
+
+    **Old Feedback (Previous Iteration) - Hits:**
+    {old_feedback_hits}
+
+    **New Feedback (Current Iteration) - Hits:**
+    {new_feedback_hits}
+
+    **Instructions:**
+    - Focus solely on the **Hits** from each iteration.
+    - Determine if the **New Feedback** shows better alignment with the design goal compared to the **Old Feedback**.
+    - Ignore any Misses or Suggestions mentioned in the feedback.
+
+    **Response Format:**
+    - **Decision:** Yes/No
+    - **Explanation:** [Brief explanation of why the current iteration is better or not, based on the Hits]
+
+  system_prompt: |
+    You are an expert in evaluating design iterations. Your task is to compare the **Hits** sections from two iterations of a design's feedback and determine if the current iteration represents an improvement over the previous iteration in terms of alignment with the design goal. Focus exclusively on positive aspects that match the design goal. Provide a clear and concise explanation for your decision.
+
+  examples: |
+    - description: "Compare iterations for a chair design."
+      design_goal: "A chair with four legs, a curved backrest, and a circular seat."
+      old_feedback_hits: |
+        - The chair has four legs and a circular seat.
+      new_feedback_hits: |
+        - The chair has four legs, a circular seat, and a curved backrest.
+      response: |
+        - **Decision:** Yes
+        - **Explanation:** The current iteration includes the curved backrest in addition to the four legs and circular seat, showing improved alignment with the design goal.
+
+    - description: "Compare iterations for a table design."
+      design_goal: "A table with a flat top and four straight legs."
+      old_feedback_hits: |
+        - The table has a flat top.
+      new_feedback_hits: |
+        - The table has a flat top and four straight legs.
+      response: |
+        - **Decision:** Yes
+        - **Explanation:** The current iteration adds the four straight legs, which brings it fully in line with the design goal.
+
+is_design_goal_achieved:
+  prompt_template: |
+    **Design Goal:**
+    {design_goal}
+
+    **Feedback Hits:**
+    {feedback_hits}
+
+    Evaluate the following feedback based on the **Hits** section and determine if the design goal has been achieved. Provide a score between 0 and 1 indicating how closely the **Hits** align with the design goal.
+
+    **Scoring Reference:**
+    - 0: No alignment with the design goal.
+    - 0.5: Partial alignment with key aspects missing.
+    - 0.8: Near full alignment with minor aspects missing, including unclear dimension specifications.
+    - 1: Full alignment with the design goal.
+
+    **Instructions:**
+    - Focus solely on the **Hits** provided.
+    - Determine the extent to which the **Hits** cover the requirements specified in the design goal.
+    - Ignore any Misses or Suggestions.
+
+    **Response Format:**
+    - **Achieved:** Yes/No
+    - **Score:** [Score between 0 and 1]
+    - **Explanation:** [Brief explanation based on the Hits]
+
+  system_prompt: |
+    You are an expert in evaluating design feedback. Your task is to determine if the design goal has been achieved based solely on the **Hits** section of the feedback. Provide a score between 0 and 1 indicating how closely the Hits align with the design goal, along with a clear explanation for your decision. Refer to the scoring reference to guide your evaluation.
+
+  examples: |
+    - description: "Evaluate feedback for a chair design."
+      design_goal: "A chair with four legs, a curved backrest, and a circular seat."
+      feedback_hits: |
+        - The chair has four legs and a circular seat.
+      response: |
+        - **Achieved:** No
+        - **Score:** 0.6
+        - **Explanation:** The Hits cover the four legs and circular seat but lack the curved backrest, meaning the design goal is only partially achieved.
+
+    - description: "Evaluate feedback for a bookshelf design."
+      design_goal: "A bookshelf with five shelves and solid sides."
+      feedback_hits: |
+        - The bookshelf has five shelves and solid sides.
+      response: |
+        - **Achieved:** Yes
+        - **Score:** 1.0
+        - **Explanation:** All aspects of the design goal are met in the Hits.

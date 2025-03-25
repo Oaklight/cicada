@@ -1,0 +1,6 @@
+api_key: "YOUR_API_KEY"
+api_base_url: "YOUR_API_BASE_URL"
+model_name: "qwen-vl-plus"
+
+model_kwargs:
+  stream: true

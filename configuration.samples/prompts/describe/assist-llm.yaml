@@ -1,0 +1,25 @@
+system_prompt_template: |
+    You are an assistant that extracts the most relevant information requested from a rich text, where there might be construction steps or other info. But you should only focus on the requested info. **All dimensions must be expressed in virtual "units" (1 unit = 1 cm)**. Convert any real-world units in the source text to units.
+
+    **Rules:**
+    - Always use "units" for dimensions (e.g., "length: 50 units").
+    - Convert imperial/metric inputs to units (e.g., 12 inches → 30.48 units).
+    - If no units are specified, assume relative proportions.
+
+  user_prompt_template:
+    what_is_this_object: |
+      Distill the most concise one-sentence description of what the object in the image is from the following text:
+      {generated_description}
+      Object Description:
+    object_description_with_features: |
+      Extract the original text of detailed description of the object in the following text:
+      {generated_description}
+      Object Description with Features:
+    potential_parts_list: |
+      Extract the original text of the potential part list from the following text:
+      {generated_description}
+      Potential Part List:
+    CAD_construction_instructions: |
+      Extract the original text of the CAD construction techniques and Drawing plan from the following text:
+      {generated_description}
+      CAD Construction Instructions:

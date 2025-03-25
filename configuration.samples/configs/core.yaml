@@ -1,0 +1,32 @@
+vlm:
+  api_key: "YOUR_API_KEY"
+  api_base_url: "YOUR_API_BASE_URL"
+  # model_name: "qwen-vl-plus"
+  model_name: "gpt-4o"
+  # model_name: "deepseek-ai/deepseek-vl2"
+  model_kwargs: # Optional additional model parameters
+    stream: true
+
+llm:
+  api_key: "YOUR_API_KEY"
+  api_base_url: "YOUR_API_BASE_URL" # Optional custom API base URL
+  # model_name: "doubao-1.5-lite-32k"
+  model_name: "gpt-4o"
+  # model_name: "deepseek-r1"
+
+  model_kwargs:
+    stream: false
+
+embed:
+  ## Siliconflow
+  api_key: "YOUR_API_KEY"
+  api_base_url: "YOUR_API_BASE_URL" # Optional custom API base URL
+  model_name: "bge-m3" 
+
+rerank:
+  ## Siliconflow
+  api_key: "YOUR_API_KEY"
+  api_base_url: "YOUR_API_BASE_URL" # Optional custom API base URL
+  # api_base_url: "http://localhost:33000/v1" # Optional custom API base URL
+  # model_name: "BAAI/bge-reranker-v2-m3"
+  model_name: "bge-reranker-v2-m3"

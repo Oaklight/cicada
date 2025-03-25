@@ -1,0 +1,7 @@
+api_key: "YOUR_API_KEY"
+api_base_url: "YOUR_API_BASE_URL"
+# model_name: "gpt-4o-mini"
+model_name: "deepseek-v3"
+
+model_kwargs:
+  stream: true

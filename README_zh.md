@@ -4,7 +4,9 @@
 
 欢迎使用 **CICADA**，即协作智能 CAD 自动化设计代理。CICADA 是一个先进的框架，旨在通过智能自动化和协作来简化和增强 CAD 设计流程。本仓库包含支持 CICADA 的核心模块和工具，使其能够无缝集成到 CAD 工作流程中。
 
-📖 **文档**: 详细的文档和教程，请访问 [CICADA 文档](https://cicada.lab.oaklight.cn)。
+📖 **文档**: 访问我们的官方文档网站，获取全面的指南、教程和 API 参考：[CICADA 文档](https://cicada.lab.oaklight.cn)
+
+快速设置和使用说明请继续阅读以下内容。
 
 ---
 
@@ -36,6 +38,12 @@
 ```bash
 # 启动你的venv或者conda环境
 pip install cicada-agent
+```
+
+#### CodeCAD 模块
+
+```bash
+pip install cicada-agent[codecad]
 ```
 
 ### 安装步骤（开发者）

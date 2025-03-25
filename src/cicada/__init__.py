@@ -1,14 +1,16 @@
 # src/cicada/__init__.py
 from .core import *
 from .retrieval import *
+from .tools import *
 
 # Conditional import for codecad features
 try:
-    from .geometry_pipeline import *
-    from .workflow import *
+    # agents (will be refactored/reorganized)
+    from .feedback import *
     from .describe import *
     from .coding import *
-    from .feedback import *
+    from .geometry_pipeline import *
+    from .workflow import *
 except ImportError:
     pass
 

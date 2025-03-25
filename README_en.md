@@ -4,7 +4,9 @@
 
 Welcome to **CICADA**, the Collaborative Intelligent CAD Automation Design Agent. CICADA is a cutting-edge framework designed to streamline and enhance the CAD design process through intelligent automation and collaboration. This repository contains the core modules and utilities that power CICADA, enabling seamless integration with CAD workflows.
 
-📖 **Documentation**: For detailed documentation and tutorials, visit [CICADA Documentation](https://cicada.lab.oaklight.cn).
+📖 **Documentation**: Explore comprehensive guides, tutorials, and API references at our official documentation site: [CICADA Documentation](https://cicada.lab.oaklight.cn)
+
+For quick setup and usage instructions, continue reading below.
 
 ---
 
@@ -28,7 +30,7 @@ The repository is organized into the following main modules:
 
 Before setting up CICADA, ensure you have the following installed:
 
-- **Python 3.9+**
+- **Python 3.10+**
 - **Conda** or **pip** (for dependency management)
 
 ### Installation Steps (Quick Start)
@@ -36,6 +38,12 @@ Before setting up CICADA, ensure you have the following installed:
 ```bash
 # activate your venv or conda env first
 pip install cicada-agent
+```
+
+#### CodeCAD Modules
+
+```bash
+pip install cicada-agent[codecad]
 ```
 
 ### Installation Steps (For Developers)

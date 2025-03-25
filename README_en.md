@@ -57,19 +57,19 @@ cd cicada
 
 #### 2. Install Dependencies
 
-**Option 1: Using Conda (Recommended)**
+Always recommend to use conda or other tool to make an exclusive dev environment for CICADA
 
 ```bash
 conda env create -f environment.yml
 conda activate cicada
 ```
 
-**Option 2: Using pip**
+Then install local repo as pip package, remember you need to have [all] to build docs
 
 ```bash
-python -m venv cicada
-source cicada/bin/activate
-pip install -r requirements.txt
+pip install -e . # for just `core` features
+pip install -e .[codecad] # for codecad related
+pip install -e .[all] # for everything here
 ```
 
 #### 3. Update API Keys

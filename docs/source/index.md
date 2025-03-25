@@ -4,13 +4,20 @@
 
 Welcome to the documentation for **CICADA**, a cutting-edge framework designed to revolutionize CAD design processes through intelligent automation and collaboration. This page hosts the API documentation and usage guides for the project.
 
-## Indices and Tables
+<!-- ## Indices and Tables -->
 
 ```{toctree}
-:maxdepth: 2
+:hidden:
+:maxdepth: 0
 :caption: Contents:
 
+self
+
+{toctree}
+:titlesonly:
+
 usage
+configuration_samples
 api/index
 dependencies
 contributing

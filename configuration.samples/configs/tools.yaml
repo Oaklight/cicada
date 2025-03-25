@@ -1,0 +1,15 @@
+build123d_retriever:
+  db_file: "/tmp/cicada/test_vec.db"
+  table: "test_table"
+  k: 10
+  k_rerank: 5
+  embedding_config:
+    ## Siliconflow
+    api_key: "YOUR_API_KEY"
+    api_base_url: "YOUR_API_BASE_URL"
+    model_name: "bge-m3"
+  rerank_config:
+    ## Siliconflow
+    api_key: "YOUR_API_KEY"
+    api_base_url: "YOUR_API_BASE_URL"
+    model_name: "bge-reranker-v2-m3"

@@ -1,0 +1,19 @@
+embed:
+  ## Siliconflow
+  api_key: "YOUR_API_KEY"
+  api_base_url: "YOUR_API_BASE_URL"
+  model_name: "bge-m3"
+
+rerank:
+  ## Siliconflow
+  api_key: "YOUR_API_KEY"
+  api_base_url: "YOUR_API_BASE_URL"
+  model_name: "bge-reranker-v2-m3"
+
+pgvector_store:
+  connection_string: "postgresql://USER:PASSWORD@localhost/DATABASE"
+  collection_name: "test_collection"
+
+sqlitevec_store:
+  db_file: "/tmp/cicada/test_vec.db"
+  table: "test_table"

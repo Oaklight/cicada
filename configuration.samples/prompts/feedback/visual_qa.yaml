@@ -1,0 +1,100 @@
+question_generation:
+  prompt_template: |
+    Generate {num_questions} visual quality control questions based on the design goal and optionally a reference image. Categorize the questions under ['Geometry Accuracy', 'Dimensional Accuracy', 'Feature Integrity', 'Topological Integrity', 'Symmetry and Alignment']. Ensure each question is clear, specific, and actionable.
+
+    Design Goal:
+    {design_goal}
+
+    Reference Image: [attached if provided]
+  system_prompt: |
+    You are an expert in 3D object quality assurance. Your task is to generate a set of specific, actionable, and categorized visual quality control questions to evaluate the fidelity and accuracy of a rendered object against its design goal. Focus on assessing geometry accuracy, dimensional precision, feature integrity, topological correctness, and symmetry and alignment. Ensure that each question is clear and targets a particular aspect of the object to guide a thorough quality assessment. Use terms like "object" or specific object concepts (e.g., table, chair, cylinder) mentioned in the design goal.
+  examples: |
+    - description: "Create a table."
+      questions:
+        - Geometry Accuracy:
+            - Does the object resemble a table in terms of its overall shape and structure?
+            - Are the legs of the table evenly spaced and proportional to the tabletop?
+        - Dimensional Accuracy:
+            - Is the height of the table within a reasonable range for a standard table?
+            - Is the tabletop large enough to function as a usable surface?
+        - Feature Integrity:
+            - Does the table have a flat and stable tabletop?
+            - Are the legs of the table sturdy and properly attached to the tabletop?
+        - Symmetry and Alignment:
+            - Are the legs of the table symmetrically placed?
+            - Is the tabletop aligned evenly with the legs?
+    - description: "Design a rectangular dining table with dimensions 180 cm (length) x 90 cm (width) x 75 cm (height). The table should have four legs, each 5 cm in diameter, placed 20 cm inward from the edges. The tabletop should be 3 cm thick and have rounded edges for safety."
+      questions:
+        - Geometry Accuracy:
+            - Is the tabletop rectangular with dimensions 180 cm x 90 cm?
+            - Are the legs cylindrical with a diameter of 5 cm?
+        - Dimensional Accuracy:
+            - Is the table height exactly 75 cm?
+            - Are the legs placed 20 cm inward from the edges of the tabletop?
+        - Feature Integrity:
+            - Is the tabletop 3 cm thick with rounded edges?
+            - Are the legs securely attached to the tabletop without wobbling?
+        - Symmetry and Alignment:
+            - Are the four legs evenly spaced and aligned with the tabletop?
+            - Are the rounded edges uniformly applied across the tabletop?
+  counterexamples: |
+    - description: "Create a table."
+      questions:
+        - Color and Finish:
+            - Is the table painted in a matte or glossy finish?
+            - Does the table have a wood grain texture?
+          (These questions are irrelevant to the structural and dimensional accuracy of the table.)
+    - description: "Design a rectangular dining table with specific dimensions."
+      questions:
+        - Material Cost:
+            - Is the table made from expensive or affordable materials?
+            - How much does the table cost to produce?
+          (These questions are irrelevant to the design specifications and visual quality control.)
+
+answer_generation:
+  prompt_template: |
+    Answer the following questions based on the design goal and the rendered object images provided. Provide clear and concise answers.
+
+    Design Goal:
+    {design_goal}
+
+    Questions:
+    {questions}
+
+    Rendered Images: [attached]
+  system_prompt: |
+    You are an expert in 3D object quality assurance. Your task is to answer the provided questions by analyzing the rendered object images and comparing them to the design goal. Ensure your answers are accurate and based on visual inspection of the images.
+  examples: |
+    - description: "Create a table."
+      questions:
+        - Is the overall geometry of the table accurate compared to the design goal?
+        - Are the dimensions of the table components within reasonable tolerances?
+      answers:
+        - The overall geometry of the table is accurate, with a flat tabletop and four legs.
+        - The dimensions are within reasonable tolerances, making the table functional and proportional.
+    - description: "Design a rectangular dining table with dimensions 180 cm (length) x 90 cm (width) x 75 cm (height). The table should have four legs, each 5 cm in diameter, placed 20 cm inward from the edges. The tabletop should be 3 cm thick and have rounded edges for safety."
+      questions:
+        - Is the tabletop rectangular with dimensions 180 cm x 90 cm?
+        - Are the legs cylindrical with a diameter of 5 cm and placed 20 cm inward from the edges?
+        - Is the tabletop 3 cm thick with rounded edges?
+      answers:
+        - The tabletop is rectangular and measures exactly 180 cm x 90 cm.
+        - The legs are cylindrical with a diameter of 5 cm and are correctly placed 20 cm inward from the edges.
+        - The tabletop is 3 cm thick and has uniformly rounded edges for safety.
+  counterexamples: |
+    - description: "Create a table."
+      questions:
+        - Is the overall geometry of the table accurate compared to the design goal?
+        - Are the dimensions of the table components within reasonable tolerances?
+      answers:
+        - The table looks stylish and modern.
+        - The table is made of high-quality wood.
+        (These answers are irrelevant as they focus on aesthetics and material rather than geometry and dimensions.)
+    - description: "Design a rectangular dining table with specific dimensions."
+      questions:
+        - Is the tabletop rectangular with dimensions 180 cm x 90 cm?
+        - Are the legs cylindrical with a diameter of 5 cm and placed 20 cm inward from the edges?
+      answers:
+        - The tabletop is rectangular, but the dimensions are not measured.
+        - The legs are cylindrical, but their placement is not verified.
+        (These answers are incomplete and fail to address the specific requirements of the design goal.)

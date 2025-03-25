@@ -8,12 +8,6 @@ Welcome to the CICADA project! We are thrilled that you’re interested in contr
 
 ### 1. **Set Up Your Development Environment**
 
-Before you start contributing, ensure you have the following installed:
-
-- **Python 3.11+**
-- **Git** (for version control)
-- **Conda** or **pip** (for dependency management)
-
 Follow the [Installation Steps (For Developers)](./usage.md#installation-steps-for-developers) to set up the CICADA environment.
 
 ### 2. **Fork the Repository**
@@ -60,11 +54,6 @@ git checkout -b feature/your-feature-name
 
 - Ensure your changes do not break existing functionality.
 - Write unit tests for new features or bug fixes.
-- Run the test suite locally before submitting your changes:
-
-```bash
-pytest
-```
 
 ### 3. **Commit Your Changes**
 

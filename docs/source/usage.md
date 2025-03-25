@@ -24,7 +24,7 @@ The following installs you the core modules of cicada:
 
 ```bash
 # activate your venv or conda env first
-pip install cicada-agent # this installs the "core" modules
+pip install cicada-agent # this enables the "core" modules
 ```
 
 For CodeCAD related modules

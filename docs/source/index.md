@@ -22,7 +22,7 @@ contributing
 
 CICADA is organized into the following key modules:
 
-- **common**: Core utilities and shared functionalities.
+- **core**: Core utilities and shared functionalities.
 - **geometry_pipeline**: Tools for processing and converting 3D models.
 - **describe**: Components for generating descriptive metadata for 3D models.
 - **coding**: Code generation, execution, and debugging tools for CAD automation.

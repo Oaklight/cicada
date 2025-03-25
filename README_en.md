@@ -14,7 +14,7 @@ For quick setup and usage instructions, continue reading below.
 
 The repository is organized into the following main modules:
 
-- **common**: Core utilities and shared functionalities across the framework.
+- **core**: Core utilities and shared functionalities across the framework.
 - **geometry_pipeline**: Tools for processing and converting 3D models, including point cloud generation and snapshots.
 - **describe**: Components for generating and managing descriptive metadata for 3D models.
 - **coding**: Code generation, execution, and debugging tools for CAD automation.

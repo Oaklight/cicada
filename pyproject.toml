@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "cicada-agent"
-version = "0.7.1"
+version = "0.7.2"
 authors = [{ name = "Oaklight", email = "oaklight@gmx.com" }]
 description = "A Python package for the Cicada project"
 readme = "README_en.md"

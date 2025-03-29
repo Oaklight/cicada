@@ -7,9 +7,9 @@ from typing import Any, Dict, List, Optional
 
 import openai
 from openai.types.chat.chat_completion_message import ChatCompletionMessage
+from toolregistry import ToolRegistry
 
 from cicada.core.basics import PromptBuilder
-from cicada.core.tools import ToolRegistry
 from cicada.core.utils import cprint, recover_stream_tool_calls
 
 # 同时抑制两个层级的日志源
@@ -442,7 +442,7 @@ if __name__ == "__main__":
     # result = llm.query(prompt_builder=pb, stream=True)
     # print("PromptBuilder response:", result["formatted_response"])
     # 创建工具注册表
-    from cicada.core.tools import ToolRegistry
+    from toolregistry import ToolRegistry
 
     tool_registry = ToolRegistry()
 

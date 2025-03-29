@@ -7,15 +7,17 @@ logging.basicConfig(level=logging.INFO)
 import os
 import sys
 
+from toolregistry import ToolRegistry
+
 from cicada.core import model
 from cicada.core.basics import DesignGoal
-from cicada.core.tools import tool_registry
 from cicada.core.utils import colorstring, cprint, extract_section_markdown
-
 from cicada.tools.code_dochelper import doc_helper
 
 logger = logging.getLogger(__name__)
 
+tool_registry = ToolRegistry()
+tool_registry.register(doc_helper)
 
 class CodeGenerator(model.MultiModalModel):
     def __init__(
@@ -150,8 +152,6 @@ class CodeGenerator(model.MultiModalModel):
 
         try:
             cprint("Querying dochelper for documentation insights...", "cyan")
-            # Ensure the dochelper tool is registered
-            tool_registry.register(doc_helper)
 
             # Query the LLM with dochelper tool for documentation insights
             doc_response = self.query(

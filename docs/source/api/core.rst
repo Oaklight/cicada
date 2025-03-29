@@ -36,14 +36,6 @@ core.rerank module
    :undoc-members:
    :show-inheritance:
 
-core.tools module
------------------
-
-.. automodule:: core.tools
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 core.utils module
 -----------------
 

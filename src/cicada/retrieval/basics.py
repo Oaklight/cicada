@@ -1,5 +1,5 @@
-from typing import List, Dict, Optional
 import logging
+from typing import Dict, List, Optional, Union
 
 logger = logging.getLogger(__name__)
 
@@ -52,39 +52,6 @@ class Document:
             str: A detailed string representation of the Document.
         """
         return self.__str__()
-
-
-from typing import List, Union, Dict, Optional
-
-
-class Embeddings:
-    """Base class for embedding models."""
-
-    def embed_query(self, text: str) -> List[float]:
-        """
-        Generate an embedding for a single query text.
-
-        Args:
-            text (str): The text to embed.
-
-        Returns:
-            List[float]: The embedding vector.
-        """
-        raise NotImplementedError
-
-    def embed_documents(
-        self, texts: Union[List[str], str, Document, List[Document]]
-    ) -> List[List[float]]:
-        """
-        Generate embeddings for a list of texts, a single text, a Document, or a list of Documents.
-
-        Args:
-            texts: Can be a list of strings, a single string, a Document, or a list of Documents.
-
-        Returns:
-            List[List[float]]: A list of embeddings, where each embedding is a list of floats.
-        """
-        raise NotImplementedError
 
 
 class VectorStore:

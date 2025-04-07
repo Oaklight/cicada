@@ -2,13 +2,13 @@ import logging
 import uuid
 from typing import Dict, List, Optional, Tuple
 
-import sqlalchemy
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import Column, create_engine, ForeignKey, JSON, String, UUID
-from sqlalchemy.orm import declarative_base, relationship, Session, sessionmaker
+from sqlalchemy import JSON, UUID, Column, ForeignKey, String, create_engine
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
+from cicada.core.embeddings import Embeddings
 from cicada.core.utils import colorstring, cprint, load_config, setup_logging
-from cicada.retrieval.basics import Document, Embeddings, VectorStore
+from cicada.retrieval.basics import Document, VectorStore
 
 logger = logging.getLogger(__name__)
 
@@ -249,7 +249,7 @@ class PGVector(VectorStore):
         """
         session = self._Session()
         try:
-            embeddings = self._embedding.embed_documents(texts)
+            embeddings = self._embedding.embed(texts)
             metadatas = metadatas or [{} for _ in texts]
             ids = [str(uuid.uuid4()) for _ in texts]
             collection = (
@@ -436,7 +436,7 @@ class PGVector(VectorStore):
 if __name__ == "__main__":
     import argparse
 
-    from cicada.retrieval.siliconflow_embeddings import SiliconFlowEmbeddings
+    from cicada.core.embeddings import Embeddings
     from cicada.retrieval.siliconflow_rerank import SiliconFlowRerank
 
     setup_logging()
@@ -449,7 +449,7 @@ if __name__ == "__main__":
 
     embed_config = load_config(args.config, "embed")
 
-    embedding_model = SiliconFlowEmbeddings(
+    embedding_model = Embeddings(
         embed_config["api_key"],
         embed_config.get("api_base_url"),
         embed_config.get("model_name", "text-embedding-3-small"),

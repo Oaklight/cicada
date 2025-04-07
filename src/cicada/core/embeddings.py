@@ -97,7 +97,7 @@ if __name__ == "__main__":
 
     embed_config = load_config(args.config, "embed")
 
-    embed = Embed(
+    embed = Embeddings(
         embed_config["api_key"],
         embed_config.get("api_base_url"),
         embed_config.get("model_name", "text-embedding-3-small"),
@@ -105,6 +105,20 @@ if __name__ == "__main__":
         **embed_config.get("model_kwargs", {}),
     )
 
-    texts = ["This is a test document.", "Another test document."]
+    class SimpleSupportStr:
+        def __init__(self, content: str):
+            self.content = content
+
+        def __str__(self):
+            return self.content
+
+    texts = [
+        SimpleSupportStr("This is a test document."),
+        SimpleSupportStr("Another test document."),
+    ]
     embeddings = embed.embed(texts)
     logger.info(colorstring(f"Generated embeddings: {embeddings}", "white"))
+
+    query = SimpleSupportStr("Test query")
+    query_embedding = embed.embed_query(query)
+    logger.info(colorstring(f"Generated query embedding: {query_embedding}", "white"))

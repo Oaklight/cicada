@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 import sqlite3
 import struct
 from typing import Dict, List, Optional, Tuple
@@ -147,6 +148,12 @@ class SQLiteVec(VectorStore):
         try:
             import sqlite_vec
 
+            # Ensure the database directory exists
+            db_dir = os.path.dirname(self._db_file)
+            if not os.path.exists(db_dir):
+                os.makedirs(db_dir)
+
+            # Connect to the SQLite database
             connection = sqlite3.connect(self._db_file)
             connection.row_factory = sqlite3.Row
             connection.enable_load_extension(True)
@@ -296,7 +303,7 @@ class SQLiteVec(VectorStore):
         """
         connection = self._get_connection()
         try:
-            embeds = self._embedding.embed_documents(texts)
+            embeds = self._embedding.embed(texts)
             metadatas = metadatas or [{} for _ in texts]
             data_input = [
                 (text, json.dumps(metadata), self.serialize_f32(embed))
@@ -516,9 +523,8 @@ if __name__ == "__main__":
     """Test the SQLiteVec class with SiliconFlowEmbeddings."""
     import argparse
 
+    from cicada.core.embeddings import Embeddings
     from cicada.core.utils import cprint, load_config, setup_logging
-
-    from cicada.retrieval.siliconflow_embeddings import SiliconFlowEmbeddings
     from cicada.retrieval.siliconflow_rerank import SiliconFlowRerank
 
     setup_logging()
@@ -530,7 +536,7 @@ if __name__ == "__main__":
 
     embed_config = load_config(args.config, "embed")
 
-    embedding_model = SiliconFlowEmbeddings(
+    embedding_model = Embeddings(
         embed_config["api_key"],
         embed_config.get("api_base_url"),
         embed_config.get("model_name", "text-embedding-3-small"),

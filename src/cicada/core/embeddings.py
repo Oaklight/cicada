@@ -43,17 +43,42 @@ class Embeddings(ABC):
         Generate embeddings for a list of texts using the OpenAI API.
 
         Args:
-            texts (List[str]): A list of text strings to generate embeddings for.
+            texts (List[SupportStr]): A list of SupportStr objects to generate embeddings for.
 
         Returns:
             List[List[float]]: A list of embeddings, where each embedding is a list of floats.
         """
+        normalized_texts = [str(text) for text in texts]
         response = self.client.embeddings.create(
-            input=texts,
+            input=normalized_texts,
             model=self.model_name,
             **self.model_kwargs,
         )
         return [embedding.embedding for embedding in response.data]
+
+    def embed_query(self, text: SupportStr) -> List[float]:
+        """
+        Generate an embedding for a single query text.
+
+        Args:
+            text (SupportStr): The query text to embed.
+
+        Returns:
+            List[float]: The embedding of the query text.
+        """
+        return self.embed([text])[0]
+
+    def embed_documents(self, texts: List[SupportStr]) -> List[List[float]]:
+        """
+        Deprecated: Use `embed` directly instead.
+
+        Args:
+            texts (List[SupportStr]): A list of SupportStr objects to generate embeddings for.
+
+        Returns:
+            List[List[float]]: A list of embeddings, where each embedding is a list of floats.
+        """
+        return self.embed(texts)
 
 
 if __name__ == "__main__":

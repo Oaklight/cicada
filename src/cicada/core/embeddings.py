@@ -4,10 +4,12 @@ from typing import List
 
 import openai
 
+from .types import SupportStr
+
 logger = logging.getLogger(__name__)
 
 
-class Embed(ABC):
+class Embeddings(ABC):
     def __init__(
         self,
         api_key: str,
@@ -36,7 +38,7 @@ class Embed(ABC):
             api_key=self.api_key, base_url=self.api_base_url, organization=self.org_id
         )
 
-    def embed(self, texts: List[str]) -> List[List[float]]:
+    def embed(self, texts: List[SupportStr]) -> List[List[float]]:
         """
         Generate embeddings for a list of texts using the OpenAI API.
 

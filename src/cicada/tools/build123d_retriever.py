@@ -7,7 +7,7 @@ from typing import Dict, List, Literal
 from cicada.core.rerank import Rerank
 from cicada.core.utils import colorstring
 from cicada.retrieval.basics import Embeddings
-from cicada.retrieval.siliconflow_embeddings import SiliconFlowEmbeddings
+from cicada.core.embeddings import Embeddings
 from cicada.retrieval.siliconflow_rerank import SiliconFlowRerank
 from cicada.retrieval.sqlitevec_store import Document, SQLiteVec
 
@@ -55,7 +55,7 @@ class Build123dRetriever:
             if not embedding_config and not embedding_config.get("api_key"):
                 raise ValueError("Missing embedding_config or api_key")
             # Initialize the embedding model
-            self.embedding_model = SiliconFlowEmbeddings(
+            self.embedding_model = Embeddings(
                 embedding_config["api_key"],
                 embedding_config.get("api_base_url"),
                 embedding_config.get("model_name"),

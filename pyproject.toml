@@ -25,6 +25,8 @@ dependencies = [
     "sqlite-vec>=0.1.6",
     "pgvector>=0.4.0",
     "sqlalchemy>=2.0.36",
+    "psycopg>=3.2.6",
+    "psycopg_binary>=3.2.6",
     "questionary==2.1.0",
 ]
 

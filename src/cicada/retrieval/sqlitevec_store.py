@@ -520,7 +520,7 @@ class SQLiteVec(VectorStore):
 
 if __name__ == "__main__":
 
-    """Test the SQLiteVec class with SiliconFlowEmbeddings."""
+    """Test the SQLiteVec class with Embeddings."""
     import argparse
 
     from cicada.core.embeddings import Embeddings

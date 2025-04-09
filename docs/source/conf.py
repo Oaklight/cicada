@@ -10,7 +10,7 @@ project = "CICADA"
 copyright = "2024-2025, Peng Ding"
 author = "Peng Ding"
 html_title = "Project CICADA"
-release = "0.2"
+release = "0.7.3"
 
 import os
 import sys

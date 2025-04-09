@@ -12,10 +12,10 @@ core.basics module
    :undoc-members:
    :show-inheritance:
 
-core.embed module
------------------
+core.embeddings module
+----------------------
 
-.. automodule:: core.embed
+.. automodule:: core.embeddings
    :members:
    :undoc-members:
    :show-inheritance:
@@ -32,6 +32,14 @@ core.rerank module
 ------------------
 
 .. automodule:: core.rerank
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+core.types module
+-----------------
+
+.. automodule:: core.types
    :members:
    :undoc-members:
    :show-inheritance:

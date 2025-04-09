@@ -20,22 +20,6 @@ retrieval.pgvector\_store module
    :undoc-members:
    :show-inheritance:
 
-retrieval.siliconflow\_embeddings module
-----------------------------------------
-
-.. automodule:: retrieval.siliconflow_embeddings
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-retrieval.siliconflow\_rerank module
-------------------------------------
-
-.. automodule:: retrieval.siliconflow_rerank
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 retrieval.sqlitevec\_store module
 ---------------------------------
 

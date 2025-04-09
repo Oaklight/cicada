@@ -7,9 +7,8 @@ from typing import Dict, List, Literal
 from tqdm import tqdm
 
 from cicada.core.embeddings import Embeddings
-from cicada.core.rerank import Rerank
+from cicada.core.rerank import Reranker
 from cicada.core.utils import colorstring
-from cicada.retrieval.siliconflow_rerank import SiliconFlowRerank
 from cicada.retrieval.sqlitevec_store import SQLiteVec
 from cicada.tools.code_dochelper import CodeDocHelper
 
@@ -17,12 +16,13 @@ logger = logging.getLogger(__name__)
 
 
 class Build123dRetriever:
+
     def __init__(
         self,
         db_file: str = "build123d_vec.db",
         table: str = "build123d_objects",
         embedding_model: Embeddings = None,
-        reranking_model: Rerank = None,
+        reranking_model: Reranker = None,
         embedding_config: Dict = None,
         rerank_config: Dict = None,
         k: int = 10,
@@ -35,7 +35,7 @@ class Build123dRetriever:
             db_file (str): Path to the SQLite database file. Defaults to "build123d_vec.db".
             table (str): Name of the table to store the vectors. Defaults to "build123d_objects".
             embedding_model (Embeddings): Pre-initialized embedding model. Defaults to None.
-            reranking_model (Rerank): Pre-initialized reranking model. Defaults to None.
+            reranking_model (Reranker): Pre-initialized reranking model. Defaults to None.
             embedding_config (Dict): Configuration for the embedding model. Defaults to None.
             rerank_config (Dict): Configuration for the reranking model. Defaults to None.
         """
@@ -64,7 +64,7 @@ class Build123dRetriever:
         else:
             if not rerank_config and not rerank_config.get("api_key"):
                 raise ValueError("Missing rerank_config or api_key")
-            self.rerank_model = SiliconFlowRerank(
+            self.rerank_model = Reranker(
                 rerank_config["api_key"],
                 rerank_config.get("api_base_url"),
                 rerank_config.get("model_name"),

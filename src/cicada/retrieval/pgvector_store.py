@@ -437,7 +437,7 @@ if __name__ == "__main__":
     import argparse
 
     from cicada.core.embeddings import Embeddings
-    from cicada.retrieval.siliconflow_rerank import SiliconFlowRerank
+    from cicada.core.rerank import Reranker
 
     setup_logging()
 
@@ -459,7 +459,7 @@ if __name__ == "__main__":
 
     rerank_config = load_config(args.config, "rerank")
 
-    rerank_model = SiliconFlowRerank(
+    rerank_model = Reranker(
         api_key=rerank_config["api_key"],
         api_base_url=rerank_config.get(
             "api_base_url", "https://api.siliconflow.cn/v1/"

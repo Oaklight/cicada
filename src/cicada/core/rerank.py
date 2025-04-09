@@ -4,12 +4,15 @@ from abc import ABC
 from typing import Dict, List
 
 import httpx
+
 from cicada.core.utils import colorstring
+
+from .types import SupportStr
 
 logger = logging.getLogger(__name__)
 
 
-class Rerank(ABC):
+class Reranker(ABC):
     def __init__(
         self,
         api_key: str,
@@ -33,8 +36,8 @@ class Rerank(ABC):
 
     def rerank(
         self,
-        query: str,
-        documents: List[str],
+        query: SupportStr,
+        documents: List[SupportStr],
         top_n: int = 4,
         return_documents: bool = False,
     ) -> List[Dict]:
@@ -50,6 +53,10 @@ class Rerank(ABC):
         Returns:
             List[Dict]: List of reranked documents or scores.
         """
+
+        query = str(query)
+        documents = [str(doc) for doc in documents]
+
         payload = {
             "model": self.model_name,
             "query": query,
@@ -58,20 +65,55 @@ class Rerank(ABC):
             "return_documents": return_documents,
             **self.model_kwargs,
         }
+
+        response = self._make_request(payload)
+        return response["results"]
+
+    def _make_request(self, payload: Dict) -> Dict:
+        """
+        Helper function to handle HTTP requests and error handling.
+
+        Args:
+            payload (Dict): The JSON payload for the request.
+
+        Returns:
+            Dict: The JSON response from the server.
+
+        Raises:
+            RuntimeError: If the request fails or the server returns an error.
+        """
+        # logger.debug(colorstring(f"Payload: {payload}", "blue"))
+        # logger.debug(colorstring(f"Headers: {headers}", "blue"))
+
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
         }
 
-        logger.debug(colorstring(f"Payload: {payload}", "blue"))
-        logger.debug(colorstring(f"Headers: {headers}", "blue"))
         try:
             response = httpx.post(self.api_base_url, json=payload, headers=headers)
             response.raise_for_status()
-            return response.json()["results"]
+            return response.json()
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                colorstring(
+                    f"HTTP error during request: {e.response.status_code} {e.response.text}",
+                    "red",
+                )
+            )
+            raise RuntimeError(
+                f"Request failed with status {e.response.status_code}: {e.response.text}"
+            ) from e
         except httpx.RequestError as e:
-            logger.error(colorstring(f"Failed to rerank documents: {e}", "red"))
-            raise
+            logger.error(
+                colorstring(
+                    f"Request error: {e}. Payload: {payload}, Headers: {headers}",
+                    "red",
+                )
+            )
+            raise RuntimeError(
+                "Failed to complete the request due to a network error."
+            ) from e
 
 
 if __name__ == "__main__":
@@ -89,7 +131,7 @@ if __name__ == "__main__":
 
     rerank_config = load_config(args.config, "rerank")
 
-    rerank = Rerank(
+    rerank = Reranker(
         api_key=rerank_config["api_key"],
         api_base_url=rerank_config.get(
             "api_base_url", "https://api.siliconflow.cn/v1/"

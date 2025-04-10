@@ -8,6 +8,11 @@ from .types import SupportStr
 
 logger = logging.getLogger(__name__)
 
+# 同时抑制两个层级的日志源
+logging.getLogger("httpx").setLevel(logging.WARNING)  # 屏蔽INFO级
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logger = logging.getLogger(__name__)
+
 
 class Embeddings(ABC):
     def __init__(

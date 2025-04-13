@@ -5,8 +5,10 @@ import logging
 import logging.config
 import os
 import re
+import time
 from typing import Any, Dict, Iterable, List, Optional
 
+import httpx
 import yaml
 from blessed import Terminal
 from openai.types.chat.chat_completion_message_tool_call import (
@@ -19,6 +21,96 @@ logger = logging.getLogger(__name__)
 
 # Initialize the terminal object
 _term = Terminal()
+
+
+def make_http_request(
+    base_url: str,
+    endpoint: str,
+    api_key: str,
+    payload: Dict,
+    method: str = "POST",
+    timeout: float = 30.0,
+    max_retries: int = 3,
+    retry_delay: float = 1.0,
+    retry_status_codes: List[int] = [429, 500, 502, 503, 504],
+) -> Dict:
+    """
+    Enhanced HTTP request helper with retry mechanism.
+
+    Args:
+        base_url: Base URL for the API
+        endpoint: API endpoint path
+        api_key: API key for authentication
+        payload: Request payload
+        method: HTTP method (default: POST)
+        timeout: Request timeout in seconds
+        max_retries: Maximum number of retry attempts
+        retry_delay: Initial delay between retries in seconds (exponential backoff)
+        retry_status_codes: HTTP status codes that should trigger a retry
+
+    Returns:
+        Dict: Parsed JSON response
+
+    Raises:
+        RuntimeError: After all retries failed or for non-retryable errors
+    """
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    url = f"{base_url.rstrip('/')}/{endpoint.lstrip('/')}"
+
+    last_error = None
+    for attempt in range(max_retries + 1):
+        try:
+            client = httpx.Client(timeout=timeout)
+            if method.upper() == "POST":
+                response = client.post(url, json=payload, headers=headers)
+            elif method.upper() == "GET":
+                response = client.get(url, params=payload, headers=headers)
+            else:
+                raise ValueError(f"Unsupported HTTP method: {method}")
+
+            # Check if status code requires retry
+            if response.status_code in retry_status_codes:
+                raise httpx.HTTPStatusError(
+                    f"Retryable status code: {response.status_code}",
+                    request=response.request,
+                    response=response,
+                )
+
+            response.raise_for_status()
+            return response.json()
+
+        except httpx.HTTPStatusError as e:
+            last_error = e
+            if attempt < max_retries and e.response.status_code in retry_status_codes:
+                delay = retry_delay * (2**attempt)  # Exponential backoff
+                logger.warning(
+                    f"Attempt {attempt + 1}/{max_retries} failed. "
+                    f"Status: {e.response.status_code}. Retrying in {delay:.1f}s..."
+                )
+                time.sleep(delay)
+                continue
+            raise RuntimeError(
+                f"HTTP error {e.response.status_code}: {e.response.text}"
+            ) from e
+
+        except httpx.RequestError as e:
+            last_error = e
+            if attempt < max_retries:
+                delay = retry_delay * (2**attempt)
+                logger.warning(
+                    f"Attempt {attempt + 1}/{max_retries} failed. "
+                    f"Error: {str(e)}. Retrying in {delay:.1f}s..."
+                )
+                time.sleep(delay)
+                continue
+            raise RuntimeError(f"Network error: {str(e)}") from e
+
+    raise RuntimeError(
+        f"All {max_retries} retry attempts failed. Last error: {str(last_error)}"
+    )
 
 
 def load_config(config_path: str, config_name: Optional[str] = None) -> dict:

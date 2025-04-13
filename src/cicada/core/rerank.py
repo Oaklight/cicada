@@ -3,11 +3,10 @@ import os
 from abc import ABC
 from typing import Dict, List
 
-import httpx
-
 from cicada.core.utils import colorstring
 
 from .types import SupportStr
+from .utils import make_http_request
 
 logger = logging.getLogger(__name__)
 
@@ -18,11 +17,12 @@ logger = logging.getLogger(__name__)
 
 
 class Reranker(ABC):
+
     def __init__(
         self,
         api_key: str,
-        api_base_url: str = "https://api.siliconflow.cn/v1",
-        model_name: str = "BAAI/bge-reranker-v2-m3",
+        api_base_url: str,
+        model_name: str,
         **model_kwargs,
     ):
         """
@@ -30,14 +30,18 @@ class Reranker(ABC):
 
         Args:
             api_key (str): API key for authentication.
-            api_base_url (str, optional): Base URL for the rerank API. Defaults to "https://api.siliconflow.cn/v1".
-            model_name (str, optional): Name of the rerank model. Defaults to "BAAI/bge-reranker-v2-m3".
+            api_base_url (str, optional): Base URL for the rerank API.
+            model_name (str, optional): Name of the rerank model.
             **model_kwargs: Additional model-specific parameters.
         """
         self.api_key = api_key
-        self.api_base_url = os.path.join(api_base_url, "rerank")
+        self.api_base_url = api_base_url.rstrip("/")
         self.model_name = model_name
         self.model_kwargs = model_kwargs
+
+        # Remove /v1 suffix if present
+        if self.api_base_url.endswith("/v1"):
+            self.api_base_url = self.api_base_url[:-3]
 
     def rerank(
         self,
@@ -71,54 +75,14 @@ class Reranker(ABC):
             **self.model_kwargs,
         }
 
-        response = self._make_request(payload)
+        response = make_http_request(
+            base_url=self.api_base_url,
+            endpoint="/v1/rerank",
+            api_key=self.api_key,
+            payload=payload,
+        )
+
         return response["results"]
-
-    def _make_request(self, payload: Dict) -> Dict:
-        """
-        Helper function to handle HTTP requests and error handling.
-
-        Args:
-            payload (Dict): The JSON payload for the request.
-
-        Returns:
-            Dict: The JSON response from the server.
-
-        Raises:
-            RuntimeError: If the request fails or the server returns an error.
-        """
-        # logger.debug(colorstring(f"Payload: {payload}", "blue"))
-        # logger.debug(colorstring(f"Headers: {headers}", "blue"))
-
-        headers = {
-            "Authorization": f"Bearer {self.api_key}",
-            "Content-Type": "application/json",
-        }
-
-        try:
-            response = httpx.post(self.api_base_url, json=payload, headers=headers)
-            response.raise_for_status()
-            return response.json()
-        except httpx.HTTPStatusError as e:
-            logger.error(
-                colorstring(
-                    f"HTTP error during request: {e.response.status_code} {e.response.text}",
-                    "red",
-                )
-            )
-            raise RuntimeError(
-                f"Request failed with status {e.response.status_code}: {e.response.text}"
-            ) from e
-        except httpx.RequestError as e:
-            logger.error(
-                colorstring(
-                    f"Request error: {e}. Payload: {payload}, Headers: {headers}",
-                    "red",
-                )
-            )
-            raise RuntimeError(
-                "Failed to complete the request due to a network error."
-            ) from e
 
 
 if __name__ == "__main__":

@@ -99,3 +99,16 @@ class VectorStore:
             List[Document]: A list of Document instances that are most similar to the embedding.
         """
         raise NotImplementedError
+
+    def bm25_search(self, query: str, k: int = 4) -> List[Document]:
+        """
+        Perform a BM25 search for the given query string.
+
+        Args:
+            query (str): The query string to search for.
+            k (int): The number of results to return. Defaults to 4.
+
+        Returns:
+            List[Document]: A list of Document instances that are most relevant to the query.
+        """
+        raise NotImplementedError

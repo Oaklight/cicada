@@ -5,6 +5,8 @@ import sqlite3
 import struct
 from typing import Dict, List, Optional, Tuple
 
+from rank_bm25 import BM25Plus
+
 from cicada.core.embeddings import Embeddings
 from cicada.core.utils import colorstring
 from cicada.retrieval.basics import Document, VectorStore
@@ -36,6 +38,43 @@ class SQLiteVec(VectorStore):
         self._pool = self._create_connection_pool(pool_size)
         self.create_table_if_not_exists()
         self.create_metadata_table()
+
+    def bm25_search(self, query: str, k: int = 4) -> List[Document]:
+        """
+        Perform a BM25 search for the given query string.
+
+        Args:
+            query (str): The query string to search for.
+            k (int): The number of results to return. Defaults to 4.
+
+        Returns:
+            List[Document]: A list of Document instances that are most relevant to the query.
+        """
+
+        connection = self._get_connection()
+        try:
+            cursor = connection.execute(f"SELECT text, metadata FROM {self._table}")
+            corpus = [row["text"] for row in cursor.fetchall()]
+            bm25 = BM25Plus(corpus)
+            top_n = bm25.get_top_n(query, corpus, n=k)
+            results = []
+            for text in top_n:
+                cur = connection.execute(
+                    f"SELECT metadata FROM {self._table} WHERE text = ?", (text,)
+                )
+                row = cur.fetchone()
+                if row:
+                    import json
+
+                    metadata = json.loads(row["metadata"])
+                else:
+                    metadata = {}
+                from cicada.retrieval.basics import Document
+
+                results.append(Document(page_content=text, metadata=metadata))
+            return results
+        finally:
+            self._release_connection(connection)
 
     def drop_table(self):
         """Drop the main table and the virtual table if they exist."""
@@ -525,8 +564,8 @@ if __name__ == "__main__":
     import argparse
 
     from cicada.core.embeddings import Embeddings
-    from cicada.core.utils import cprint, load_config, setup_logging
     from cicada.core.rerank import Reranker
+    from cicada.core.utils import cprint, load_config, setup_logging
 
     setup_logging()
     parser = argparse.ArgumentParser(description="Feedback Judge")

@@ -3,6 +3,7 @@ import uuid
 from typing import Dict, List, Optional, Tuple
 
 from pgvector.sqlalchemy import Vector
+from rank_bm25 import BM25Plus
 from sqlalchemy import JSON, UUID, Column, ForeignKey, String, create_engine
 from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
@@ -216,6 +217,43 @@ class PGVector(VectorStore):
             session.rollback()
             logger.error(colorstring(f"Failed to create collection: {e}", "red"))
             raise e
+        finally:
+            session.close()
+
+    def bm25_search(self, query: str, k: int = 4) -> List[Document]:
+        """
+        Perform a BM25Plus search for the given query string.
+
+        Args:
+            query (str): The query string to search for.
+            k (int): The number of results to return. Defaults to 4.
+
+        Returns:
+            List[Document]: A list of Document instances that are most relevant to the query.
+        """
+
+        session = self._Session()
+        try:
+            collection = (
+                session.query(CollectionStore)
+                .filter_by(name=self._collection_name)
+                .first()
+            )
+            cursor = session.query(
+                EmbeddingStore.document, EmbeddingStore.cmetadata
+            ).filter(EmbeddingStore.collection_id == collection.uuid)
+            corpus = [row.document for row in cursor]
+            bm25 = BM25Plus(corpus)
+            top_n = bm25.get_top_n(query, corpus, n=k)
+
+            results = []
+            for text in top_n:
+                metadata = next(
+                    (row.cmetadata for row in cursor if row.document == text), {}
+                )
+                results.append(Document(page_content=text, metadata=metadata))
+
+            return results
         finally:
             session.close()
 

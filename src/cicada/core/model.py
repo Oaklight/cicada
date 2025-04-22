@@ -339,6 +339,12 @@ class MultiModalModel(ABC):
         # 使用 ToolRegistry 执行工具调用
         tool_responses = tools.execute_tool_calls(tool_calls)
         result["tool_responses"] = tool_responses
+        for tc in tool_calls:
+            if tc.id in tool_responses:
+                tool_responses[tc.id] = {
+                    "result": tool_responses[tc.id],
+                    "tool_call": tc.function.model_dump(),
+                }
 
         # 使用 ToolRegistry 构造工具调用结果消息
         messages.extend(

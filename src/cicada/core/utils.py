@@ -228,7 +228,9 @@ def colorstring(
     return styled_message
 
 
-def cprint(message: Any, color: Optional[str] = "green", **kwargs) -> None:
+def cprint(
+    message: Any, color: Optional[str] = "green", pretty: bool = False, **kwargs
+) -> None:
     """
     Prints a colored string using blessed terminal capabilities.
 
@@ -236,7 +238,11 @@ def cprint(message: Any, color: Optional[str] = "green", **kwargs) -> None:
     :param color: The color to apply. Supported colors: 'black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white'.
     :param kwargs: Additional keyword arguments to pass to the `print` function (e.g., `end`, `sep`, `file`, `flush`).
     """
-    print(colorstring(message, color), **kwargs)
+    if pretty:
+        message = json.dumps(message, indent=2, ensure_ascii=False)
+        print(colorstring(message, color), **kwargs)
+    else:
+        print(colorstring(message, color), **kwargs)
 
 
 def get_image_paths(path: str | List[str]) -> List[str]:

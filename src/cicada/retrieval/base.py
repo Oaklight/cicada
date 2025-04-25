@@ -3,6 +3,7 @@ from contextlib import contextmanager
 from typing import Any, Dict, List, Optional, Type, Union
 
 from sqlalchemy import Engine
+from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlmodel import Session, SQLModel, create_engine, select
 
 from ..core.utils import load_config
@@ -18,6 +19,7 @@ class BaseStore(ABC):
         self,
         db_url_or_engine: Union[str, Engine],
         models: Union[Type[SQLModel], List[Type[SQLModel]]],
+        reuse_session: bool = False,
     ):
         """
         初始化BaseStore。
@@ -31,6 +33,10 @@ class BaseStore(ABC):
         else:
             self.engine = db_url_or_engine
 
+        self._reuse_session = reuse_session
+        self._session_factory = sessionmaker(bind=self.engine)
+        self._scoped_session = None
+
         if isinstance(models, list):
             for model in models:
                 model.metadata.create_all(self.engine)
@@ -39,9 +45,25 @@ class BaseStore(ABC):
             models.metadata.create_all(self.engine)
             self.model = models
 
+    @contextmanager
+    def _managed_session(self):
+        """管理Session生命周期的上下文管理器"""
+        if self._reuse_session:
+            if self._scoped_session is None:
+                self._scoped_session = scoped_session(self._session_factory)
+            try:
+                yield self._scoped_session
+                self._scoped_session.commit()
+            except:
+                self._scoped_session.rollback()
+                raise
+        else:
+            with Session(self.engine) as session:
+                yield session
+
     def insert(self, data: Dict) -> SQLModel:
         """通用插入方法"""
-        with Session(self.engine) as session:
+        with self._managed_session() as session:
             obj = self.model(**data)
             session.add(obj)
             session.commit()
@@ -50,7 +72,7 @@ class BaseStore(ABC):
 
     def get(self, id: Union[int, str]) -> Optional[SQLModel]:
         """通用查询方法"""
-        with Session(self.engine) as session:
+        with self._managed_session() as session:
             obj = session.get(self.model, id)
             if obj:
                 session.refresh(obj)
@@ -58,7 +80,7 @@ class BaseStore(ABC):
 
     def update(self, id: Union[int, str], data: Dict) -> Optional[SQLModel]:
         """通用更新方法"""
-        with Session(self.engine) as session:
+        with self._managed_session() as session:
             obj = session.get(self.model, id)
             if obj:
                 for key, value in data.items():
@@ -70,7 +92,7 @@ class BaseStore(ABC):
 
     def delete(self, id: Union[int, str]) -> bool:
         """通用删除方法"""
-        with Session(self.engine) as session:
+        with self._managed_session() as session:
             obj = session.get(self.model, id)
             if obj:
                 session.delete(obj)
@@ -80,19 +102,19 @@ class BaseStore(ABC):
 
     def get_all(self) -> List[SQLModel]:
         """获取所有记录"""
-        with Session(self.engine) as session:
+        with self._managed_session() as session:
             statement = select(self.model)
             return session.exec(statement).all()
 
     def get_many(self, ids: List[Union[int, str]]) -> List[SQLModel]:
         """批量获取多条记录"""
-        with Session(self.engine) as session:
+        with self._managed_session() as session:
             statement = select(self.model).where(self.model.id.in_(ids))
             return session.exec(statement).all()
 
     def filter(self, **kwargs) -> List[SQLModel]:
         """条件查询"""
-        with Session(self.engine) as session:
+        with self._managed_session() as session:
             statement = select(self.model)
             for key, value in kwargs.items():
                 statement = statement.where(getattr(self.model, key) == value)
@@ -100,7 +122,7 @@ class BaseStore(ABC):
 
     def paginate(self, page: int = 1, per_page: int = 10) -> Dict[str, Any]:
         """分页查询"""
-        with Session(self.engine) as session:
+        with self._managed_session() as session:
             total = session.query(self.model).count()
             statement = select(self.model).offset((page - 1) * per_page).limit(per_page)
             items = session.exec(statement).all()
@@ -114,7 +136,7 @@ class BaseStore(ABC):
 
     def bulk_insert(self, data_list: List[dict]) -> List[SQLModel]:
         """批量插入"""
-        with Session(self.engine) as session:
+        with self._managed_session() as session:
             objects = [self.model(**data) for data in data_list]
             session.bulk_save_objects(objects)
             session.commit()

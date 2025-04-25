@@ -193,7 +193,7 @@ class BaseStore(ABC):
             Dict[str, Any]: A dictionary containing pagination details and records.
         """
         with self._managed_session() as session:
-            total = session.query(self.model).count()
+            total = session.exec(select(self.model)).count()
             statement = select(self.model).offset((page - 1) * per_page).limit(per_page)
             items = session.exec(statement).all()
             return {

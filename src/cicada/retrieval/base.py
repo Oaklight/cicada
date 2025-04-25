@@ -61,8 +61,18 @@ class BaseStore(ABC):
             with Session(self.engine) as session:
                 yield session
 
-    def insert(self, data: Dict) -> SQLModel:
-        """通用插入方法"""
+    def insert(self, data: Union[Dict, List[Dict]]) -> Union[SQLModel, List[SQLModel]]:
+        """通用插入方法，支持单条和批量插入
+
+        参数:
+        - data: 单条数据字典或数据字典列表
+
+        返回:
+        - 单条数据时返回SQLModel对象
+        - 多条数据时返回SQLModel对象列表
+        """
+        if isinstance(data, list):
+            return self.bulk_insert(data)
         with self._managed_session() as session:
             obj = self.model(**data)
             session.add(obj)
@@ -172,9 +182,15 @@ if __name__ == "__main__":
     store = BaseStore(db_url, [TestModel])
 
     # 测试CRUD操作
-    print("\n=== 测试插入 ===")
+    print("\n=== 测试单条插入 ===")
     obj1 = store.insert({"name": "test1", "value": 100})
     print(f"插入结果: {obj1}")
+
+    print("\n=== 测试批量插入 ===")
+    objs = store.insert(
+        [{"name": "test2", "value": 200}, {"name": "test3", "value": 300}]
+    )
+    print(f"批量插入结果: {objs}")
 
     print("\n=== 测试查询 ===")
     obj = store.get(obj1.id)
@@ -185,9 +201,14 @@ if __name__ == "__main__":
     print(f"更新结果: {updated}")
 
     print("\n=== 测试条件查询 ===")
-    results = store.filter(name="test1")
+    results = store.filter(name="test2")
     print(f"条件查询结果: {results}")
 
     print("\n=== 测试删除 ===")
     deleted = store.delete(obj1.id)
     print(f"删除结果: {deleted}")
+
+    # 清理测试表
+    print("\n=== 清理测试表 ===")
+    TestModel.metadata.drop_all(store.engine)
+    print("测试表已删除")

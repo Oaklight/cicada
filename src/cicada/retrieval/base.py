@@ -11,8 +11,8 @@ from ..core.utils import load_config
 
 class BaseStore(ABC):
     """
-    基础存储抽象类，封装通用CRUD操作。
-    所有具体存储实现都应继承此类。
+    Base storage abstract class, encapsulates common CRUD operations.
+    All specific storage implementations should inherit this class.
     """
 
     def __init__(
@@ -22,11 +22,11 @@ class BaseStore(ABC):
         reuse_session: bool = False,
     ):
         """
-        初始化BaseStore。
+        Initialize BaseStore.
 
-        参数:
-        - db_url_or_engine: 数据库连接URL字符串或已创建的engine对象。
-        - models: 单个SQLModel模型类或模型类列表，用于创建数据表。
+        Parameters:
+        - db_url_or_engine: Database connection URL string or created engine object.
+        - models: Single SQLModel model class or list of model classes for creating tables.
         """
         if isinstance(db_url_or_engine, str):
             self.engine = create_engine(db_url_or_engine)
@@ -47,7 +47,7 @@ class BaseStore(ABC):
 
     @contextmanager
     def _managed_session(self):
-        """管理Session生命周期的上下文管理器"""
+        """Context manager for managing the lifecycle of a Session"""
         if self._reuse_session:
             if self._scoped_session is None:
                 self._scoped_session = scoped_session(self._session_factory)
@@ -62,14 +62,14 @@ class BaseStore(ABC):
                 yield session
 
     def insert(self, data: Union[Dict, List[Dict]]) -> Union[SQLModel, List[SQLModel]]:
-        """通用插入方法，支持单条和批量插入
+        """Generic insert method, supports single and batch inserts
 
-        参数:
-        - data: 单条数据字典或数据字典列表
+        Parameters:
+        - data: Single data dictionary or list of data dictionaries
 
-        返回:
-        - 单条数据时返回SQLModel对象
-        - 多条数据时返回SQLModel对象列表
+        Returns:
+        - Returns SQLModel object for single data
+        - Returns list of SQLModel objects for multiple data
         """
         if isinstance(data, list):
             return self.bulk_insert(data)
@@ -81,7 +81,7 @@ class BaseStore(ABC):
             return obj
 
     def get(self, id: Union[int, str]) -> Optional[SQLModel]:
-        """通用查询方法"""
+        """Generic query method"""
         with self._managed_session() as session:
             obj = session.get(self.model, id)
             if obj:
@@ -89,7 +89,7 @@ class BaseStore(ABC):
             return obj
 
     def update(self, id: Union[int, str], data: Dict) -> Optional[SQLModel]:
-        """通用更新方法"""
+        """Generic update method"""
         with self._managed_session() as session:
             obj = session.get(self.model, id)
             if obj:
@@ -101,7 +101,7 @@ class BaseStore(ABC):
             return obj
 
     def delete(self, id: Union[int, str]) -> bool:
-        """通用删除方法"""
+        """Generic delete method"""
         with self._managed_session() as session:
             obj = session.get(self.model, id)
             if obj:
@@ -111,19 +111,19 @@ class BaseStore(ABC):
             return False
 
     def get_all(self) -> List[SQLModel]:
-        """获取所有记录"""
+        """Retrieve all records"""
         with self._managed_session() as session:
             statement = select(self.model)
             return session.exec(statement).all()
 
     def get_many(self, ids: List[Union[int, str]]) -> List[SQLModel]:
-        """批量获取多条记录"""
+        """Batch retrieve multiple records"""
         with self._managed_session() as session:
             statement = select(self.model).where(self.model.id.in_(ids))
             return session.exec(statement).all()
 
     def filter(self, **kwargs) -> List[SQLModel]:
-        """条件查询"""
+        """Conditional query"""
         with self._managed_session() as session:
             statement = select(self.model)
             for key, value in kwargs.items():
@@ -131,7 +131,7 @@ class BaseStore(ABC):
             return session.exec(statement).all()
 
     def paginate(self, page: int = 1, per_page: int = 10) -> Dict[str, Any]:
-        """分页查询"""
+        """Paginated query"""
         with self._managed_session() as session:
             total = session.query(self.model).count()
             statement = select(self.model).offset((page - 1) * per_page).limit(per_page)
@@ -145,7 +145,7 @@ class BaseStore(ABC):
             }
 
     def bulk_insert(self, data_list: List[dict]) -> List[SQLModel]:
-        """批量插入"""
+        """Batch insert"""
         with self._managed_session() as session:
             objects = [self.model(**data) for data in data_list]
             session.bulk_save_objects(objects)
@@ -172,43 +172,43 @@ if __name__ == "__main__":
     config = load_config(args.config, "vector_store")
     db_url = config[args.which]["connection_string"]
 
-    # 测试模型
+    # Test Model
     class TestModel(SQLModel, table=True):
         id: Optional[int] = Field(default=None, primary_key=True)
         name: str
         value: int
 
-    # 初始化存储，传入db_url和模型列表，自动创建表
+    # Initialize storage, pass in db_url and model list, automatically create tables
     store = BaseStore(db_url, [TestModel])
 
-    # 测试CRUD操作
-    print("\n=== 测试单条插入 ===")
+    # Test CRUD operations
+    print("\n=== Test single insertion ===")
     obj1 = store.insert({"name": "test1", "value": 100})
-    print(f"插入结果: {obj1}")
+    print(f"Insertion result: {obj1}")
 
-    print("\n=== 测试批量插入 ===")
+    print("\n=== Test batch insertion ===")
     objs = store.insert(
         [{"name": "test2", "value": 200}, {"name": "test3", "value": 300}]
     )
-    print(f"批量插入结果: {objs}")
+    print(f"Batch insertion result: {objs}")
 
-    print("\n=== 测试查询 ===")
+    print("\n=== Test query ===")
     obj = store.get(obj1.id)
-    print(f"查询结果: {obj}")
+    print(f"Query result: {obj}")
 
-    print("\n=== 测试更新 ===")
+    print("\n=== Test update ===")
     updated = store.update(obj1.id, {"value": 200})
-    print(f"更新结果: {updated}")
+    print(f"Update result: {updated}")
 
-    print("\n=== 测试条件查询 ===")
+    print("\n=== Test conditional query ===")
     results = store.filter(name="test2")
-    print(f"条件查询结果: {results}")
+    print(f"Conditional query result: {results}")
 
-    print("\n=== 测试删除 ===")
+    print("\n=== Test deletion ===")
     deleted = store.delete(obj1.id)
-    print(f"删除结果: {deleted}")
+    print(f"Deletion result: {deleted}")
 
-    # 清理测试表
-    print("\n=== 清理测试表 ===")
+    # Clean up test table
+    print("\n=== Clean up test table ===")
     TestModel.metadata.drop_all(store.engine)
-    print("测试表已删除")
+    print("Test table deleted")

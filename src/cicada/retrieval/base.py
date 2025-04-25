@@ -1,4 +1,4 @@
-from abc import ABC, abstractmethod
+from abc import ABC
 from contextlib import contextmanager
 from typing import Any, Dict, List, Optional, Type, Union
 
@@ -24,9 +24,9 @@ class BaseStore(ABC):
         """
         Initialize BaseStore.
 
-        Parameters:
-        - db_url_or_engine: Database connection URL string or created engine object.
-        - models: Single SQLModel model class or list of model classes for creating tables.
+        Args:
+            db_url_or_engine (Union[str, Engine]): Database connection URL string or created engine object.
+            models (Union[Type[SQLModel], List[Type[SQLModel]]]): Single SQLModel model class or list of model classes for creating tables.
         """
         if isinstance(db_url_or_engine, str):
             self.engine = create_engine(db_url_or_engine)
@@ -47,7 +47,12 @@ class BaseStore(ABC):
 
     @contextmanager
     def _managed_session(self):
-        """Context manager for managing the lifecycle of a Session"""
+        """
+        Context manager for managing the lifecycle of a Session.
+
+        Yields:
+            Session: A managed session object.
+        """
         if self._reuse_session:
             if self._scoped_session is None:
                 self._scoped_session = scoped_session(self._session_factory)
@@ -62,14 +67,14 @@ class BaseStore(ABC):
                 yield session
 
     def insert(self, data: Union[Dict, List[Dict]]) -> Union[SQLModel, List[SQLModel]]:
-        """Generic insert method, supports single and batch inserts
+        """
+        Generic insert method, supports single and batch inserts.
 
-        Parameters:
-        - data: Single data dictionary or list of data dictionaries
+        Args:
+            data (Union[Dict, List[Dict]]): Single data dictionary or list of data dictionaries.
 
         Returns:
-        - Returns SQLModel object for single data
-        - Returns list of SQLModel objects for multiple data
+            Union[SQLModel, List[SQLModel]]: Returns SQLModel object for single data or list of SQLModel objects for multiple data.
         """
         if isinstance(data, list):
             return self.bulk_insert(data)
@@ -81,7 +86,15 @@ class BaseStore(ABC):
             return obj
 
     def get(self, id: Union[int, str]) -> Optional[SQLModel]:
-        """Generic query method"""
+        """
+        Generic query method.
+
+        Args:
+            id (Union[int, str]): The ID of the record to retrieve.
+
+        Returns:
+            Optional[SQLModel]: The retrieved record or None if not found.
+        """
         with self._managed_session() as session:
             obj = session.get(self.model, id)
             if obj:
@@ -89,7 +102,16 @@ class BaseStore(ABC):
             return obj
 
     def update(self, id: Union[int, str], data: Dict) -> Optional[SQLModel]:
-        """Generic update method"""
+        """
+        Generic update method.
+
+        Args:
+            id (Union[int, str]): The ID of the record to update.
+            data (Dict): A dictionary of fields to update.
+
+        Returns:
+            Optional[SQLModel]: The updated record or None if not found.
+        """
         with self._managed_session() as session:
             obj = session.get(self.model, id)
             if obj:
@@ -101,7 +123,15 @@ class BaseStore(ABC):
             return obj
 
     def delete(self, id: Union[int, str]) -> bool:
-        """Generic delete method"""
+        """
+        Generic delete method.
+
+        Args:
+            id (Union[int, str]): The ID of the record to delete.
+
+        Returns:
+            bool: True if the record was deleted, False otherwise.
+        """
         with self._managed_session() as session:
             obj = session.get(self.model, id)
             if obj:
@@ -111,19 +141,40 @@ class BaseStore(ABC):
             return False
 
     def get_all(self) -> List[SQLModel]:
-        """Retrieve all records"""
+        """
+        Retrieve all records.
+
+        Returns:
+            List[SQLModel]: A list of all records.
+        """
         with self._managed_session() as session:
             statement = select(self.model)
             return session.exec(statement).all()
 
     def get_many(self, ids: List[Union[int, str]]) -> List[SQLModel]:
-        """Batch retrieve multiple records"""
+        """
+        Batch retrieve multiple records.
+
+        Args:
+            ids (List[Union[int, str]]): A list of IDs to retrieve.
+
+        Returns:
+            List[SQLModel]: A list of retrieved records.
+        """
         with self._managed_session() as session:
             statement = select(self.model).where(self.model.id.in_(ids))
             return session.exec(statement).all()
 
     def filter(self, **kwargs) -> List[SQLModel]:
-        """Conditional query"""
+        """
+        Conditional query.
+
+        Args:
+            **kwargs: Field-value pairs to filter records.
+
+        Returns:
+            List[SQLModel]: A list of records matching the conditions.
+        """
         with self._managed_session() as session:
             statement = select(self.model)
             for key, value in kwargs.items():
@@ -131,7 +182,16 @@ class BaseStore(ABC):
             return session.exec(statement).all()
 
     def paginate(self, page: int = 1, per_page: int = 10) -> Dict[str, Any]:
-        """Paginated query"""
+        """
+        Paginated query.
+
+        Args:
+            page (int): The page number to retrieve.
+            per_page (int): The number of records per page.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing pagination details and records.
+        """
         with self._managed_session() as session:
             total = session.query(self.model).count()
             statement = select(self.model).offset((page - 1) * per_page).limit(per_page)
@@ -145,7 +205,15 @@ class BaseStore(ABC):
             }
 
     def bulk_insert(self, data_list: List[dict]) -> List[SQLModel]:
-        """Batch insert"""
+        """
+        Batch insert.
+
+        Args:
+            data_list (List[dict]): A list of data dictionaries to insert.
+
+        Returns:
+            List[SQLModel]: A list of inserted records.
+        """
         with self._managed_session() as session:
             objects = [self.model(**data) for data in data_list]
             session.bulk_save_objects(objects)

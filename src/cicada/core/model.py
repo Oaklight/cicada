@@ -1,16 +1,22 @@
+from __future__ import annotations
+
 import copy
 import json
 import logging
+import sys
 from abc import ABC
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Dict, List, Optional
 
 import openai
 from openai.types.chat.chat_completion_message import ChatCompletionMessage
 from toolregistry import ToolRegistry
 
-from cicada.core.basics import PromptBuilder
-from cicada.core.utils import cprint, recover_stream_tool_calls
+from .basics import PromptBuilder
+from .utils import cprint, recover_stream_tool_calls
+
+if TYPE_CHECKING:
+    from _typeshed import SupportsWrite
 
 # 同时抑制两个层级的日志源
 logging.getLogger("httpx").setLevel(logging.WARNING)  # 屏蔽INFO级
@@ -52,6 +58,22 @@ class MultiModalModel(ABC):
         self.client = openai.OpenAI(
             api_key=self.api_key, base_url=self.api_base_url, organization=self.org_id
         )
+        self.set_stream_target()  # Default to stdout
+
+    def set_stream_target(self, target: Optional[SupportsWrite[str]] = sys.stdout):
+        """
+        set stream target for streaming mode
+        default to stdout, will be pass to cprint function in core/utils.py
+
+        Args:
+            target (Optional[SupportsWrite[str]]): target for stream output, default to stdout
+                can be a file object, or any object with a write method, or False to disable streaming mode
+        """
+
+        if not target:
+            self.stream_target = None
+        else:
+            self.stream_target = target
 
     def query(
         self,

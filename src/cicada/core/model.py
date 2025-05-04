@@ -158,13 +158,21 @@ class MultiModalModel(ABC):
         Returns:
             Any: Raw response from the API
         """
-        kwargs = self.model_kwargs.copy()
+        model_kwargs = self.model_kwargs.copy()
+        tool_kwargs = {}
         if tools:
-            kwargs["tools"] = tools.get_tools_json()
-            kwargs["tool_choice"] = "auto"
+            if isinstance(tools, list):
+                tool_kwargs["tools"] = tools
+            else:
+                tool_kwargs["tools"] = tools.get_tools_json()
+            tool_kwargs["tool_choice"] = "auto"
 
         return self.client.chat.completions.create(
-            model=self.model_name, messages=messages, stream=stream, **kwargs
+            model=self.model_name,
+            messages=messages,
+            stream=stream,
+            **tool_kwargs,
+            **model_kwargs,
         )
 
     def _process_non_stream_response(
@@ -197,7 +205,6 @@ class MultiModalModel(ABC):
 
         # 处理工具调用
         if tools and hasattr(message, "tool_calls") and message.tool_calls:
-
             result = self.get_response_with_tools(
                 messages, message.tool_calls, tools, result, stream=False
             )
@@ -271,13 +278,13 @@ class MultiModalModel(ABC):
             if tool_call.id:
                 state.stream_tool_calls[index]["id"] += tool_call.id
             if tool_call.function.name:
-                state.stream_tool_calls[index]["function"][
-                    "name"
-                ] += tool_call.function.name
+                state.stream_tool_calls[index]["function"]["name"] += (
+                    tool_call.function.name
+                )
             if tool_call.function.arguments:
-                state.stream_tool_calls[index]["function"][
-                    "arguments"
-                ] += tool_call.function.arguments
+                state.stream_tool_calls[index]["function"]["arguments"] += (
+                    tool_call.function.arguments
+                )
 
     def _process_stream_chunk(
         self, chunk: Any, state: StreamState, tools: Optional[ToolRegistry] = None

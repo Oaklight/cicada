@@ -66,28 +66,135 @@ class BaseStore(ABC):
             with Session(self.engine) as session:
                 yield session
 
-    def insert(self, data: Union[Dict, List[Dict]]) -> Union[SQLModel, List[SQLModel]]:
+    @staticmethod
+    def _insert(session: Session, model: Type[SQLModel], data: Dict) -> SQLModel:
         """
-        Generic insert method, supports single and batch inserts.
+        Helper method to insert a new record.
 
         Args:
-            data (Union[Dict, List[Dict]]): Single data dictionary or list of data dictionaries.
+            session (Session): The database session.
+            model (Type[SQLModel]): The model class to insert.
+            data (Dict): A dictionary of fields to insert.
 
         Returns:
-            Union[SQLModel, List[SQLModel]]: Returns SQLModel object for single data or list of SQLModel objects for multiple data.
+            SQLModel: The inserted record.
         """
-        if isinstance(data, list):
-            return self.bulk_insert(data)
-        with self._managed_session() as session:
-            obj = self.model(**data)
+        obj = model(**data)
+        session.add(obj)
+        session.commit()
+        session.refresh(obj)
+        return obj
+
+    @staticmethod
+    def _get(
+        session: Session, model: Type[SQLModel], id: Union[int, str]
+    ) -> Optional[SQLModel]:
+        """
+        Helper method to get a record by ID.
+
+        Args:
+            session (Session): The database session.
+            model (Type[SQLModel]): The model class to query.
+            id (Union[int, str]): The ID of the record to retrieve.
+
+        Returns:
+            Optional[SQLModel]: The retrieved record or None if not found.
+        """
+        obj = session.get(model, id)
+        if obj:
+            session.refresh(obj)
+        return obj
+
+    @staticmethod
+    def _update(
+        session: Session, model: Type[SQLModel], id: Union[int, str], data: Dict
+    ) -> Optional[SQLModel]:
+        """
+        Helper method to update a record.
+
+        Args:
+            session (Session): The database session.
+            model (Type[SQLModel]): The model class to update.
+            id (Union[int, str]): The ID of the record to update.
+            data (Dict): A dictionary of fields to update.
+
+        Returns:
+            Optional[SQLModel]: The updated record or None if not found.
+        """
+        obj = session.get(model, id)
+        if obj:
+            for key, value in data.items():
+                setattr(obj, key, value)
             session.add(obj)
             session.commit()
             session.refresh(obj)
-            return obj
+        return obj
+
+    @staticmethod
+    def _upsert(
+        session: Session, model: Type[SQLModel], id: Union[int, str], data: Dict
+    ) -> SQLModel:
+        """
+        Helper method to upsert a record.
+
+        Args:
+            session (Session): The database session.
+            model (Type[SQLModel]): The model class to upsert.
+            id (Union[int, str]): The ID of the record to upsert.
+            data (Dict): A dictionary of fields to insert or update.
+
+        Returns:
+            SQLModel: The upserted record.
+        """
+        obj = session.get(model, id)
+        if obj:
+            obj = BaseStore._update(session, model, id, data)
+        else:
+            obj = BaseStore._insert(session, model, {**data, "id": id})
+        return obj
+
+    def _delete(self, session: Session, id: Union[int, str]) -> bool:
+        """
+        Helper method to delete a record by ID.
+
+        Args:
+            session (Session): The database session.
+            id (Union[int, str]): The ID of the record to delete.
+
+        Returns:
+            bool: True if the record was deleted, False otherwise.
+        """
+        obj = session.get(self.model, id)
+        if obj:
+            session.delete(obj)
+            session.commit()
+            return True
+        return False
+
+    def insert(self, data: Union[Dict, List[Dict]]) -> Union[SQLModel, List[SQLModel]]:
+        """
+        Generic insert method that handles both single and batch inserts automatically.
+        When given a single dictionary, performs a single insert.
+        When given a list of dictionaries, performs a batch insert.
+
+        Args:
+            data (Union[Dict, List[Dict]]):
+                - For single insert: a dictionary of field-value pairs
+                - For batch insert: a list of such dictionaries
+
+        Returns:
+            Union[SQLModel, List[SQLModel]]:
+                - For single insert: the inserted record
+                - For batch insert: list of inserted records
+        """
+        with self._managed_session() as session:
+            if isinstance(data, list):
+                return self._bulk_insert(session, self.model, data)
+            return self._insert(session, self.model, data)
 
     def get(self, id: Union[int, str]) -> Optional[SQLModel]:
         """
-        Generic query method.
+        Retrieve a single record by ID.
 
         Args:
             id (Union[int, str]): The ID of the record to retrieve.
@@ -96,10 +203,27 @@ class BaseStore(ABC):
             Optional[SQLModel]: The retrieved record or None if not found.
         """
         with self._managed_session() as session:
-            obj = session.get(self.model, id)
-            if obj:
-                session.refresh(obj)
-            return obj
+            return self._get(session, self.model, id)
+
+    @staticmethod
+    def _bulk_insert(
+        session: Session, model: Type[SQLModel], data_list: List[dict]
+    ) -> List[SQLModel]:
+        """
+        Internal batch insert method. Users should use insert() instead.
+
+        Args:
+            session (Session): The database session.
+            model (Type[SQLModel]): The model class to insert.
+            data_list (List[dict]): A list of data dictionaries to insert.
+
+        Returns:
+            List[SQLModel]: A list of inserted records.
+        """
+        objects = [model(**data) for data in data_list]
+        session.bulk_save_objects(objects)
+        session.commit()
+        return objects
 
     def update(self, id: Union[int, str], data: Dict) -> Optional[SQLModel]:
         """
@@ -113,14 +237,7 @@ class BaseStore(ABC):
             Optional[SQLModel]: The updated record or None if not found.
         """
         with self._managed_session() as session:
-            obj = session.get(self.model, id)
-            if obj:
-                for key, value in data.items():
-                    setattr(obj, key, value)
-                session.add(obj)
-                session.commit()
-                session.refresh(obj)
-            return obj
+            return self._update(session, self.model, id, data)
 
     def upsert(self, id: Union[int, str], data: Dict) -> SQLModel:
         """
@@ -134,19 +251,7 @@ class BaseStore(ABC):
             SQLModel: The upserted record.
         """
         with self._managed_session() as session:
-            obj = session.get(self.model, id)
-            if obj:
-                for key, value in data.items():
-                    setattr(obj, key, value)
-                session.add(obj)
-                session.commit()
-                session.refresh(obj)
-            else:
-                obj = self.model(**data)
-                session.add(obj)
-                session.commit()
-                session.refresh(obj)
-            return obj
+            return self._upsert(session, self.model, id, data)
 
     def delete(self, id: Union[int, str]) -> bool:
         """
@@ -159,12 +264,7 @@ class BaseStore(ABC):
             bool: True if the record was deleted, False otherwise.
         """
         with self._managed_session() as session:
-            obj = session.get(self.model, id)
-            if obj:
-                session.delete(obj)
-                session.commit()
-                return True
-            return False
+            return self._delete(session, id)
 
     def get_all(self) -> List[SQLModel]:
         """
@@ -229,23 +329,6 @@ class BaseStore(ABC):
                 "per_page": per_page,
                 "pages": (total + per_page - 1) // per_page,
             }
-
-    def bulk_insert(self, data_list: List[dict]) -> List[SQLModel]:
-        """
-        Batch insert.
-
-        Args:
-            data_list (List[dict]): A list of data dictionaries to insert.
-
-        Returns:
-            List[SQLModel]: A list of inserted records.
-        """
-        with self._managed_session() as session:
-            objects = [self.model(**data) for data in data_list]
-            session.bulk_save_objects(objects)
-            session.commit()
-            return objects
-
 
 if __name__ == "__main__":
     import argparse

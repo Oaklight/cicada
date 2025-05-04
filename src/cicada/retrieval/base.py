@@ -297,6 +297,7 @@ class BaseStore(ABC):
 
         Args:
             **kwargs: Field-value pairs to filter records.
+                For 'in' queries, pass field__in=[value1, value2]
 
         Returns:
             List[SQLModel]: A list of records matching the conditions.
@@ -304,7 +305,11 @@ class BaseStore(ABC):
         with self._managed_session() as session:
             statement = select(self.model)
             for key, value in kwargs.items():
-                statement = statement.where(getattr(self.model, key) == value)
+                if key.endswith("__in"):
+                    field = getattr(self.model, key[:-4])
+                    statement = statement.where(field.in_(value))
+                else:
+                    statement = statement.where(getattr(self.model, key) == value)
             return session.exec(statement).all()
 
     def paginate(self, page: int = 1, per_page: int = 10) -> Dict[str, Any]:
@@ -329,6 +334,7 @@ class BaseStore(ABC):
                 "per_page": per_page,
                 "pages": (total + per_page - 1) // per_page,
             }
+
 
 if __name__ == "__main__":
     import argparse
@@ -358,32 +364,71 @@ if __name__ == "__main__":
     # Initialize storage, pass in db_url and model list, automatically create tables
     store = BaseStore(db_url, [TestModel])
 
+    # Clean up any existing test data before starting
+    TestModel.metadata.drop_all(store.engine)
+    TestModel.metadata.create_all(store.engine)
+
     # Test CRUD operations
     print("\n=== Test single insertion ===")
     obj1 = store.insert({"name": "test1", "value": 100})
     print(f"Insertion result: {obj1}")
+    assert obj1 is not None, "Single insert failed"
+    assert obj1.name == "test1", "Inserted name incorrect"
+    assert obj1.value == 100, "Inserted value incorrect"
 
     print("\n=== Test batch insertion ===")
     objs = store.insert(
         [{"name": "test2", "value": 200}, {"name": "test3", "value": 300}]
     )
     print(f"Batch insertion result: {objs}")
+    assert len(objs) == 2, "Batch insert count incorrect"
+    assert objs[0].name == "test2", "Batch insert name 1 incorrect"
+    assert objs[1].name == "test3", "Batch insert name 2 incorrect"
+
+    # Get inserted objects with their IDs
+    objs = store.filter(name__in=["test2", "test3"])
+    assert len(objs) == 2, "Failed to retrieve batch inserted objects"
 
     print("\n=== Test query ===")
     obj = store.get(obj1.id)
     print(f"Query result: {obj}")
+    assert obj is not None, "Query failed"
+    assert obj.id == obj1.id, "Queried object ID mismatch"
 
     print("\n=== Test update ===")
     updated = store.update(obj1.id, {"value": 200})
     print(f"Update result: {updated}")
+    assert updated is not None, "Update failed"
+    assert updated.value == 200, "Updated value incorrect"
 
     print("\n=== Test conditional query ===")
     results = store.filter(name="test2")
     print(f"Conditional query result: {results}")
+    assert len(results) == 1, "Conditional query count incorrect"
+    assert results[0].name == "test2", "Conditional query result incorrect"
 
     print("\n=== Test deletion ===")
     deleted = store.delete(obj1.id)
     print(f"Deletion result: {deleted}")
+    assert deleted, "Deletion failed"
+    assert store.get(obj1.id) is None, "Object still exists after deletion"
+
+    print("\n=== Test get_all ===")
+    all_objs = store.get_all()
+    print(f"All objects count: {len(all_objs)}")
+    print(f"First object: {all_objs[0] if all_objs else None}")
+    assert len(all_objs) == 2, "get_all count incorrect"
+    assert all(obj.name in ["test2", "test3"] for obj in all_objs), (
+        "get_all content incorrect"
+    )
+
+    print("\n=== Test get_many ===")
+    ids = [obj.id for obj in objs]
+    many_objs = store.get_many(ids)
+    print(f"Retrieved objects count: {len(many_objs)}")
+    print(f"First retrieved object: {many_objs[0] if many_objs else None}")
+    assert len(many_objs) == 2, "get_many count incorrect"
+    assert set(obj.id for obj in many_objs) == set(ids), "get_many IDs mismatch"
 
     # Clean up test table
     print("\n=== Clean up test table ===")

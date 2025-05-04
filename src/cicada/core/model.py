@@ -225,16 +225,27 @@ class MultiModalModel(ABC):
             state.content += delta.content
             cprint(delta.content, "white", end="", flush=True)
 
-    def _process_reasoning_chunk(self, delta: Any, state: StreamState) -> None:
+    def _process_reasoning_chunk(
+        self,
+        delta: Any,
+        state: StreamState,
+        stdout_enabled: bool = False,
+    ) -> None:
         """Process reasoning content chunk and update state.
 
         Args:
             delta: Delta object from API response
             state: StreamState instance to update
+            stdout_enabled (bool): Whether to stream to stdout (default: False)
         """
-        if hasattr(delta, "reasoning_content") and delta.reasoning_content:
-            state.reasoning_content += delta.reasoning_content
-            cprint(delta.reasoning_content, "cyan", end="", flush=True)
+
+        for field_name in ["reasoning_content", "reasoning"]:
+            if hasattr(delta, field_name) and getattr(delta, field_name):
+                reasoning_content = getattr(delta, field_name)
+                state.reasoning_content += reasoning_content
+                if stdout_enabled:
+                    cprint(reasoning_content, "cyan", end="", flush=True)
+                break
 
     def _process_tool_call_chunk(
         self, delta: Any, state: StreamState, tools: Optional[ToolRegistry] = None

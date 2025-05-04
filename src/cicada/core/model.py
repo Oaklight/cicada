@@ -82,6 +82,7 @@ class MultiModalModel(ABC):
         prompt_builder: Optional[PromptBuilder] = None,
         messages: Optional[List[ChatCompletionMessage]] = None,
         tools: Optional[ToolRegistry] = None,
+        **kwargs: Optional[Dict[str, Any]],
     ) -> Dict[str, Any]:
         """Query the language model with support for tool use.
 
@@ -104,15 +105,21 @@ class MultiModalModel(ABC):
         Raises:
             ValueError: If no response is received from the model
         """
+        query_kwargs = dict(self.model_kwargs)
+        if kwargs:
+            query_kwargs.update(kwargs)
+
         # 构造消息
         messages = self._build_messages(prompt, system_prompt, prompt_builder, messages)
 
         # 调用API
-        response = self._call_model_api(messages, stream, tools)
+        response = self._call_model_api(messages, stream, tools, **query_kwargs)
 
         # 处理响应
         if stream:
-            return self._process_stream_response(messages, response, tools)
+            return self._process_stream_response(
+                messages, response, tools, **query_kwargs
+            )
         else:
             return self._process_non_stream_response(messages, response, tools)
 
@@ -168,6 +175,7 @@ class MultiModalModel(ABC):
         messages: List[Dict[str, str]],
         stream: bool,
         tools: Optional[ToolRegistry] = None,
+        **kwargs: Dict[str, Any],
     ) -> Any:
         """Call the model API with optional tool support.
 
@@ -179,7 +187,6 @@ class MultiModalModel(ABC):
         Returns:
             Any: Raw response from the API
         """
-        model_kwargs = self.model_kwargs.copy()
         tool_kwargs = {}
         if tools:
             if isinstance(tools, list):
@@ -193,7 +200,7 @@ class MultiModalModel(ABC):
             messages=messages,
             stream=stream,
             **tool_kwargs,
-            **model_kwargs,
+            **kwargs,
         )
 
     def _process_non_stream_response(
@@ -337,6 +344,7 @@ class MultiModalModel(ABC):
         messages: List[Dict[str, str]],
         response: Any,
         tools: Optional[ToolRegistry] = None,
+        **kwargs: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Process streaming response with tool support.
 
@@ -371,7 +379,12 @@ class MultiModalModel(ABC):
 
             tool_calls = recover_stream_tool_calls(state.stream_tool_calls)
             result = self.get_response_with_tools(
-                messages, tool_calls, tools, result, stream=True
+                messages,
+                tool_calls,
+                tools,
+                result,
+                stream=True,
+                **kwargs,
             )
         else:
             result = {"content": state.content}
@@ -383,7 +396,7 @@ class MultiModalModel(ABC):
         return result
 
     def get_response_with_tools(
-        self, messages, tool_calls, tools, result, stream=False
+        self, messages, tool_calls, tools, result, stream=False, **kwargs
     ):
         # 使用 ToolRegistry 执行工具调用
         tool_responses = tools.execute_tool_calls(tool_calls)
@@ -402,7 +415,7 @@ class MultiModalModel(ABC):
 
         result_copy = copy.deepcopy(result)
         # 调用模型生成最终响应
-        result = self.query(messages=messages, stream=stream, tools=tools)
+        result = self.query(messages=messages, stream=stream, tools=tools, **kwargs)
 
         # 将当前结果加入工具调用链
         if "tool_chain" in result:

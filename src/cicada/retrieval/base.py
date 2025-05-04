@@ -1,7 +1,20 @@
-from abc import ABC
+from abc import ABC, abstractmethod
 from contextlib import contextmanager
-from typing import Any, Dict, Generic, List, Optional, Protocol, Type, TypeVar, Union
+from typing import (
+    Any,
+    Dict,
+    Generic,
+    List,
+    Literal,
+    Optional,
+    Protocol,
+    Tuple,
+    Type,
+    TypeVar,
+    Union,
+)
 
+import numpy as np
 from sqlalchemy import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlmodel import Session, SQLModel, create_engine, select
@@ -353,6 +366,136 @@ class BaseStore(ABC, Generic[T]):
                 "pages": (total + per_page - 1) // per_page,
             }
 
+
+class VectorStore(BaseStore):
+    """
+    Abstract vector storage class extending BaseStore with vector-specific operations.
+
+    Inherits all CRUD operations from BaseStore and adds vector capabilities.
+    """
+
+    def __init__(
+        self,
+        db_url_or_engine: Union[str, Engine],
+        record_model: Type[SQLModel],
+        vector_model: Type[SQLModel],
+        reuse_session: bool = False,
+    ):
+        """
+        Args:
+            record_model: Main data table model (e.g., Document, Product)
+            vector_model: Vector storage table model (must contain vector field)
+        """
+        super().__init__(
+            db_url_or_engine=db_url_or_engine,
+            models=[record_model, vector_model],
+            reuse_session=reuse_session,
+        )
+        self.record_model = record_model
+        self.vector_model = vector_model
+
+    @abstractmethod
+    def insert_with_vector(
+        self,
+        record_data: Union[Dict[str, Any], List[Dict[str, Any]]],
+        vector: Union[
+            List[float], "np.ndarray", List[Union[List[float], "np.ndarray"]]
+        ],
+        vector_meta: Optional[Union[Dict[str, Any], List[Dict[str, Any]]]] = None,
+    ) -> Union[Tuple[SQLModel, SQLModel], List[Tuple[SQLModel, SQLModel]]]:
+        """Insert record(s) with associated vector(s). Handles both single and batch operations.
+
+        Args:
+            record_data: For single insert: dictionary of field-value pairs
+                        For batch insert: list of such dictionaries
+            vector: For single insert: vector data as list or numpy array
+                   For batch insert: list of vectors
+            vector_meta: Optional metadata for vector(s):
+                        - For single insert: dictionary
+                        - For batch insert: list of dictionaries (must match vectors length)
+
+        Returns:
+            For single insert: tuple of (main record, vector record)
+            For batch insert: list of such tuples
+
+        Raises:
+            ValueError: If inputs are invalid:
+                     - record_data is missing required fields
+                     - vector dimensions don't match expected size
+                     - batch inputs have mismatched lengths
+                     - vector_meta length doesn't match vectors length (if provided)
+        """
+
+    @abstractmethod
+    def search_by_vector(
+        self,
+        query_vector: Union[List[float], "np.ndarray"],
+        limit: int = 10,
+        filters: Optional[Dict[str, Any]] = None,
+        metric: Literal["cosine", "L2"] = "cosine",
+        **kwargs: Any,
+    ) -> List[Tuple[SQLModel, float]]:
+        """Perform vector similarity search with optional filters.
+
+        Args:
+            query_vector: Query vector to compare against stored vectors
+            limit: Maximum number of results to return
+            filters: Optional dictionary of field-value filters
+            metric: Similarity metric to use ("cosine" or "L2")
+            **kwargs: Additional implementation-specific parameters
+
+        Returns:
+            List of tuples containing:
+            - Matched record object
+            - Similarity score (higher is more similar)
+
+        Raises:
+            ValueError: If query_vector dimensions don't match expected size
+                      or invalid metric provided
+        """
+
+
+    @abstractmethod
+    def search_by_query(
+        self,
+        query: str,
+        limit: int = 10,
+        filters: Optional[Dict[str, Any]] = None,
+        metric: Literal["cosine", "L2"] = "cosine",
+        **kwargs: Any,
+    ) -> List[Tuple[SQLModel, float]]:
+        """Perform text-based search with optional filters.
+
+        Args:
+            query: Text query to search for
+            limit: Maximum number of results to return
+            filters: Optional dictionary of field-value filters
+            metric: Similarity metric to use ("cosine" or "L2")
+            **kwargs: Additional implementation-specific parameters
+
+        Returns:
+            List of tuples containing:
+            - Matched record object
+            - Relevance score (higher is more relevant)
+
+        Raises:
+            ValueError: If query is empty or invalid
+                      or invalid metric provided
+        """
+
+    @abstractmethod
+    def create_index(self, index_params: Optional[Dict[str, Any]] = None) -> None:
+        """Create or update vector index for optimized search performance.
+
+        Args:
+            index_params: Optional dictionary of index creation parameters:
+                - index_type: Type of index to create
+                - metric_type: Distance metric (e.g., "cosine", "l2", "ip")
+                - other implementation-specific parameters
+
+        Raises:
+            ValueError: If invalid index parameters provided
+        """
 
 if __name__ == "__main__":  # type: ignore
     import argparse

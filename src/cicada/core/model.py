@@ -485,8 +485,6 @@ if __name__ == "__main__":
         **llm_config.get("model_kwargs", {}),
     )
 
-    from cicada.core.basics import PromptBuilder
-
     # # 流式模式
     # print("Streaming response:")
     # stream_response = llm.query("告诉我一个极短的笑话", stream=True)
@@ -498,6 +496,8 @@ if __name__ == "__main__":
     # print("PromptBuilder response:", result["formatted_response"])
     # 创建工具注册表
     from toolregistry import ToolRegistry
+
+    from cicada.core.basics import PromptBuilder
 
     tool_registry = ToolRegistry()
 

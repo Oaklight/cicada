@@ -122,6 +122,32 @@ class BaseStore(ABC):
                 session.refresh(obj)
             return obj
 
+    def upsert(self, id: Union[int, str], data: Dict) -> SQLModel:
+        """
+        Upsert method to insert a new record or update an existing one.
+
+        Args:
+            id (Union[int, str]): The ID of the record to upsert.
+            data (Dict): A dictionary of fields to insert or update.
+
+        Returns:
+            SQLModel: The upserted record.
+        """
+        with self._managed_session() as session:
+            obj = session.get(self.model, id)
+            if obj:
+                for key, value in data.items():
+                    setattr(obj, key, value)
+                session.add(obj)
+                session.commit()
+                session.refresh(obj)
+            else:
+                obj = self.model(**data)
+                session.add(obj)
+                session.commit()
+                session.refresh(obj)
+            return obj
+
     def delete(self, id: Union[int, str]) -> bool:
         """
         Generic delete method.

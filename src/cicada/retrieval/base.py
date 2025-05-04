@@ -1,6 +1,6 @@
 from abc import ABC
 from contextlib import contextmanager
-from typing import Any, Dict, List, Optional, Type, Union
+from typing import Any, Dict, Generic, List, Optional, Protocol, Type, TypeVar, Union
 
 from sqlalchemy import Engine
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -9,7 +9,20 @@ from sqlmodel import Session, SQLModel, create_engine, select
 from ..core.utils import load_config
 
 
-class BaseStore(ABC):
+class HasId(Protocol):
+    id: Union[int, str]
+
+
+class HasIdAndMetadata(SQLModel):
+    """Base class combining SQLModel and HasId requirements."""
+
+    id: Union[int, str]  # Explicitly declare id field to satisfy HasId protocol
+
+
+T = TypeVar("T", bound=HasIdAndMetadata)
+
+
+class BaseStore(ABC, Generic[T]):
     """
     Base storage abstract class, encapsulates common CRUD operations.
     All specific storage implementations should inherit this class.
@@ -18,9 +31,9 @@ class BaseStore(ABC):
     def __init__(
         self,
         db_url_or_engine: Union[str, Engine],
-        models: Union[Type[SQLModel], List[Type[SQLModel]]],
+        models: Union[Type[T], List[Type[T]]],
         reuse_session: bool = False,
-    ):
+    ) -> None:
         """
         Initialize BaseStore.
 
@@ -38,10 +51,16 @@ class BaseStore(ABC):
         self._scoped_session = None
 
         if isinstance(models, list):
+            if not models:
+                raise ValueError("At least one model must be provided")
             for model in models:
+                if not hasattr(model, "metadata"):
+                    raise TypeError(f"Model {model} must be a SQLModel subclass")
                 model.metadata.create_all(self.engine)
-            self.model = models[0] if models else None
+            self.model = models[0]
         else:
+            if not hasattr(models, "metadata"):
+                raise TypeError(f"Model {models} must be a SQLModel subclass")
             models.metadata.create_all(self.engine)
             self.model = models
 
@@ -67,17 +86,17 @@ class BaseStore(ABC):
                 yield session
 
     @staticmethod
-    def _insert(session: Session, model: Type[SQLModel], data: Dict) -> SQLModel:
+    def _insert(session: Session, model: Type[T], data: Dict[str, Any]) -> T:
         """
         Helper method to insert a new record.
 
         Args:
             session (Session): The database session.
-            model (Type[SQLModel]): The model class to insert.
-            data (Dict): A dictionary of fields to insert.
+            model (Type[T]): The model class to insert.
+            data (Dict[str, Any]): A dictionary of fields to insert.
 
         Returns:
-            SQLModel: The inserted record.
+            T: The inserted record.
         """
         obj = model(**data)
         session.add(obj)
@@ -86,19 +105,17 @@ class BaseStore(ABC):
         return obj
 
     @staticmethod
-    def _get(
-        session: Session, model: Type[SQLModel], id: Union[int, str]
-    ) -> Optional[SQLModel]:
+    def _get(session: Session, model: Type[T], id: Union[int, str]) -> Optional[T]:
         """
         Helper method to get a record by ID.
 
         Args:
             session (Session): The database session.
-            model (Type[SQLModel]): The model class to query.
+            model (Type[T]): The model class to query.
             id (Union[int, str]): The ID of the record to retrieve.
 
         Returns:
-            Optional[SQLModel]: The retrieved record or None if not found.
+            Optional[T]: The retrieved record or None if not found.
         """
         obj = session.get(model, id)
         if obj:
@@ -107,19 +124,19 @@ class BaseStore(ABC):
 
     @staticmethod
     def _update(
-        session: Session, model: Type[SQLModel], id: Union[int, str], data: Dict
-    ) -> Optional[SQLModel]:
+        session: Session, model: Type[T], id: Union[int, str], data: Dict[str, Any]
+    ) -> Optional[T]:
         """
         Helper method to update a record.
 
         Args:
             session (Session): The database session.
-            model (Type[SQLModel]): The model class to update.
+            model (Type[T]): The model class to update.
             id (Union[int, str]): The ID of the record to update.
-            data (Dict): A dictionary of fields to update.
+            data (Dict[str, Any]): A dictionary of fields to update.
 
         Returns:
-            Optional[SQLModel]: The updated record or None if not found.
+            Optional[T]: The updated record or None if not found.
         """
         obj = session.get(model, id)
         if obj:
@@ -132,19 +149,19 @@ class BaseStore(ABC):
 
     @staticmethod
     def _upsert(
-        session: Session, model: Type[SQLModel], id: Union[int, str], data: Dict
-    ) -> SQLModel:
+        session: Session, model: Type[T], id: Union[int, str], data: Dict[str, Any]
+    ) -> Optional[T]:
         """
         Helper method to upsert a record.
 
         Args:
             session (Session): The database session.
-            model (Type[SQLModel]): The model class to upsert.
+            model (Type[T]): The model class to upsert.
             id (Union[int, str]): The ID of the record to upsert.
-            data (Dict): A dictionary of fields to insert or update.
+            data (Dict[str, Any]): A dictionary of fields to insert or update.
 
         Returns:
-            SQLModel: The upserted record.
+            T: The upserted record.
         """
         obj = session.get(model, id)
         if obj:
@@ -171,7 +188,9 @@ class BaseStore(ABC):
             return True
         return False
 
-    def insert(self, data: Union[Dict, List[Dict]]) -> Union[SQLModel, List[SQLModel]]:
+    def insert(
+        self, data: Union[Dict[str, Any], List[Dict[str, Any]]]
+    ) -> Union[T, List[T]]:
         """
         Generic insert method that handles both single and batch inserts automatically.
         When given a single dictionary, performs a single insert.
@@ -183,7 +202,7 @@ class BaseStore(ABC):
                 - For batch insert: a list of such dictionaries
 
         Returns:
-            Union[SQLModel, List[SQLModel]]:
+            Union[T, List[T]]:
                 - For single insert: the inserted record
                 - For batch insert: list of inserted records
         """
@@ -192,7 +211,7 @@ class BaseStore(ABC):
                 return self._bulk_insert(session, self.model, data)
             return self._insert(session, self.model, data)
 
-    def get(self, id: Union[int, str]) -> Optional[SQLModel]:
+    def get(self, id: Union[int, str]) -> Optional[T]:
         """
         Retrieve a single record by ID.
 
@@ -200,32 +219,32 @@ class BaseStore(ABC):
             id (Union[int, str]): The ID of the record to retrieve.
 
         Returns:
-            Optional[SQLModel]: The retrieved record or None if not found.
+            Optional[T]: The retrieved record or None if not found.
         """
         with self._managed_session() as session:
             return self._get(session, self.model, id)
 
     @staticmethod
     def _bulk_insert(
-        session: Session, model: Type[SQLModel], data_list: List[dict]
-    ) -> List[SQLModel]:
+        session: Session, model: Type[T], data_list: List[Dict[str, Any]]
+    ) -> List[T]:
         """
         Internal batch insert method. Users should use insert() instead.
 
         Args:
             session (Session): The database session.
-            model (Type[SQLModel]): The model class to insert.
-            data_list (List[dict]): A list of data dictionaries to insert.
+            model (Type[T]): The model class to insert.
+            data_list (List[Dict[str, Any]]): A list of data dictionaries to insert.
 
         Returns:
-            List[SQLModel]: A list of inserted records.
+            List[T]: A list of inserted records.
         """
         objects = [model(**data) for data in data_list]
         session.bulk_save_objects(objects)
         session.commit()
         return objects
 
-    def update(self, id: Union[int, str], data: Dict) -> Optional[SQLModel]:
+    def update(self, id: Union[int, str], data: Dict[str, Any]) -> Optional[T]:
         """
         Generic update method.
 
@@ -234,12 +253,12 @@ class BaseStore(ABC):
             data (Dict): A dictionary of fields to update.
 
         Returns:
-            Optional[SQLModel]: The updated record or None if not found.
+            Optional[T]: The updated record or None if not found.
         """
         with self._managed_session() as session:
             return self._update(session, self.model, id, data)
 
-    def upsert(self, id: Union[int, str], data: Dict) -> SQLModel:
+    def upsert(self, id: Union[int, str], data: Dict[str, Any]) -> Optional[T]:
         """
         Upsert method to insert a new record or update an existing one.
 
@@ -248,7 +267,7 @@ class BaseStore(ABC):
             data (Dict): A dictionary of fields to insert or update.
 
         Returns:
-            SQLModel: The upserted record.
+            T: The upserted record.
         """
         with self._managed_session() as session:
             return self._upsert(session, self.model, id, data)
@@ -266,32 +285,31 @@ class BaseStore(ABC):
         with self._managed_session() as session:
             return self._delete(session, id)
 
-    def get_all(self) -> List[SQLModel]:
+    def get_all(self) -> List[T]:
         """
         Retrieve all records.
 
         Returns:
-            List[SQLModel]: A list of all records.
+            List[T]: A list of all records.
         """
         with self._managed_session() as session:
             statement = select(self.model)
             return session.exec(statement).all()
 
-    def get_many(self, ids: List[Union[int, str]]) -> List[SQLModel]:
-        """
-        Batch retrieve multiple records.
+    def get_many(self, ids: List[Union[int, str]]) -> List[T]:
+        """Batch retrieve multiple records.
 
         Args:
             ids (List[Union[int, str]]): A list of IDs to retrieve.
 
         Returns:
-            List[SQLModel]: A list of retrieved records.
+            List[T]: A list of retrieved records.
         """
         with self._managed_session() as session:
-            statement = select(self.model).where(self.model.id.in_(ids))
+            statement = select(self.model).where(getattr(self.model, "id").in_(ids))
             return session.exec(statement).all()
 
-    def filter(self, **kwargs) -> List[SQLModel]:
+    def filter(self, **kwargs: Any) -> List[T]:
         """
         Conditional query.
 
@@ -300,7 +318,7 @@ class BaseStore(ABC):
                 For 'in' queries, pass field__in=[value1, value2]
 
         Returns:
-            List[SQLModel]: A list of records matching the conditions.
+            List[T]: A list of records matching the conditions.
         """
         with self._managed_session() as session:
             statement = select(self.model)
@@ -336,7 +354,7 @@ class BaseStore(ABC):
             }
 
 
-if __name__ == "__main__":
+if __name__ == "__main__":  # type: ignore
     import argparse
     from typing import Optional
 
@@ -356,13 +374,13 @@ if __name__ == "__main__":
     db_url = config[args.which]["connection_string"]
 
     # Test Model
-    class TestModel(SQLModel, table=True):
-        id: Optional[int] = Field(default=None, primary_key=True)
+    class TestModel(HasIdAndMetadata, table=True):
+        id: int = Field(primary_key=True)
         name: str
         value: int
 
     # Initialize storage, pass in db_url and model list, automatically create tables
-    store = BaseStore(db_url, [TestModel])
+    store = BaseStore[TestModel](db_url, [TestModel])
 
     # Clean up any existing test data before starting
     TestModel.metadata.drop_all(store.engine)
@@ -370,7 +388,8 @@ if __name__ == "__main__":
 
     # Test CRUD operations
     print("\n=== Test single insertion ===")
-    obj1 = store.insert({"name": "test1", "value": 100})
+    obj1 = store.insert({"id": 1, "name": "test1", "value": 100})
+    assert isinstance(obj1, TestModel)
     print(f"Insertion result: {obj1}")
     assert obj1 is not None, "Single insert failed"
     assert obj1.name == "test1", "Inserted name incorrect"
@@ -378,43 +397,47 @@ if __name__ == "__main__":
 
     print("\n=== Test batch insertion ===")
     objs = store.insert(
-        [{"name": "test2", "value": 200}, {"name": "test3", "value": 300}]
+        [
+            {"id": 2, "name": "test2", "value": 200},
+            {"id": 3, "name": "test3", "value": 300},
+        ]
     )
     print(f"Batch insertion result: {objs}")
+    assert isinstance(objs, list), "Batch insert should return list"
     assert len(objs) == 2, "Batch insert count incorrect"
     assert objs[0].name == "test2", "Batch insert name 1 incorrect"
     assert objs[1].name == "test3", "Batch insert name 2 incorrect"
 
     # Get inserted objects with their IDs
-    objs = store.filter(name__in=["test2", "test3"])
+    objs: List[TestModel] = store.filter(name__in=["test2", "test3"])  # type: ignore
     assert len(objs) == 2, "Failed to retrieve batch inserted objects"
 
     print("\n=== Test query ===")
-    obj = store.get(obj1.id)
+    obj: Optional[TestModel] = store.get(obj1.id)
     print(f"Query result: {obj}")
     assert obj is not None, "Query failed"
     assert obj.id == obj1.id, "Queried object ID mismatch"
 
     print("\n=== Test update ===")
-    updated = store.update(obj1.id, {"value": 200})
+    updated: Optional[TestModel] = store.update(obj1.id, {"value": 200})  # type: ignore
     print(f"Update result: {updated}")
     assert updated is not None, "Update failed"
     assert updated.value == 200, "Updated value incorrect"
 
     print("\n=== Test conditional query ===")
-    results = store.filter(name="test2")
+    results: List[TestModel] = store.filter(name="test2")  # type: ignore
     print(f"Conditional query result: {results}")
     assert len(results) == 1, "Conditional query count incorrect"
     assert results[0].name == "test2", "Conditional query result incorrect"
 
     print("\n=== Test deletion ===")
-    deleted = store.delete(obj1.id)
+    deleted: bool = store.delete(obj1.id)  # type: ignore
     print(f"Deletion result: {deleted}")
     assert deleted, "Deletion failed"
     assert store.get(obj1.id) is None, "Object still exists after deletion"
 
     print("\n=== Test get_all ===")
-    all_objs = store.get_all()
+    all_objs: List[TestModel] = store.get_all()  # type: ignore
     print(f"All objects count: {len(all_objs)}")
     print(f"First object: {all_objs[0] if all_objs else None}")
     assert len(all_objs) == 2, "get_all count incorrect"
@@ -423,8 +446,8 @@ if __name__ == "__main__":
     )
 
     print("\n=== Test get_many ===")
-    ids = [obj.id for obj in objs]
-    many_objs = store.get_many(ids)
+    ids: List[int] = [obj.id for obj in objs]  # type: ignore
+    many_objs: List[TestModel] = store.get_many(ids)  # type: ignore
     print(f"Retrieved objects count: {len(many_objs)}")
     print(f"First retrieved object: {many_objs[0] if many_objs else None}")
     assert len(many_objs) == 2, "get_many count incorrect"

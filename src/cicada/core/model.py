@@ -316,8 +316,11 @@ class MultiModalModel(ABC):
         state = self.StreamState()
 
         # 处理所有chunks
-        for chunk in response:
-            self._process_stream_chunk(chunk, state, tools)
+        try:
+            for chunk in response:
+                self._process_stream_chunk(chunk, state, tools)
+        except Exception as e:
+            cprint(f"Error processing stream chunk: {e}", "red")
 
         if state.content or state.reasoning_content:
             print()  # 流式结束后换行

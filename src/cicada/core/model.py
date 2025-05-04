@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import copy
-import json
 import logging
 import sys
 from abc import ABC
@@ -252,28 +251,35 @@ class MultiModalModel(ABC):
         """
         if delta.content:
             state.content += delta.content
-            cprint(delta.content, "white", end="", flush=True)
+            if self.stream_target:
+                cprint(
+                    delta.content, "white", end="", flush=True, file=self.stream_target
+                )
 
     def _process_reasoning_chunk(
         self,
         delta: Any,
         state: StreamState,
-        stdout_enabled: bool = False,
     ) -> None:
         """Process reasoning content chunk and update state.
 
         Args:
             delta: Delta object from API response
             state: StreamState instance to update
-            stdout_enabled (bool): Whether to stream to stdout (default: False)
         """
 
         for field_name in ["reasoning_content", "reasoning"]:
             if hasattr(delta, field_name) and getattr(delta, field_name):
                 reasoning_content = getattr(delta, field_name)
                 state.reasoning_content += reasoning_content
-                if stdout_enabled:
-                    cprint(reasoning_content, "cyan", end="", flush=True)
+                if self.stream_target:
+                    cprint(
+                        reasoning_content,
+                        "cyan",
+                        end="",
+                        flush=True,
+                        file=self.stream_target,
+                    )
                 break
 
     def _process_tool_call_chunk(

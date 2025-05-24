@@ -6,7 +6,7 @@
 SPHINXOPTS    ?=
 SPHINXBUILD   ?= sphinx-build
 SOURCEDIR     = source
-BUILDDIR      = build
+BUILDDIR      = $(shell if [ -n "$$READTHEDOCS_OUTPUT" ]; then echo "$$READTHEDOCS_OUTPUT"; else echo "build"; fi)
 DOCS_DIR      = $(BUILDDIR)/html  # Default Sphinx docs path
 
 # Put it first so that "make" without argument is like "make help".
